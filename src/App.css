@@ -1,0 +1,89 @@
+/* Walang Gutom Program - Custom Styles */
+
+/* Sidebar styles */
+.sidebar {
+    @apply bg-slate-800 text-white min-h-screen w-64 fixed left-0 top-0 z-40;
+}
+
+.sidebar-link {
+    @apply flex items-center gap-3 px-4 py-3 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors rounded-md mx-2;
+}
+
+.sidebar-link.active {
+    @apply bg-emerald-700 text-white;
+}
+
+/* Main content area */
+.main-content {
+    @apply ml-64 min-h-screen bg-stone-50;
+}
+
+/* Header */
+.app-header {
+    @apply bg-white/80 backdrop-blur-md border-b border-stone-200 sticky top-0 z-30 px-6 py-4;
+}
+
+/* Cards */
+.stat-card {
+    @apply bg-white border border-stone-200 rounded-lg p-6 shadow-sm hover:border-emerald-500/50 transition-all duration-200;
+}
+
+/* Form styles */
+.form-group {
+    @apply space-y-2;
+}
+
+.form-label {
+    @apply text-sm font-medium text-slate-700;
+}
+
+/* Table container */
+.table-container {
+    @apply bg-white border border-stone-200 rounded-lg overflow-hidden shadow-sm;
+}
+
+/* Login page */
+.login-hero {
+    @apply relative bg-cover bg-center;
+}
+
+.login-hero::before {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-r from-slate-900/90 to-slate-900/70;
+}
+
+/* Empty state */
+.empty-state {
+    @apply text-center py-12 text-slate-500;
+}
+
+/* Loading spinner */
+.spinner {
+    @apply animate-spin h-5 w-5 border-2 border-emerald-600 border-t-transparent rounded-full;
+}
+
+/* Mobile responsive */
+@media (max-width: 1024px) {
+    .sidebar {
+        @apply transform -translate-x-full;
+    }
+    
+    .sidebar.open {
+        @apply translate-x-0;
+    }
+    
+    .main-content {
+        @apply ml-0;
+    }
+}
+
+/* Print styles */
+@media print {
+    .sidebar, .app-header {
+        display: none !important;
+    }
+    
+    .main-content {
+        margin-left: 0 !important;
+    }
+}
