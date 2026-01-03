@@ -1,7 +1,13 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from "react";
 import axios from "axios";
 
-const API_URL = `${process.env.REACT_APP_BACKEND_URL || "http://localhost:5000"}/api`;
+const getBaseUrl = () => {
+  let url = process.env.REACT_APP_BACKEND_URL || "http://localhost:5000";
+  // Remove trailing slashes or dots
+  return url.replace(/[\/\.]+$/, "");
+};
+
+const API_URL = `${getBaseUrl()}/api`;
 
 const AuthContext = createContext(null);
 
