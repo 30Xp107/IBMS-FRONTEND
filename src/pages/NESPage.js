@@ -46,19 +46,65 @@ const NESPage = () => {
   const { api, isAdmin } = useAuth();
   const [nesRecords, setNesRecords] = useState([]);
   const [beneficiaries, setBeneficiaries] = useState([]);
+  const [areas, setAreas] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [regionFilter, setRegionFilter] = useState("all");
+  const [provinceFilter, setProvinceFilter] = useState("all");
+  const [municipalityFilter, setMunicipalityFilter] = useState("all");
+  const [barangayFilter, setBarangayFilter] = useState("all");
   const [frmFilter, setFrmFilter] = useState(getCurrentFrmPeriod());
   const [attendanceFilter, setAttendanceFilter] = useState("all");
   const [sortConfig, setSortConfig] = useState({ key: "last_name", direction: "asc" });
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalBeneficiaries, setTotalBeneficiaries] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [itemsPerPage] = useState(10);
 
   useEffect(() => {
     fetchData();
-  }, [frmFilter]);
+  }, [currentPage, search, frmFilter, attendanceFilter, regionFilter, provinceFilter, municipalityFilter, barangayFilter]);
+
+  useEffect(() => {
+    fetchAreas("region");
+  }, []);
+
+  const fetchAreas = async (type = null, parentId = null) => {
+    try {
+      // Don't fetch if both are null to avoid loading all 40,000+ areas
+      if (!type && !parentId) return;
+
+      let query = `?limit=500`; // Use a large enough limit for any single level
+      if (type && parentId) {
+        query += `&type=${type}&parent_id=${parentId}`;
+      } else if (type) {
+        query += `&type=${type}`;
+      } else if (parentId) {
+        query += `&parent_id=${parentId}`;
+      }
+
+      const response = await api.get(`/areas${query}`);
+      // Handle both paginated and non-paginated responses
+      const data = Array.isArray(response.data) ? response.data : (response.data.areas || []);
+      
+      const normalizedData = data.map((area) => ({
+        ...area,
+        id: String(area._id || area.id),
+        type: area.type?.toLowerCase(),
+        parent_id: area.parent_id ? (typeof area.parent_id === "object" ? String(area.parent_id?._id || area.parent_id?.id) : String(area.parent_id)) : ""
+      }));
+      
+      setAreas(prev => {
+        const existingIds = new Set(prev.map(a => a.id));
+        const newData = normalizedData.filter(a => !existingIds.has(a.id));
+        return [...prev, ...newData];
+      });
+    } catch (error) {
+      console.error("Failed to load areas");
+    }
+  };
 
   const handleSort = (key) => {
     let direction = "asc";
@@ -76,25 +122,41 @@ const NESPage = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [nesResponse, benResponse] = await Promise.all([
-        api.get(`/nes?frm_period=${encodeURIComponent(frmFilter)}`),
-        api.get("/beneficiaries")
-      ]);
+      let benQuery = `?page=${currentPage}&limit=${itemsPerPage}`;
+      if (search) benQuery += `&search=${encodeURIComponent(search)}`;
+      if (regionFilter !== "all") benQuery += `&region=${encodeURIComponent(regionFilter)}`;
+      if (provinceFilter !== "all") benQuery += `&province=${encodeURIComponent(provinceFilter)}`;
+      if (municipalityFilter !== "all") benQuery += `&municipality=${encodeURIComponent(municipalityFilter)}`;
+      if (barangayFilter !== "all") benQuery += `&barangay=${encodeURIComponent(barangayFilter)}`;
 
-      // Normalize IDs
-      const normalizedNes = nesResponse.data.map(r => ({
-        ...r,
-        id: String(r._id || r.id),
-        beneficiary_id: r.beneficiary_id ? (typeof r.beneficiary_id === "object" ? String(r.beneficiary_id?._id || r.beneficiary_id?.id) : String(r.beneficiary_id)) : ""
-      }));
-  
-      const normalizedBen = benResponse.data.map(b => ({
+      const [benResponse] = await Promise.all([
+        api.get(`/beneficiaries${benQuery}`)
+      ]);
+      
+      const benData = benResponse.data;
+      const benList = benData.beneficiaries || [];
+      const benIds = benList.map(b => String(b._id || b.id));
+      
+      setBeneficiaries(benList.map(b => ({
         ...b,
         id: String(b._id || b.id)
-      }));
-
-      setNesRecords(normalizedNes);
-      setBeneficiaries(normalizedBen);
+      })));
+      
+      setTotalBeneficiaries(benData.total || 0);
+      setTotalPages(benData.totalPages || 1);
+      
+      // Now fetch NES records only for these beneficiaries
+      if (benIds.length > 0) {
+        const nesResponse = await api.get(`/nes?frm_period=${encodeURIComponent(frmFilter)}&beneficiary_ids=${benIds.join(",")}`);
+        const nesData = Array.isArray(nesResponse.data) ? nesResponse.data : (nesResponse.data.nesRecords || []);
+        setNesRecords(nesData.map(r => ({
+          ...r,
+          id: String(r._id || r.id),
+          beneficiary_id: r.beneficiary_id ? (typeof r.beneficiary_id === "object" ? String(r.beneficiary_id?._id || r.beneficiary_id?.id) : String(r.beneficiary_id)) : ""
+        })));
+      } else {
+        setNesRecords([]);
+      }
     } catch (error) {
       toast.error("Failed to load data");
     } finally {
@@ -104,14 +166,24 @@ const NESPage = () => {
 
   const handleUpdate = async (beneficiary, field, value) => {
     try {
-      const currentNes = nesRecords.find(r => r.beneficiary_id === beneficiary.id) || {};
+      const currentNes = nesRecords.find(r => r.beneficiary_id === beneficiary.id);
       
+      // If setting to "none", delete the record if it exists
+      if (field === "attendance" && value === "none") {
+        if (currentNes && currentNes.id) {
+          await api.delete(`/nes/${currentNes.id}`);
+          setNesRecords(prev => prev.filter(r => r.beneficiary_id !== beneficiary.id));
+          toast.success("Record cleared");
+        }
+        return;
+      }
+
       const updateData = {
         beneficiary_id: beneficiary.id,
         hhid: beneficiary.hhid,
         frm_period: frmFilter,
-        attendance: field === "attendance" ? value : (currentNes.attendance || ""),
-        reason: field === "reason" ? value : (currentNes.reason || ""),
+        attendance: field === "attendance" ? value : (currentNes?.attendance || "none"),
+        reason: field === "reason" ? value : (currentNes?.reason || ""),
         date_recorded: new Date().toISOString().split("T")[0],
       };
 
@@ -141,6 +213,7 @@ const NESPage = () => {
 
       toast.success("Record updated");
     } catch (error) {
+      console.error("Update error:", error);
       toast.error("Failed to update record");
     }
   };
@@ -194,41 +267,31 @@ const NESPage = () => {
     setCurrentPage(1);
   }, [search, attendanceFilter, sortConfig]);
 
-  const filteredBeneficiaries = beneficiaries.filter((b) => {
-    const nes = nesRecords.find(r => r.beneficiary_id === b.id);
-    const attendance = nes?.attendance || "none";
-    
-    const matchesSearch = b.hhid.toLowerCase().includes(search.toLowerCase()) || 
-                         `${b.first_name} ${b.last_name}`.toLowerCase().includes(search.toLowerCase());
-    const matchesAttendance = attendanceFilter === "all" || attendance === attendanceFilter;
-    
-    return matchesSearch && matchesAttendance;
-  }).sort((a, b) => {
-    const key = sortConfig.key;
+  // Client-side sorting for the current page
+  const sortedBeneficiaries = [...beneficiaries].sort((a, b) => {
+    if (!sortConfig.key) return 0;
     const direction = sortConfig.direction === "asc" ? 1 : -1;
     
-    let aValue, bValue;
+    let aValue = a[sortConfig.key];
+    let bValue = b[sortConfig.key];
     
-    if (key === "attendance") {
-      const nesA = nesRecords.find(r => r.beneficiary_id === a.id);
-      const nesB = nesRecords.find(r => r.beneficiary_id === b.id);
-      aValue = nesA?.attendance || "none";
-      bValue = nesB?.attendance || "none";
-    } else {
-      aValue = String(a[key] || "").toLowerCase();
-      bValue = String(b[key] || "").toLowerCase();
+    // Handle null/undefined
+    if (aValue === null || aValue === undefined) aValue = "";
+    if (bValue === null || bValue === undefined) bValue = "";
+    
+    // String comparison
+    if (typeof aValue === "string" && typeof bValue === "string") {
+      aValue = aValue.toLowerCase();
+      bValue = bValue.toLowerCase();
     }
-
+    
     if (aValue < bValue) return -1 * direction;
     if (aValue > bValue) return 1 * direction;
     return 0;
   });
 
-  // Pagination logic
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredBeneficiaries.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredBeneficiaries.length / itemsPerPage);
+  const filteredBeneficiaries = sortedBeneficiaries;
+  const currentItems = sortedBeneficiaries;
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
@@ -255,26 +318,50 @@ const NESPage = () => {
       {/* Filters */}
       <Card className="border-stone-200 dark:border-slate-800 shadow-sm overflow-hidden">
         <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input
-                placeholder="Search by HHID or Name..."
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Input
+                  placeholder="Search by HHID or Name..."
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="pl-10 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="whitespace-nowrap dark:text-slate-300">FRM Period:</Label>
+                <Select value={frmFilter} onValueChange={(v) => {
+                  setFrmFilter(v);
                   setCurrentPage(1);
-                }}
-                className="pl-10 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
-              />
+                }}>
+                  <SelectTrigger className="w-full sm:w-48 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                    <SelectValue placeholder="Select Period" />
+                  </SelectTrigger>
+                  <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
+                    {MONTHS.map((month) => {
+                      const year = new Date().getFullYear();
+                      return (
+                        <SelectItem key={month} value={`${month} ${year}`}>
+                          {month} {year}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
+
+            <div className="flex flex-wrap items-center gap-2">
               <Select value={attendanceFilter} onValueChange={(v) => {
                 setAttendanceFilter(v);
                 setCurrentPage(1);
               }}>
                 <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
-                  <SelectValue placeholder="Filter Attendance" />
+                  <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
                   <SelectItem value="all">All Status</SelectItem>
@@ -284,25 +371,110 @@ const NESPage = () => {
                 </SelectContent>
               </Select>
 
-              <Label className="whitespace-nowrap dark:text-slate-300 ml-2">FRM Period:</Label>
-              <Select value={frmFilter} onValueChange={(v) => {
-                setFrmFilter(v);
+              <Select value={regionFilter} onValueChange={(val) => {
+                setRegionFilter(val);
+                setProvinceFilter("all");
+                setMunicipalityFilter("all");
+                setBarangayFilter("all");
                 setCurrentPage(1);
+                const regionObj = areas.find(a => a.name === val && a.type === "region");
+                if (regionObj) fetchAreas("province", regionObj.id);
               }}>
-                <SelectTrigger className="w-full sm:w-48 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
-                  <SelectValue placeholder="Select Period" />
+                <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                  <SelectValue placeholder="Region" />
                 </SelectTrigger>
-                <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
-                  {MONTHS.map((month) => {
-                    const year = new Date().getFullYear();
-                    return (
-                      <SelectItem key={month} value={`${month} ${year}`}>
-                        {month} {year}
-                      </SelectItem>
-                    );
-                  })}
+                <SelectContent>
+                  <SelectItem value="all">All Regions</SelectItem>
+                  {areas.filter(a => a.type === "region").map(r => (
+                    <SelectItem key={r.id} value={r.name}>{r.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+
+              <Select 
+                value={provinceFilter} 
+                onValueChange={(val) => {
+                  setProvinceFilter(val);
+                  setMunicipalityFilter("all");
+                  setBarangayFilter("all");
+                  setCurrentPage(1);
+                  const regionObj = areas.find(a => a.name === regionFilter && a.type === "region");
+                  const provinceObj = areas.find(a => a.name === val && a.type === "province" && (regionObj ? a.parent_id === regionObj.id : true));
+                  if (provinceObj) fetchAreas("municipality", provinceObj.id);
+                }}
+                disabled={regionFilter === "all"}
+              >
+                <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                  <SelectValue placeholder="Province" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Provinces</SelectItem>
+                  {areas.filter(a => a.type === "province" && (regionFilter !== "all" ? a.parent_id === areas.find(r => r.name === regionFilter)?.id : true)).map(p => (
+                    <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select 
+                value={municipalityFilter} 
+                onValueChange={(val) => {
+                  setMunicipalityFilter(val);
+                  setBarangayFilter("all");
+                  setCurrentPage(1);
+                  const regionObj = areas.find(a => a.name === regionFilter && a.type === "region");
+                  const provinceObj = areas.find(a => a.name === provinceFilter && a.type === "province" && (regionObj ? a.parent_id === regionObj.id : true));
+                  const municipalityObj = areas.find(a => a.name === val && a.type === "municipality" && (provinceObj ? a.parent_id === provinceObj.id : true));
+                  if (municipalityObj) fetchAreas("barangay", municipalityObj.id);
+                }}
+                disabled={provinceFilter === "all"}
+              >
+                <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                  <SelectValue placeholder="Municipality" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Municipalities</SelectItem>
+                  {areas.filter(a => a.type === "municipality" && (provinceFilter !== "all" ? a.parent_id === areas.find(p => p.name === provinceFilter)?.id : true)).map(m => (
+                    <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select 
+                value={barangayFilter} 
+                onValueChange={(val) => {
+                  setBarangayFilter(val);
+                  setCurrentPage(1);
+                }}
+                disabled={municipalityFilter === "all"}
+              >
+                <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                  <SelectValue placeholder="Barangay" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Barangays</SelectItem>
+                  {areas.filter(a => a.type === "barangay" && (municipalityFilter !== "all" ? a.parent_id === areas.find(m => m.name === municipalityFilter)?.id : true)).map(b => (
+                    <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {(regionFilter !== "all" || provinceFilter !== "all" || municipalityFilter !== "all" || barangayFilter !== "all" || attendanceFilter !== "all") && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => {
+                    setRegionFilter("all");
+                    setProvinceFilter("all");
+                    setMunicipalityFilter("all");
+                    setBarangayFilter("all");
+                    setAttendanceFilter("all");
+                    setCurrentPage(1);
+                  }}
+                  className="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+                >
+                  Clear
+                </Button>
+              )}
             </div>
           </div>
         </CardContent>
@@ -313,7 +485,7 @@ const NESPage = () => {
         <CardHeader className="pb-3 border-b dark:border-slate-800">
           <CardTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
             <FileText className="w-5 h-5 text-emerald-600 dark:text-emerald-500" />
-            NES Records ({filteredBeneficiaries.length})
+            NES Records ({totalBeneficiaries})
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">

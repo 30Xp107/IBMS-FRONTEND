@@ -40,7 +40,7 @@ const DashboardPage = () => {
       if (isAdmin) {
         try {
           const logsRes = await api.get("/audit-logs?limit=5");
-          setRecentLogs(logsRes.data);
+          setRecentLogs(logsRes.data.logs || []);
         } catch (logError) {
           console.error("Failed to load audit logs:", logError);
           // Don't show toast error for logs if the main stats loaded

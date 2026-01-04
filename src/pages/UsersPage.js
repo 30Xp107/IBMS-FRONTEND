@@ -41,12 +41,81 @@ const UsersPage = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedAreas, setSelectedAreas] = useState([]);
+  const [selectedRegionFilter, setSelectedRegionFilter] = useState("all");
   const [selectedProvinceFilter, setSelectedProvinceFilter] = useState("all");
   const [sortConfig, setSortConfig] = useState({ key: "name", direction: "asc" });
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [itemsPerPage] = useState(10);
+
   useEffect(() => {
-    Promise.all([fetchUsers(), fetchAreas()]);
+    fetchUsers();
+  }, [currentPage, search, statusFilter]);
+
+  useEffect(() => {
+    fetchAreas("region");
   }, []);
+
+  const fetchUsers = async () => {
+    setIsLoading(true);
+    try {
+      let query = `?page=${currentPage}&limit=${itemsPerPage}`;
+      if (search) query += `&search=${encodeURIComponent(search)}`;
+      if (statusFilter) query += `&status=${encodeURIComponent(statusFilter)}`;
+
+      const response = await api.get(`/users${query}`);
+      const data = response.data;
+      const usersData = data.users || [];
+      
+      const normalizedUsers = usersData.map(user => ({
+        ...user,
+        id: String(user._id || user.id)
+      }));
+      setUsers(normalizedUsers);
+      setTotalUsers(data.total || normalizedUsers.length);
+      setTotalPages(data.totalPages || 1);
+    } catch (error) {
+      toast.error("Failed to load users");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchAreas = async (type = null, parentId = null) => {
+    try {
+      // Don't fetch if both are null to avoid loading all 40,000+ areas
+      if (!type && !parentId) return;
+
+      let query = `?limit=500`; // Use a large enough limit for any single level
+      if (type && parentId) {
+        query += `&type=${type}&parent_id=${parentId}`;
+      } else if (type) {
+        query += `&type=${type}`;
+      } else if (parentId) {
+        query += `&parent_id=${parentId}`;
+      }
+
+      const response = await api.get(`/areas${query}`);
+      const data = Array.isArray(response.data) ? response.data : (response.data.areas || []);
+      
+      const normalizedData = data.map((area) => ({
+        ...area,
+        id: String(area._id || area.id),
+        type: area.type?.toLowerCase(),
+        parent_id: area.parent_id ? (typeof area.parent_id === "object" ? String(area.parent_id?._id || area.parent_id?.id) : String(area.parent_id)) : ""
+      }));
+      
+      setAreas(prev => {
+        const existingIds = new Set(prev.map(a => a.id));
+        const newData = normalizedData.filter(a => !existingIds.has(a.id));
+        return [...prev, ...newData];
+      });
+    } catch (error) {
+      console.error("Failed to load areas");
+    }
+  };
 
   const handleSort = (key) => {
     let direction = "asc";
@@ -61,43 +130,10 @@ const UsersPage = () => {
     return sortConfig.direction === "asc" ? <ArrowUp className="w-3 h-3 ml-1" /> : <ArrowDown className="w-3 h-3 ml-1" />;
   };
 
-  const fetchUsers = async () => {
-    try {
-      const response = await api.get("/users");
-      // Backend returns { success: true, countUser, user } where user is the array
-      const usersData = Array.isArray(response.data) 
-        ? response.data 
-        : (response.data.user || response.data.users || []);
-      // Normalize MongoDB _id to id for frontend compatibility
-      const normalizedUsers = usersData.map(user => ({
-        ...user,
-        id: String(user._id || user.id)
-      }));
-      setUsers(normalizedUsers);
-    } catch (error) {
-      toast.error("Failed to load users");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchAreas = async () => {
-    try {
-      const response = await api.get("/areas");
-      const normalizedAreas = response.data.map(area => ({
-        ...area,
-        id: String(area._id || area.id),
-        parent_id: area.parent_id ? (typeof area.parent_id === "object" ? String(area.parent_id?._id || area.parent_id?.id) : String(area.parent_id)) : ""
-      }));
-      setAreas(normalizedAreas);
-    } catch (error) {
-      console.error("Failed to load areas");
-    }
-  };
-
   const handleApprove = (user) => {
     setSelectedUser(user);
     setSelectedAreas(user.assigned_areas || []);
+    setSelectedRegionFilter("all");
     setSelectedProvinceFilter("all");
     setIsDialogOpen(true);
   };
@@ -190,33 +226,30 @@ const UsersPage = () => {
     toast.success("Users list exported successfully");
   };
 
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      user.name.toLowerCase().includes(search.toLowerCase()) ||
-      user.email.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = statusFilter ? user.status === statusFilter : true;
-    return matchesSearch && matchesStatus;
-  }).sort((a, b) => {
-    const key = sortConfig.key;
+  const filteredUsers = [...users].sort((a, b) => {
+    if (!sortConfig.key) return 0;
     const direction = sortConfig.direction === "asc" ? 1 : -1;
     
-    let aValue, bValue;
-
-    if (key === "assigned_areas") {
-      aValue = (a.assigned_areas || []).length;
-      bValue = (b.assigned_areas || []).length;
-    } else if (key === "createdAt") {
-      aValue = new Date(a.createdAt).getTime();
-      bValue = new Date(b.createdAt).getTime();
-    } else {
-      aValue = String(a[key] || "").toLowerCase();
-      bValue = String(b[key] || "").toLowerCase();
+    let aValue = a[sortConfig.key];
+    let bValue = b[sortConfig.key];
+    
+    // Handle null/undefined
+    if (aValue === null || aValue === undefined) aValue = "";
+    if (bValue === null || bValue === undefined) bValue = "";
+    
+    // String comparison
+    if (typeof aValue === "string" && typeof bValue === "string") {
+      aValue = aValue.toLowerCase();
+      bValue = bValue.toLowerCase();
     }
-
+    
     if (aValue < bValue) return -1 * direction;
     if (aValue > bValue) return 1 * direction;
     return 0;
   });
+
+  const currentUsers = filteredUsers;
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -477,59 +510,78 @@ const UsersPage = () => {
               )}
             </div>
 
-            <div className="space-y-3">
-              <div className="space-y-2">
-                <Label className="dark:text-slate-300">Filter by Province</Label>
-                <Select value={selectedProvinceFilter} onValueChange={setSelectedProvinceFilter}>
-                  <SelectTrigger className="w-full bg-white dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
-                    <SelectValue placeholder="All Provinces" />
-                  </SelectTrigger>
-                  <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
-                    <SelectItem value="all">All Provinces</SelectItem>
-                    {areas
-                        .filter((p) => p.type?.toLowerCase() === "province")
-                        .map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.name}
-                          </SelectItem>
-                        ))}
-                  </SelectContent>
-                </Select>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs dark:text-slate-400">Region</Label>
+                  <Select value={selectedRegionFilter} onValueChange={(val) => {
+                    setSelectedRegionFilter(val);
+                    setSelectedProvinceFilter("all");
+                    if (val !== "all") fetchAreas("province", val);
+                  }}>
+                    <SelectTrigger className="h-8 text-xs dark:bg-slate-900 dark:border-slate-700">
+                      <SelectValue placeholder="Region" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Regions</SelectItem>
+                      {areas.filter(a => a.type === "region").map(r => (
+                        <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs dark:text-slate-400">Province</Label>
+                  <Select 
+                    value={selectedProvinceFilter} 
+                    onValueChange={(val) => {
+                      setSelectedProvinceFilter(val);
+                      if (val !== "all") fetchAreas("municipality", val);
+                    }}
+                    disabled={selectedRegionFilter === "all"}
+                  >
+                    <SelectTrigger className="h-8 text-xs dark:bg-slate-900 dark:border-slate-700">
+                      <SelectValue placeholder="Province" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Provinces</SelectItem>
+                      {areas.filter(a => a.type === "province" && a.parent_id === selectedRegionFilter).map(p => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="space-y-2">
-                <Label className="dark:text-slate-300">Assign Areas</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="dark:text-slate-300">Assign Areas</Label>
+                  <span className="text-xs text-slate-500">{selectedAreas.length} selected</span>
+                </div>
                 <div className="max-h-60 overflow-y-auto border border-stone-200 dark:border-slate-800 rounded-lg p-3 space-y-2 bg-white dark:bg-slate-900/50 shadow-sm">
                   {areas.length === 0 ? (
-                    <p className="text-sm text-slate-400 dark:text-slate-600">No areas available. Create areas first.</p>
+                    <p className="text-sm text-slate-400 dark:text-slate-600">No areas available.</p>
                   ) : (
                     areas
                       .filter((area) => {
-                        const type = area.type?.toLowerCase();
+                        // Logic:
+                        // 1. If nothing selected, show Regions
+                        // 2. If Region selected, show its Provinces
+                        // 3. If Province selected, show its Municipalities
+                        // 4. If Municipality selected, show its Barangays
                         
-                        // If no province filter, only show provinces to keep it clean (Province first)
-                        if (selectedProvinceFilter === "all") {
-                          return type === "province";
+                        if (selectedProvinceFilter !== "all") {
+                          return area.parent_id === selectedProvinceFilter && area.type === "municipality";
                         }
-                        
-                        // If a province is selected, show its municipalities and their barangays
-                        if (area.parent_id === selectedProvinceFilter) return true;
-                        
-                        // Also show barangays if their parent municipality is in the selected province
-                        if (type === "barangay") {
-                          const parentMunicipality = areas.find(a => a.id === area.parent_id);
-                          return parentMunicipality && parentMunicipality.parent_id === selectedProvinceFilter;
+                        if (selectedRegionFilter !== "all") {
+                          return area.parent_id === selectedRegionFilter && area.type === "province";
                         }
-
-                        return false;
+                        return area.type === "region";
                       })
-                      .sort((a, b) => {
-                        // Sort by type: province -> municipality -> barangay
-                        const order = { province: 0, municipality: 1, barangay: 2 };
-                        return order[a.type] - order[b.type];
-                      })
+                      .sort((a, b) => a.name.localeCompare(b.name))
                       .map((area) => (
-                        <div key={area.id} className={`flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 p-1 rounded transition-colors ${area.type === 'barangay' ? 'ml-6' : area.type === 'municipality' ? 'ml-3' : ''}`}>
+                        <div key={area.id} className="flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 p-1 rounded transition-colors">
                           <Checkbox
                             id={area.id}
                             checked={selectedAreas.includes(area.id)}
@@ -537,23 +589,19 @@ const UsersPage = () => {
                             className="dark:border-slate-700"
                           />
                           <label htmlFor={area.id} className="text-sm cursor-pointer flex justify-between w-full dark:text-slate-300">
-                            <span className={area.type === 'province' ? 'font-bold' : area.type === 'municipality' ? 'font-semibold' : ''}>
-                              {area.name}
-                            </span>
+                            <span>{area.name}</span>
                             <span className="text-slate-400 dark:text-slate-500 text-xs">({area.type})</span>
                           </label>
                         </div>
                       ))
                   )}
                   {areas.length > 0 && areas.filter(area => {
-                    const type = area.type?.toLowerCase();
-                    if (selectedProvinceFilter === "all") return type === "province";
-                    return area.parent_id === selectedProvinceFilter || (
-                      type === "barangay" && areas.find(m => m.id === area.parent_id)?.parent_id === selectedProvinceFilter
-                    );
+                    if (selectedProvinceFilter !== "all") return area.parent_id === selectedProvinceFilter && area.type === "municipality";
+                    if (selectedRegionFilter !== "all") return area.parent_id === selectedRegionFilter && area.type === "province";
+                    return area.type === "region";
                   }).length === 0 && (
                     <p className="text-sm text-slate-400 dark:text-slate-600 text-center py-2">
-                      {selectedProvinceFilter === "all" ? "No provinces found." : "No municipalities found for this province."}
+                      No areas found for this selection.
                     </p>
                   )}
                 </div>

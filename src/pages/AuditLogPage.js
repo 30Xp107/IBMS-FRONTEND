@@ -39,21 +39,26 @@ const AuditLogPage = () => {
   const [selectedLog, setSelectedLog] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortConfig, setSortConfig] = useState({ key: "timestamp", direction: "asc" });
+  const [sortConfig, setSortConfig] = useState({ key: "timestamp", direction: "desc" });
+  const [totalLogs, setTotalLogs] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const itemsPerPage = 10;
 
   useEffect(() => {
     fetchLogs();
-  }, []);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, moduleFilter, sortConfig]);
+  }, [currentPage, moduleFilter, searchQuery]);
 
   const fetchLogs = async () => {
+    setIsLoading(true);
     try {
-      const response = await api.get("/audit-logs?limit=50000");
-      setLogs(response.data);
+      let query = `?page=${currentPage}&limit=${itemsPerPage}`;
+      if (moduleFilter) query += `&module=${moduleFilter}`;
+      if (searchQuery) query += `&search=${searchQuery}`;
+      
+      const response = await api.get(`/audit-logs${query}`);
+      setLogs(response.data.logs || []);
+      setTotalLogs(response.data.total || 0);
+      setTotalPages(response.data.totalPages || 1);
     } catch (error) {
       toast.error("Failed to load audit logs");
     } finally {
@@ -74,41 +79,7 @@ const AuditLogPage = () => {
     return sortConfig.direction === "asc" ? <ArrowUp className="w-3 h-3 ml-1" /> : <ArrowDown className="w-3 h-3 ml-1" />;
   };
 
-  const filteredLogs = logs.filter((log) => {
-    const matchesModule = moduleFilter ? log.module === moduleFilter : true;
-    const query = searchQuery.toLowerCase();
-    const matchesSearch = 
-      !searchQuery ||
-      log.user_name?.toLowerCase().includes(query) ||
-      log.module?.toLowerCase().includes(query) ||
-      log.action?.toLowerCase().includes(query) ||
-      log.record_id?.toLowerCase().includes(query) ||
-      log.field_name?.toLowerCase().includes(query);
-    
-    return matchesModule && matchesSearch;
-  }).sort((a, b) => {
-    const key = sortConfig.key;
-    const direction = sortConfig.direction === "asc" ? 1 : -1;
-    
-    let aValue = a[key] || "";
-    let bValue = b[key] || "";
-
-    if (key === "timestamp") {
-      aValue = new Date(a.timestamp || a.createdAt).getTime();
-      bValue = new Date(b.timestamp || b.createdAt).getTime();
-    }
-
-    if (aValue < bValue) return -1 * direction;
-    if (aValue > bValue) return 1 * direction;
-    return 0;
-  });
-
   // Pagination logic
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentLogs = filteredLogs.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
-
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
   const handleRowClick = (log) => {
@@ -116,48 +87,86 @@ const AuditLogPage = () => {
     setIsModalOpen(true);
   };
 
-  const handleExport = () => {
-    if (filteredLogs.length === 0) {
-      toast.error("No data to export");
-      return;
+  const handleExport = async () => {
+    try {
+      // For export, we might want to fetch more, but let's just export current view or all with a warning
+      const response = await api.get("/audit-logs?limit=1000"); // Export top 1000
+      const logsToExport = response.data.logs || [];
+      
+      if (logsToExport.length === 0) {
+        toast.error("No data to export");
+        return;
+      }
+
+      const exportData = logsToExport.map(log => {
+        const { date, time } = formatTimestamp(log.timestamp || log.createdAt);
+        return {
+          "Timestamp": `${date} ${time}`,
+          "User": log.user_name,
+          "Role": log.user_role,
+          "Action": log.action,
+          "Module": log.module,
+          "Record ID": log.record_id,
+          "Field": log.field_name || "-",
+          "Old Value": log.old_value || "-",
+          "New Value": log.new_value || "-"
+        };
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      
+      // Add column widths
+      const wscols = [
+        { wch: 20 }, // Timestamp
+        { wch: 20 }, // User
+        { wch: 15 }, // Role
+        { wch: 15 }, // Action
+        { wch: 15 }, // Module
+        { wch: 30 }, // Record ID
+        { wch: 20 }, // Field
+        { wch: 40 }, // Old Value
+        { wch: 40 }, // New Value
+      ];
+      worksheet["!cols"] = wscols;
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Audit_Logs");
+      XLSX.writeFile(workbook, `Audit_Logs_${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.success("Audit logs exported successfully");
+    } catch (error) {
+      toast.error("Export failed");
     }
-
-    const exportData = filteredLogs.map(log => {
-      const { date, time } = formatTimestamp(log.timestamp || log.createdAt);
-      return {
-        "Timestamp": `${date} ${time}`,
-        "User": log.user_name,
-        "Role": log.user_role,
-        "Action": log.action,
-        "Module": log.module,
-        "Record ID": log.record_id,
-        "Field": log.field_name || "-",
-        "Old Value": log.old_value || "-",
-        "New Value": log.new_value || "-"
-      };
-    });
-
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Audit_Logs");
-    
-    // Set column widths
-    const wscols = [
-      { wch: 25 }, // Timestamp
-      { wch: 20 }, // User
-      { wch: 15 }, // Role
-      { wch: 15 }, // Action
-      { wch: 15 }, // Module
-      { wch: 30 }, // Record ID
-      { wch: 20 }, // Field
-      { wch: 40 }, // Old Value
-      { wch: 40 }, // New Value
-    ];
-    worksheet["!cols"] = wscols;
-
-    XLSX.writeFile(workbook, `audit_logs_${new Date().toISOString().split('T')[0]}.xlsx`);
-    toast.success("Audit logs exported successfully");
   };
+
+  // Client-side sorting for the current page
+  const sortedLogs = [...logs].sort((a, b) => {
+    if (!sortConfig.key) return 0;
+    const direction = sortConfig.direction === "asc" ? 1 : -1;
+    
+    let aValue = a[sortConfig.key];
+    let bValue = b[sortConfig.key];
+    
+    // Handle null/undefined
+    if (aValue === null || aValue === undefined) aValue = "";
+    if (bValue === null || bValue === undefined) bValue = "";
+    
+    // Special case for timestamp/date
+    if (sortConfig.key === "timestamp" || sortConfig.key === "createdAt") {
+      return (new Date(aValue) - new Date(bValue)) * direction;
+    }
+    
+    // String comparison
+    if (typeof aValue === "string" && typeof bValue === "string") {
+      aValue = aValue.toLowerCase();
+      bValue = bValue.toLowerCase();
+    }
+    
+    if (aValue < bValue) return -1 * direction;
+    if (aValue > bValue) return 1 * direction;
+    return 0;
+  });
+
+  const displayLogs = sortedLogs;
 
   const getActionBadge = (action) => {
     switch (action) {
@@ -335,18 +344,13 @@ const AuditLogPage = () => {
         <CardHeader className="pb-3">
           <CardTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
             <ClipboardList className="w-5 h-5 text-emerald-600" />
-            Audit Logs ({filteredLogs.length})
+            Audit Logs ({totalLogs})
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
             <div className="flex items-center justify-center h-32">
               <div className="spinner" />
-            </div>
-          ) : filteredLogs.length === 0 ? (
-            <div className="text-center py-12 text-slate-500 dark:text-slate-400">
-              <ClipboardList className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No audit logs found</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -397,40 +401,57 @@ const AuditLogPage = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {currentLogs.map((log) => {
-                    const { date, time } = formatTimestamp(log.timestamp || log.createdAt);
-                    return (
+                  {displayLogs.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-12 text-slate-500">
+                        No logs found matching your criteria.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    displayLogs.map((log) => (
                       <TableRow 
-                        key={log._id || log.id} 
-                        className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors border-b dark:border-slate-800"
+                        key={log.id || log._id} 
+                        className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors"
                         onClick={() => handleRowClick(log)}
                       >
-                        <TableCell>
-                          <div className="text-sm">
-                            <div className="font-medium text-slate-800 dark:text-slate-200">{date}</div>
-                            <div className="text-slate-500 dark:text-slate-400">{time}</div>
+                        <TableCell className="py-3">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                              {formatTimestamp(log.timestamp || log.createdAt).date}
+                            </span>
+                            <span className="text-[10px] text-slate-500 dark:text-slate-500">
+                              {formatTimestamp(log.timestamp || log.createdAt).time}
+                            </span>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            <div className="font-medium text-slate-800 dark:text-slate-200">{log.user_name}</div>
-                            <div className="text-slate-500 dark:text-slate-400 capitalize">{log.user_role}</div>
+                        <TableCell className="py-3">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                              {log.user_name}
+                            </span>
+                            <span className="text-[10px] text-slate-500 dark:text-slate-500">
+                              {log.user_role}
+                            </span>
                           </div>
                         </TableCell>
-                        <TableCell>{getActionBadge(log.action)}</TableCell>
-                        <TableCell>{getModuleBadge(log.module)}</TableCell>
-                        <TableCell className="font-mono text-xs text-slate-500 dark:text-slate-400">
+                        <TableCell className="py-3">
+                          {getActionBadge(log.action)}
+                        </TableCell>
+                        <TableCell className="py-3">
+                          {getModuleBadge(log.module)}
+                        </TableCell>
+                        <TableCell className="py-3 font-mono text-xs text-slate-500 dark:text-slate-400">
                           {log.record_id ? `${log.record_id.substring(0, 8)}...` : "-"}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="py-3">
                           <div className="flex items-center justify-between">
                             {renderChanges(log)}
-                            <Eye className="w-4 h-4 text-slate-300 group-hover:text-slate-500 dark:text-slate-500" />
+                            <Eye className="w-4 h-4 text-slate-400" />
                           </div>
                         </TableCell>
                       </TableRow>
-                    );
-                  })}
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </div>
@@ -440,45 +461,33 @@ const AuditLogPage = () => {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 py-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => paginate(currentPage - 1)}
-            disabled={currentPage === 1}
-            className="dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
-          >
-            Previous
-          </Button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1)
-            .filter(page => {
-              // Show first, last, and pages around current
-              return page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1;
-            })
-            .map((page, index, array) => (
-              <div key={page} className="flex items-center">
-                {index > 0 && array[index - 1] !== page - 1 && (
-                  <span className="px-2 text-slate-400 dark:text-slate-600">...</span>
-                )}
-                <Button
-                  variant={currentPage === page ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => paginate(page)}
-                  className={`w-8 ${currentPage === page ? 'dark:bg-emerald-600 dark:text-white' : 'dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800'}`}
-                >
-                  {page}
-                </Button>
-              </div>
-            ))}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => paginate(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className="dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
-          >
-            Next
-          </Button>
+        <div className="flex items-center justify-between px-2 py-4">
+          <div className="text-xs text-slate-500 dark:text-slate-400">
+            Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalLogs)} of {totalLogs} logs
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => paginate(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="h-8 text-xs dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300"
+            >
+              Previous
+            </Button>
+            <div className="text-xs font-medium dark:text-slate-300">
+              Page {currentPage} of {totalPages}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => paginate(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="h-8 text-xs dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300"
+            >
+              Next
+            </Button>
+          </div>
         </div>
       )}
 

@@ -36,12 +36,15 @@ const BeneficiariesPage = () => {
   const [areas, setAreas] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [regionFilter, setRegionFilter] = useState("all");
   const [provinceFilter, setProvinceFilter] = useState("all");
   const [municipalityFilter, setMunicipalityFilter] = useState("all");
   const [barangayFilter, setBarangayFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortConfig, setSortConfig] = useState({ key: "last_name", direction: "asc" });
+  const [totalBeneficiaries, setTotalBeneficiaries] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const itemsPerPage = 10;
+  const [sortConfig, setSortConfig] = useState({ key: "last_name", direction: "asc" });
 
   const handleSort = (key) => {
     let direction = "asc";
@@ -68,32 +71,53 @@ const BeneficiariesPage = () => {
     barangay: "",
     municipality: "",
     province: "",
+    region: "",
     contact: "",
   });
 
   useEffect(() => {
     fetchBeneficiaries();
-    fetchAreas();
+  }, [currentPage, search, regionFilter, provinceFilter, municipalityFilter, barangayFilter]);
+
+  useEffect(() => {
+    fetchAreas("region");
   }, []);
 
-  const fetchAreas = async () => {
+  const fetchAreas = async (type = null, parentId = null) => {
     try {
-      const response = await api.get("/areas");
-      const normalizedData = response.data.map((area) => ({
+      // Don't fetch if both are null to avoid loading all 40,000+ areas
+      if (!type && !parentId) return [];
+
+      let query = `?limit=500`; // Use a large enough limit for any single level
+      if (type && parentId) {
+        query += `&type=${type}&parent_id=${parentId}`;
+      } else if (type) {
+        query += `&type=${type}`;
+      } else if (parentId) {
+        query += `&parent_id=${parentId}`;
+      }
+
+      const response = await api.get(`/areas${query}`);
+      const data = Array.isArray(response.data) ? response.data : (response.data.areas || []);
+      
+      const normalizedData = data.map((area) => ({
         ...area,
         id: String(area._id || area.id),
         type: area.type?.toLowerCase(),
         parent_id: area.parent_id ? (typeof area.parent_id === "object" ? String(area.parent_id?._id || area.parent_id?.id) : String(area.parent_id)) : ""
       }));
-      setAreas(normalizedData);
+      
+      setAreas(prev => {
+        const existingIds = new Set(prev.map(a => a.id));
+        const newData = normalizedData.filter(a => !existingIds.has(a.id));
+        return [...prev, ...newData];
+      });
+      return normalizedData;
     } catch (error) {
       console.error("Failed to load areas");
+      return [];
     }
   };
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search, provinceFilter, municipalityFilter, barangayFilter, sortConfig]);
 
   const normalizeGender = (gender) => {
     if (!gender) return "";
@@ -104,13 +128,24 @@ const BeneficiariesPage = () => {
   };
 
   const fetchBeneficiaries = async () => {
+    setIsLoading(true);
     try {
-      const response = await api.get("/beneficiaries");
-      const normalizedData = response.data.map(b => ({
+      let query = `?page=${currentPage}&limit=${itemsPerPage}`;
+      if (search) query += `&search=${search}`;
+      if (regionFilter !== "all") query += `&region=${regionFilter}`;
+      if (provinceFilter !== "all") query += `&province=${provinceFilter}`;
+      if (municipalityFilter !== "all") query += `&municipality=${municipalityFilter}`;
+      if (barangayFilter !== "all") query += `&barangay=${barangayFilter}`;
+
+      const response = await api.get(`/beneficiaries${query}`);
+      const data = response.data;
+      const normalizedData = (data.beneficiaries || []).map(b => ({
         ...b,
         id: String(b._id || b.id)
       }));
       setBeneficiaries(normalizedData);
+      setTotalBeneficiaries(data.total || 0);
+      setTotalPages(data.totalPages || 1);
     } catch (error) {
       toast.error("Failed to load beneficiaries");
     } finally {
@@ -128,22 +163,44 @@ const BeneficiariesPage = () => {
       const newData = { ...prev, [name]: value };
       
       // Reset dependent fields when parent changes
-      if (name === "province") {
+      if (name === "region") {
+        newData.province = "";
         newData.municipality = "";
         newData.barangay = "";
+        const regionObj = areas.find(a => a.name === value && a.type === "region");
+        if (regionObj) fetchAreas("province", regionObj.id);
+      } else if (name === "province") {
+        newData.municipality = "";
+        newData.barangay = "";
+        const regionObj = areas.find(a => a.name === prev.region && a.type === "region");
+        const provinceObj = areas.find(a => a.name === value && a.type === "province" && (regionObj ? a.parent_id === regionObj.id : true));
+        if (provinceObj) fetchAreas("municipality", provinceObj.id);
       } else if (name === "municipality") {
         newData.barangay = "";
+        const regionObj = areas.find(a => a.name === prev.region && a.type === "region");
+        const provinceObj = areas.find(a => a.name === prev.province && a.type === "province" && (regionObj ? a.parent_id === regionObj.id : true));
+        const municipalityObj = areas.find(a => a.name === value && a.type === "municipality" && (provinceObj ? a.parent_id === provinceObj.id : true));
+        if (municipalityObj) fetchAreas("barangay", municipalityObj.id);
       }
       
       return newData;
     });
   };
 
-  const getProvinces = () => areas.filter(a => a.type === "province");
+  const getRegions = () => areas.filter(a => a.type === "region");
+
+  const getProvinces = () => {
+    if (!formData.region) return [];
+    const region = areas.find(a => a.name === formData.region && a.type === "region");
+    if (!region) return [];
+    return areas.filter(a => a.type === "province" && a.parent_id === region.id);
+  };
   
   const getMunicipalities = () => {
     if (!formData.province) return [];
-    const province = areas.find(a => a.name === formData.province && a.type === "province");
+    const province = areas.find(a => a.name === formData.province && a.type === "province" &&
+      (formData.region ? a.parent_id === areas.find(r => r.name === formData.region && r.type === "region")?.id : true)
+    );
     if (!province) return [];
     return areas.filter(a => a.type === "municipality" && a.parent_id === province.id);
   };
@@ -169,6 +226,7 @@ const BeneficiariesPage = () => {
       barangay: "",
       municipality: "",
       province: "",
+      region: "",
       contact: "",
     });
     setEditingBeneficiary(null);
@@ -192,7 +250,7 @@ const BeneficiariesPage = () => {
     }
   };
 
-  const handleEdit = (beneficiary) => {
+  const handleEdit = async (beneficiary) => {
     setEditingBeneficiary(beneficiary);
     setFormData({
       hhid: beneficiary.hhid,
@@ -205,8 +263,35 @@ const BeneficiariesPage = () => {
       barangay: beneficiary.barangay,
       municipality: beneficiary.municipality,
       province: beneficiary.province,
+      region: beneficiary.region || "",
       contact: beneficiary.contact || "",
     });
+
+    // Proactively fetch sub-areas for the selected branch
+    try {
+      if (beneficiary.region) {
+        const regions = await fetchAreas("region");
+        const regionObj = regions.find(r => r.name === beneficiary.region);
+        if (regionObj) {
+          const provinces = await fetchAreas("province", regionObj.id);
+          if (beneficiary.province) {
+            const provinceObj = provinces.find(p => p.name === beneficiary.province);
+            if (provinceObj) {
+              const municipalities = await fetchAreas("municipality", provinceObj.id);
+              if (beneficiary.municipality) {
+                const municipalityObj = municipalities.find(m => m.name === beneficiary.municipality);
+                if (municipalityObj) {
+                  await fetchAreas("barangay", municipalityObj.id);
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch sub-areas for editing:", error);
+    }
+
     setIsDialogOpen(true);
   };
 
@@ -238,6 +323,7 @@ const BeneficiariesPage = () => {
       "Barangay",
       "Municipality",
       "Province",
+      "Region",
       "Contact"
     ];
 
@@ -254,6 +340,7 @@ const BeneficiariesPage = () => {
         `"${b.barangay}"`,
         `"${b.municipality}"`,
         `"${b.province}"`,
+        `"${b.region || ""}"`,
         `"${b.contact || ""}"`
       ].join(","))
     ].join("\n");
@@ -333,6 +420,7 @@ const BeneficiariesPage = () => {
               barangay: getColVal(["Barangay"]),
               municipality: getColVal(["Municipality"]),
               province: getColVal(["Province"]),
+              region: getColVal(["Region"]),
               contact: getColVal(["Contact", "Phone"])
             };
           })
@@ -386,20 +474,8 @@ const BeneficiariesPage = () => {
     e.target.value = null;
   };
 
-  const filteredBeneficiaries = beneficiaries.filter(
-    (b) => {
-      const matchesSearch = b.hhid.toLowerCase().includes(search.toLowerCase()) ||
-        b.first_name.toLowerCase().includes(search.toLowerCase()) ||
-        b.last_name.toLowerCase().includes(search.toLowerCase()) ||
-        b.pkno.toLowerCase().includes(search.toLowerCase());
-      
-      const matchesProvince = provinceFilter === "all" || b.province === provinceFilter;
-      const matchesMunicipality = municipalityFilter === "all" || b.municipality === municipalityFilter;
-      const matchesBarangay = barangayFilter === "all" || b.barangay === barangayFilter;
-
-      return matchesSearch && matchesProvince && matchesMunicipality && matchesBarangay;
-    }
-  ).sort((a, b) => {
+  // Sort beneficiaries on the client side for the current page
+  const sortedBeneficiaries = [...beneficiaries].sort((a, b) => {
     const key = sortConfig.key;
     const direction = sortConfig.direction === "asc" ? 1 : -1;
     
@@ -410,12 +486,6 @@ const BeneficiariesPage = () => {
     if (aValue > bValue) return 1 * direction;
     return 0;
   });
-
-  // Pagination logic
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredBeneficiaries.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredBeneficiaries.length / itemsPerPage);
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
@@ -554,15 +624,34 @@ const BeneficiariesPage = () => {
                     </Select>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="region" className="text-xs sm:text-sm">Region *</Label>
+                    <Select
+                      value={formData.region}
+                      onValueChange={(value) => handleSelectChange("region", value)}
+                    >
+                      <SelectTrigger className="h-9 sm:h-10 text-sm">
+                        <SelectValue placeholder="Select region" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getRegions().map((region) => (
+                          <SelectItem key={region.id} value={region.name}>
+                            {region.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="province" className="text-xs sm:text-sm">Province *</Label>
                     <Select
                       value={formData.province}
                       onValueChange={(value) => handleSelectChange("province", value)}
+                      disabled={!formData.region}
                     >
                       <SelectTrigger className="h-9 sm:h-10 text-sm">
-                        <SelectValue placeholder="Select province" />
+                        <SelectValue placeholder={formData.region ? "Select province" : "Select region first"} />
                       </SelectTrigger>
                       <SelectContent>
                         {getProvinces().map((province) => (
@@ -573,6 +662,8 @@ const BeneficiariesPage = () => {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="municipality" className="text-xs sm:text-sm">Municipality *</Label>
                     <Select
@@ -631,7 +722,7 @@ const BeneficiariesPage = () => {
                   </Button>
                 </div>
               </form>
-              </DialogContent>
+            </DialogContent>
             </Dialog>
           </div>
         )}
@@ -651,27 +742,63 @@ const BeneficiariesPage = () => {
               />
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Select value={provinceFilter} onValueChange={(v) => {
-                setProvinceFilter(v);
+              <Select value={regionFilter} onValueChange={(val) => {
+                setRegionFilter(val);
+                setProvinceFilter("all");
                 setMunicipalityFilter("all");
                 setBarangayFilter("all");
+                const regionObj = areas.find(a => a.name === val && a.type === "region");
+                if (regionObj) fetchAreas("province", regionObj.id);
               }}>
+                <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                  <SelectValue placeholder="Region" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Regions</SelectItem>
+                  {areas
+                    .filter(a => a.type === "region")
+                    .map(r => (
+                      <SelectItem key={r.id} value={r.name}>{r.name}</SelectItem>
+                    ))
+                  }
+                </SelectContent>
+              </Select>
+
+              <Select 
+                value={provinceFilter} 
+                onValueChange={(val) => {
+                  setProvinceFilter(val);
+                  setMunicipalityFilter("all");
+                  setBarangayFilter("all");
+                  const regionObj = areas.find(a => a.name === regionFilter && a.type === "region");
+                  const provinceObj = areas.find(a => a.name === val && a.type === "province" && (regionObj ? a.parent_id === regionObj.id : true));
+                  if (provinceObj) fetchAreas("municipality", provinceObj.id);
+                }}
+                disabled={regionFilter === "all"}
+              >
                 <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
                   <SelectValue placeholder="Province" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Provinces</SelectItem>
-                  {getProvinces().map(p => (
-                    <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
-                  ))}
+                  {areas
+                    .filter(a => a.type === "province" && (regionFilter !== "all" ? a.parent_id === areas.find(r => r.name === regionFilter)?.id : true))
+                    .map(p => (
+                      <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
+                    ))
+                  }
                 </SelectContent>
               </Select>
 
               <Select 
                 value={municipalityFilter} 
-                onValueChange={(v) => {
-                  setMunicipalityFilter(v);
+                onValueChange={(val) => {
+                  setMunicipalityFilter(val);
                   setBarangayFilter("all");
+                  const regionObj = areas.find(a => a.name === regionFilter && a.type === "region");
+                  const provinceObj = areas.find(a => a.name === provinceFilter && a.type === "province" && (regionObj ? a.parent_id === regionObj.id : true));
+                  const municipalityObj = areas.find(a => a.name === val && a.type === "municipality" && (provinceObj ? a.parent_id === provinceObj.id : true));
+                  if (municipalityObj) fetchAreas("barangay", municipalityObj.id);
                 }}
                 disabled={provinceFilter === "all"}
               >
@@ -681,7 +808,7 @@ const BeneficiariesPage = () => {
                 <SelectContent>
                   <SelectItem value="all">All Municipalities</SelectItem>
                   {areas
-                    .filter(a => a.type === "municipality" && a.parent_id === areas.find(p => p.name === provinceFilter)?.id)
+                    .filter(a => a.type === "municipality" && (provinceFilter !== "all" ? a.parent_id === areas.find(p => p.name === provinceFilter)?.id : true))
                     .map(m => (
                       <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>
                     ))
@@ -700,7 +827,7 @@ const BeneficiariesPage = () => {
                 <SelectContent>
                   <SelectItem value="all">All Barangays</SelectItem>
                   {areas
-                    .filter(a => a.type === "barangay" && a.parent_id === areas.find(m => m.name === municipalityFilter)?.id)
+                    .filter(a => a.type === "barangay" && (municipalityFilter !== "all" ? a.parent_id === areas.find(m => m.name === municipalityFilter)?.id : true))
                     .map(b => (
                       <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
                     ))
@@ -708,11 +835,12 @@ const BeneficiariesPage = () => {
                 </SelectContent>
               </Select>
               
-              {(provinceFilter !== "all" || municipalityFilter !== "all" || barangayFilter !== "all") && (
+              {(regionFilter !== "all" || provinceFilter !== "all" || municipalityFilter !== "all" || barangayFilter !== "all") && (
                 <Button 
                   variant="ghost" 
                   size="sm" 
                   onClick={() => {
+                    setRegionFilter("all");
                     setProvinceFilter("all");
                     setMunicipalityFilter("all");
                     setBarangayFilter("all");
@@ -731,162 +859,161 @@ const BeneficiariesPage = () => {
         <CardHeader className="pb-3">
           <CardTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
             <Users className="w-5 h-5 text-emerald-600 dark:text-emerald-500" />
-            Beneficiary List ({filteredBeneficiaries.length})
+            Beneficiary List ({totalBeneficiaries})
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
             <div className="flex items-center justify-center h-32">
-              <div className="spinner" />
+              <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin" />
             </div>
-          ) : filteredBeneficiaries.length === 0 ? (
+          ) : beneficiaries.length === 0 ? (
             <div className="text-center py-12 text-slate-500 dark:text-slate-400">
               <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
               <p>No beneficiaries found</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-stone-100 dark:bg-slate-800/50 hover:bg-stone-100 dark:hover:bg-slate-800/50 border-b dark:border-slate-800">
-                    <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
-                      onClick={() => handleSort("hhid")}
-                    >
-                      <div className="flex items-center">
-                        HHID {getSortIcon("hhid")}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
-                      onClick={() => handleSort("pkno")}
-                    >
-                      <div className="flex items-center">
-                        PKNO {getSortIcon("pkno")}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
-                      onClick={() => handleSort("last_name")}
-                    >
-                      <div className="flex items-center">
-                        Name {getSortIcon("last_name")}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
-                      onClick={() => handleSort("barangay")}
-                    >
-                      <div className="flex items-center">
-                        Barangay {getSortIcon("barangay")}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
-                      onClick={() => handleSort("municipality")}
-                    >
-                      <div className="flex items-center">
-                        Municipality {getSortIcon("municipality")}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
-                      onClick={() => handleSort("province")}
-                    >
-                      <div className="flex items-center">
-                        Province {getSortIcon("province")}
-                      </div>
-                    </TableHead>
-                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300">Contact</TableHead>
-                    {isAdmin && <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-right">Actions</TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {currentItems.map((b) => (
-                    <TableRow key={b.id} className="border-b dark:border-slate-800 hover:bg-stone-50 dark:hover:bg-slate-800/30">
-                      <TableCell className="font-mono text-sm dark:text-slate-300">{b.hhid}</TableCell>
-                      <TableCell className="font-mono text-sm dark:text-slate-300">{b.pkno}</TableCell>
-                      <TableCell className="dark:text-slate-300">
-                        {b.last_name}, {b.first_name} {b.middle_name}
-                      </TableCell>
-                      <TableCell className="dark:text-slate-300">{b.barangay}</TableCell>
-                      <TableCell className="dark:text-slate-300">{b.municipality}</TableCell>
-                      <TableCell className="dark:text-slate-300">{b.province}</TableCell>
-                      <TableCell className="dark:text-slate-300">{b.contact || "-"}</TableCell>
-                      {isAdmin && (
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEdit(b)}
-                              className="h-8 w-8 text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-500"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDelete(b.id)}
-                              className="h-8 w-8 text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-500"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      )}
+            <>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-stone-100 dark:bg-slate-800/50 hover:bg-stone-100 dark:hover:bg-slate-800/50 border-b dark:border-slate-800">
+                      <TableHead 
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                        onClick={() => handleSort("hhid")}
+                      >
+                        <div className="flex items-center">
+                          HHID {getSortIcon("hhid")}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                        onClick={() => handleSort("pkno")}
+                      >
+                        <div className="flex items-center">
+                          PKNO {getSortIcon("pkno")}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                        onClick={() => handleSort("last_name")}
+                      >
+                        <div className="flex items-center">
+                          Name {getSortIcon("last_name")}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                        onClick={() => handleSort("barangay")}
+                      >
+                        <div className="flex items-center">
+                          Barangay {getSortIcon("barangay")}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                        onClick={() => handleSort("municipality")}
+                      >
+                        <div className="flex items-center">
+                          Municipality {getSortIcon("municipality")}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                        onClick={() => handleSort("region")}
+                      >
+                        <div className="flex items-center">
+                          Region {getSortIcon("region")}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                        onClick={() => handleSort("province")}
+                      >
+                        <div className="flex items-center">
+                          Province {getSortIcon("province")}
+                        </div>
+                      </TableHead>
+                      <TableHead className="font-semibold text-slate-600 dark:text-slate-300">Contact</TableHead>
+                      {isAdmin && <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-right">Actions</TableHead>}
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedBeneficiaries.map((b) => (
+                      <TableRow key={b.id} className="border-b dark:border-slate-800 hover:bg-stone-50 dark:hover:bg-slate-800/30">
+                        <TableCell className="font-mono text-sm dark:text-slate-300">{b.hhid}</TableCell>
+                        <TableCell className="font-mono text-sm dark:text-slate-300">{b.pkno}</TableCell>
+                        <TableCell className="dark:text-slate-300">
+                          {b.last_name}, {b.first_name} {b.middle_name}
+                        </TableCell>
+                        <TableCell className="dark:text-slate-300">{b.barangay}</TableCell>
+                        <TableCell className="dark:text-slate-300">{b.municipality}</TableCell>
+                        <TableCell className="dark:text-slate-300">{b.region}</TableCell>
+                        <TableCell className="dark:text-slate-300">{b.province}</TableCell>
+                        <TableCell className="dark:text-slate-300">{b.contact || "-"}</TableCell>
+                        {isAdmin && (
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEdit(b)}
+                                className="h-8 w-8 text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-500"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDelete(b.id)}
+                                className="h-8 w-8 text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-500"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-4 py-4 border-t dark:border-slate-800">
+                  <div className="text-xs text-slate-500 dark:text-slate-400">
+                    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalBeneficiaries)} of {totalBeneficiaries} beneficiaries
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="h-8 text-xs dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300"
+                    >
+                      Previous
+                    </Button>
+                    <div className="text-xs font-medium dark:text-slate-300">
+                      Page {currentPage} of {totalPages}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="h-8 text-xs dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300"
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 py-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => paginate(currentPage - 1)}
-            disabled={currentPage === 1}
-            className="dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
-          >
-            Previous
-          </Button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1)
-            .filter(page => {
-              // Show first, last, and pages around current
-              return page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1;
-            })
-            .map((page, index, array) => (
-              <div key={page} className="flex items-center">
-                {index > 0 && array[index - 1] !== page - 1 && (
-                  <span className="px-2 text-slate-400 dark:text-slate-600">...</span>
-                )}
-                <Button
-                  variant={currentPage === page ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => paginate(page)}
-                  className={`w-8 ${currentPage === page ? 'dark:bg-emerald-600 dark:text-white' : 'dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800'}`}
-                >
-                  {page}
-                </Button>
-              </div>
-            ))}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => paginate(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className="dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
-          >
-            Next
-          </Button>
-        </div>
-      )}
     </div>
   );
 };

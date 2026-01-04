@@ -29,7 +29,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Search, Edit, Trash2, Calendar, CheckCircle, XCircle, Download, Upload, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Calendar, CheckCircle, XCircle, Download, Upload, ArrowUpDown, ArrowUp, ArrowDown, RotateCcw, FileText } from "lucide-react";
 import * as XLSX from "xlsx";
 
 const MONTHS = [
@@ -50,15 +50,63 @@ const RedemptionPage = () => {
   const [search, setSearch] = useState("");
   const [frmFilter, setFrmFilter] = useState(getCurrentFrmPeriod());
   const [attendanceFilter, setAttendanceFilter] = useState("all");
+  
+  // Area filters
+  const [areas, setAreas] = useState([]);
+  const [regionFilter, setRegionFilter] = useState("all");
+  const [provinceFilter, setProvinceFilter] = useState("all");
+  const [municipalityFilter, setMunicipalityFilter] = useState("all");
+  const [barangayFilter, setBarangayFilter] = useState("all");
+
   const [sortConfig, setSortConfig] = useState({ key: "last_name", direction: "asc" });
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalBeneficiaries, setTotalBeneficiaries] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [itemsPerPage] = useState(10);
 
   useEffect(() => {
     fetchData();
-  }, [frmFilter]);
+  }, [currentPage, search, frmFilter, attendanceFilter, regionFilter, provinceFilter, municipalityFilter, barangayFilter]);
+
+  useEffect(() => {
+    fetchAreas("region");
+  }, []);
+
+  const fetchAreas = async (type = null, parentId = null) => {
+    try {
+      // Don't fetch if both are null to avoid loading all 40,000+ areas
+      if (!type && !parentId) return;
+
+      let query = `?limit=500`; // Use a large enough limit for any single level
+      if (type && parentId) {
+        query += `&type=${type}&parent_id=${parentId}`;
+      } else if (type) {
+        query += `&type=${type}`;
+      } else if (parentId) {
+        query += `&parent_id=${parentId}`;
+      }
+
+      const response = await api.get(`/areas${query}`);
+      const data = Array.isArray(response.data) ? response.data : (response.data.areas || []);
+      
+      const normalizedData = data.map((area) => ({
+        ...area,
+        id: String(area._id || area.id),
+        type: area.type?.toLowerCase(),
+        parent_id: area.parent_id ? (typeof area.parent_id === "object" ? String(area.parent_id?._id || area.parent_id?.id) : String(area.parent_id)) : ""
+      }));
+      
+      setAreas(prev => {
+        const existingIds = new Set(prev.map(a => a.id));
+        const newData = normalizedData.filter(a => !existingIds.has(a.id));
+        return [...prev, ...newData];
+      });
+    } catch (error) {
+      console.error("Failed to load areas");
+    }
+  };
 
   const handleSort = (key) => {
     let direction = "asc";
@@ -76,25 +124,38 @@ const RedemptionPage = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [redResponse, benResponse] = await Promise.all([
-        api.get(`/redemptions?frm_period=${encodeURIComponent(frmFilter)}`),
-        api.get("/beneficiaries")
-      ]);
-      
-      // Normalize IDs
-      const normalizedRed = redResponse.data.map(r => ({
-        ...r,
-        id: String(r._id || r.id),
-        beneficiary_id: r.beneficiary_id ? (typeof r.beneficiary_id === "object" ? String(r.beneficiary_id?._id || r.beneficiary_id?.id) : String(r.beneficiary_id)) : ""
-      }));
-      
-      const normalizedBen = benResponse.data.map(b => ({
+      let benQuery = `?page=${currentPage}&limit=${itemsPerPage}`;
+      if (search) benQuery += `&search=${encodeURIComponent(search)}`;
+      if (regionFilter !== "all") benQuery += `&region=${encodeURIComponent(regionFilter)}`;
+      if (provinceFilter !== "all") benQuery += `&province=${encodeURIComponent(provinceFilter)}`;
+      if (municipalityFilter !== "all") benQuery += `&municipality=${encodeURIComponent(municipalityFilter)}`;
+      if (barangayFilter !== "all") benQuery += `&barangay=${encodeURIComponent(barangayFilter)}`;
+
+      const response = await api.get(`/beneficiaries${benQuery}`);
+      const data = response.data;
+      const benList = data.beneficiaries || [];
+      const benIds = benList.map(b => String(b._id || b.id));
+
+      setBeneficiaries(benList.map(b => ({
         ...b,
         id: String(b._id || b.id)
-      }));
-
-      setRedemptions(normalizedRed);
-      setBeneficiaries(normalizedBen);
+      })));
+      
+      setTotalBeneficiaries(data.total || 0);
+      setTotalPages(data.totalPages || 1);
+      
+      // Now fetch redemption records only for these beneficiaries
+      if (benIds.length > 0) {
+        const redResponse = await api.get(`/redemptions?frm_period=${encodeURIComponent(frmFilter)}&beneficiary_ids=${benIds.join(",")}`);
+        const redData = Array.isArray(redResponse.data) ? redResponse.data : (redResponse.data.redemptions || []);
+        setRedemptions(redData.map(r => ({
+          ...r,
+          id: String(r._id || r.id),
+          beneficiary_id: r.beneficiary_id ? (typeof r.beneficiary_id === "object" ? String(r.beneficiary_id?._id || r.beneficiary_id?.id) : String(r.beneficiary_id)) : ""
+        })));
+      } else {
+        setRedemptions([]);
+      }
     } catch (error) {
       toast.error("Failed to load data");
     } finally {
@@ -104,14 +165,24 @@ const RedemptionPage = () => {
 
   const handleUpdate = async (beneficiary, field, value) => {
     try {
-      const currentRedemption = redemptions.find(r => r.beneficiary_id === beneficiary.id) || {};
+      const currentRedemption = redemptions.find(r => r.beneficiary_id === beneficiary.id);
       
+      // If setting to "none", delete the record if it exists
+      if (field === "attendance" && value === "none") {
+        if (currentRedemption && currentRedemption.id) {
+          await api.delete(`/redemptions/${currentRedemption.id}`);
+          setRedemptions(prev => prev.filter(r => r.beneficiary_id !== beneficiary.id));
+          toast.success("Record cleared");
+        }
+        return;
+      }
+
       const updateData = {
         beneficiary_id: beneficiary.id,
         hhid: beneficiary.hhid,
         frm_period: frmFilter,
-        attendance: field === "attendance" ? value : (currentRedemption.attendance || ""),
-        reason: field === "reason" ? value : (currentRedemption.reason || ""),
+        attendance: field === "attendance" ? value : (currentRedemption?.attendance || "none"),
+        reason: field === "reason" ? value : (currentRedemption?.reason || ""),
         date_recorded: new Date().toISOString().split("T")[0],
       };
 
@@ -141,6 +212,7 @@ const RedemptionPage = () => {
 
       toast.success("Record updated");
     } catch (error) {
+      console.error("Update error:", error);
       toast.error("Failed to update record");
     }
   };
@@ -157,9 +229,10 @@ const RedemptionPage = () => {
         "HHID": b.hhid,
         "Last Name": b.last_name,
         "First Name": b.first_name,
-        "Barangay": b.barangay,
-        "Municipality": b.municipality,
+        "Region": b.region,
         "Province": b.province,
+        "Municipality": b.municipality,
+        "Barangay": b.barangay,
         "FRM Period": frmFilter,
         "Attendance": redemption?.attendance || "none",
         "Reason": redemption?.reason || "",
@@ -176,9 +249,10 @@ const RedemptionPage = () => {
       { wch: 15 }, // HHID
       { wch: 20 }, // Last Name
       { wch: 20 }, // First Name
-      { wch: 20 }, // Barangay
-      { wch: 20 }, // Municipality
+      { wch: 20 }, // Region
       { wch: 20 }, // Province
+      { wch: 20 }, // Municipality
+      { wch: 20 }, // Barangay
       { wch: 15 }, // FRM Period
       { wch: 15 }, // Attendance
       { wch: 30 }, // Reason
@@ -250,43 +324,59 @@ const RedemptionPage = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, attendanceFilter, sortConfig]);
+  }, [search, attendanceFilter, sortConfig, regionFilter, provinceFilter, municipalityFilter, barangayFilter]);
 
-  const filteredBeneficiaries = beneficiaries.filter((b) => {
-    const redemption = redemptions.find(r => r.beneficiary_id === b.id);
-    const attendance = redemption?.attendance || "none";
-    
-    const matchesSearch = b.hhid.toLowerCase().includes(search.toLowerCase()) || 
-                         `${b.first_name} ${b.last_name}`.toLowerCase().includes(search.toLowerCase());
-    const matchesAttendance = attendanceFilter === "all" || attendance === attendanceFilter;
-    
-    return matchesSearch && matchesAttendance;
-  }).sort((a, b) => {
-    const key = sortConfig.key;
+  const getRegions = () => areas.filter(a => a.type === "region");
+  const getProvinces = () => {
+    if (regionFilter === "all") return [];
+    const region = areas.find(a => a.name === regionFilter && a.type === "region");
+    return region ? areas.filter(a => a.type === "province" && a.parent_id === region.id) : [];
+  };
+  const getMunicipalities = () => {
+    if (provinceFilter === "all") return [];
+    const province = areas.find(a => a.name === provinceFilter && a.type === "province");
+    return province ? areas.filter(a => a.type === "municipality" && a.parent_id === province.id) : [];
+  };
+  const getBarangays = () => {
+    if (municipalityFilter === "all") return [];
+    const municipality = areas.find(a => a.name === municipalityFilter && a.type === "municipality");
+    return municipality ? areas.filter(a => a.type === "barangay" && a.parent_id === municipality.id) : [];
+  };
+
+  // Client-side sorting for the current page
+  const sortedBeneficiaries = [...beneficiaries].sort((a, b) => {
+    if (!sortConfig.key) return 0;
     const direction = sortConfig.direction === "asc" ? 1 : -1;
     
     let aValue, bValue;
     
-    if (key === "attendance") {
+    if (sortConfig.key === "attendance") {
       const redA = redemptions.find(r => r.beneficiary_id === a.id);
       const redB = redemptions.find(r => r.beneficiary_id === b.id);
       aValue = redA?.attendance || "none";
       bValue = redB?.attendance || "none";
     } else {
-      aValue = String(a[key] || "").toLowerCase();
-      bValue = String(b[key] || "").toLowerCase();
+      aValue = a[sortConfig.key];
+      bValue = b[sortConfig.key];
+      
+      // Handle null/undefined
+      if (aValue === null || aValue === undefined) aValue = "";
+      if (bValue === null || bValue === undefined) bValue = "";
+      
+      // String comparison
+      if (typeof aValue === "string" && typeof bValue === "string") {
+        aValue = aValue.toLowerCase();
+        bValue = bValue.toLowerCase();
+      }
     }
-
+    
     if (aValue < bValue) return -1 * direction;
     if (aValue > bValue) return 1 * direction;
     return 0;
   });
 
-  // Pagination logic
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredBeneficiaries.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredBeneficiaries.length / itemsPerPage);
+  const filteredBeneficiaries = sortedBeneficiaries;
+  const currentItems = sortedBeneficiaries;
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
@@ -313,76 +403,185 @@ const RedemptionPage = () => {
       {/* Filters */}
       <Card className="border-stone-200 dark:border-slate-800 shadow-sm overflow-hidden">
         <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input
-                placeholder="Search by HHID or Name..."
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Input
+                  placeholder="Search by HHID or Name..."
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="pl-10 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="whitespace-nowrap dark:text-slate-300">FRM Period:</Label>
+                <Select value={frmFilter} onValueChange={(v) => {
+                  setFrmFilter(v);
                   setCurrentPage(1);
-                }}
-                className="pl-10 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
-              />
+                }}>
+                  <SelectTrigger className="w-full sm:w-48 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                    <SelectValue placeholder="Select Period" />
+                  </SelectTrigger>
+                  <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
+                    {MONTHS.map((month) => {
+                      const year = new Date().getFullYear();
+                      return (
+                        <SelectItem key={month} value={`${month} ${year}`}>
+                          {month} {year}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
+
+            <div className="flex flex-wrap items-center gap-2">
               <Select value={attendanceFilter} onValueChange={(v) => {
                 setAttendanceFilter(v);
                 setCurrentPage(1);
               }}>
                 <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
-                  <SelectValue placeholder="Filter Attendance" />
+                  <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
                   <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="present">Redeemed</SelectItem>
-                  <SelectItem value="absent">Unredeemed</SelectItem>
+                  <SelectItem value="present">Present</SelectItem>
+                  <SelectItem value="absent">Absent</SelectItem>
                   <SelectItem value="none">No Record</SelectItem>
                 </SelectContent>
               </Select>
 
-              <Label className="whitespace-nowrap dark:text-slate-300 ml-2">FRM Period:</Label>
-              <Select value={frmFilter} onValueChange={(v) => {
-                setFrmFilter(v);
+              <Select value={regionFilter} onValueChange={(val) => {
+                setRegionFilter(val);
+                setProvinceFilter("all");
+                setMunicipalityFilter("all");
+                setBarangayFilter("all");
                 setCurrentPage(1);
+                const regionObj = areas.find(a => a.name === val && a.type === "region");
+                if (regionObj) fetchAreas("province", regionObj.id);
               }}>
-                <SelectTrigger className="w-full sm:w-48 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
-                  <SelectValue placeholder="Select Period" />
+                <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                  <SelectValue placeholder="Region" />
                 </SelectTrigger>
-                <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
-                  {MONTHS.map((month) => {
-                    const year = new Date().getFullYear();
-                    return (
-                      <SelectItem key={month} value={`${month} ${year}`}>
-                        {month} {year}
-                      </SelectItem>
-                    );
-                  })}
+                <SelectContent>
+                  <SelectItem value="all">All Regions</SelectItem>
+                  {getRegions().map(r => (
+                    <SelectItem key={r.id} value={r.name}>{r.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+
+              <Select 
+                value={provinceFilter} 
+                onValueChange={(val) => {
+                  setProvinceFilter(val);
+                  setMunicipalityFilter("all");
+                  setBarangayFilter("all");
+                  setCurrentPage(1);
+                  const regionObj = areas.find(a => a.name === regionFilter && a.type === "region");
+                  const provinceObj = areas.find(a => a.name === val && a.type === "province" && (regionObj ? a.parent_id === regionObj.id : true));
+                  if (provinceObj) fetchAreas("municipality", provinceObj.id);
+                }}
+                disabled={regionFilter === "all"}
+              >
+                <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                  <SelectValue placeholder="Province" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Provinces</SelectItem>
+                  {getProvinces().map(p => (
+                    <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select 
+                value={municipalityFilter} 
+                onValueChange={(val) => {
+                  setMunicipalityFilter(val);
+                  setBarangayFilter("all");
+                  setCurrentPage(1);
+                  const regionObj = areas.find(a => a.name === regionFilter && a.type === "region");
+                  const provinceObj = areas.find(a => a.name === provinceFilter && a.type === "province" && (regionObj ? a.parent_id === regionObj.id : true));
+                  const municipalityObj = areas.find(a => a.name === val && a.type === "municipality" && (provinceObj ? a.parent_id === provinceObj.id : true));
+                  if (municipalityObj) fetchAreas("barangay", municipalityObj.id);
+                }}
+                disabled={provinceFilter === "all"}
+              >
+                <SelectTrigger className="w-full sm:w-48 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                  <SelectValue placeholder="Municipality" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Municipalities</SelectItem>
+                  {getMunicipalities().map(m => (
+                    <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select 
+                value={barangayFilter} 
+                onValueChange={(val) => {
+                  setBarangayFilter(val);
+                  setCurrentPage(1);
+                }}
+                disabled={municipalityFilter === "all"}
+              >
+                <SelectTrigger className="w-full sm:w-48 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                  <SelectValue placeholder="Barangay" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Barangays</SelectItem>
+                  {getBarangays().map(b => (
+                    <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {(regionFilter !== "all" || provinceFilter !== "all" || municipalityFilter !== "all" || barangayFilter !== "all" || attendanceFilter !== "all") && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => {
+                    setRegionFilter("all");
+                    setProvinceFilter("all");
+                    setMunicipalityFilter("all");
+                    setBarangayFilter("all");
+                    setAttendanceFilter("all");
+                    setCurrentPage(1);
+                  }}
+                  className="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+                >
+                  Clear
+                </Button>
+              )}
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Table */}
       <Card className="border-stone-200 dark:border-slate-800 shadow-sm">
         <CardHeader className="pb-3 border-b dark:border-slate-800">
           <CardTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-emerald-600 dark:text-emerald-500" />
-            Attendance List ({filteredBeneficiaries.length})
+            <FileText className="w-5 h-5 text-emerald-600 dark:text-emerald-500" />
+            Redemption Records ({totalBeneficiaries})
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="flex items-center justify-center h-32">
-              <div className="spinner" />
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
             </div>
-          ) : filteredBeneficiaries.length === 0 ? (
-            <div className="text-center py-12 text-slate-500 dark:text-slate-400">
-              <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No beneficiaries found</p>
+          ) : beneficiaries.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-slate-500 dark:text-slate-400">
+              <FileText className="w-16 h-16 mb-4 opacity-20" />
+              <p className="text-lg font-medium">No records found</p>
+              <p className="text-sm">Try adjusting your filters or search terms</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -402,55 +601,40 @@ const RedemptionPage = () => {
                       onClick={() => handleSort("last_name")}
                     >
                       <div className="flex items-center">
-                        Beneficiary Name {getSortIcon("last_name")}
+                        Name {getSortIcon("last_name")}
                       </div>
                     </TableHead>
-                    <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
-                      onClick={() => handleSort("barangay")}
-                    >
-                      <div className="flex items-center">
-                        Barangay {getSortIcon("barangay")}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
-                      onClick={() => handleSort("municipality")}
-                    >
-                      <div className="flex items-center">
-                        Municipality {getSortIcon("municipality")}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
-                      onClick={() => handleSort("province")}
-                    >
-                      <div className="flex items-center">
-                        Province {getSortIcon("province")}
-                      </div>
-                    </TableHead>
+                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300">Location</TableHead>
                     <TableHead 
                       className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
                       onClick={() => handleSort("attendance")}
                     >
                       <div className="flex items-center">
-                        Attendance {getSortIcon("attendance")}
+                        Status {getSortIcon("attendance")}
                       </div>
                     </TableHead>
-                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300">Reason for Absence</TableHead>
-                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300">Status</TableHead>
+                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300">Reason</TableHead>
+                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300">Record Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {currentItems.map((b) => {
                     const redemption = redemptions.find(r => r.beneficiary_id === b.id);
                     return (
-                      <TableRow key={b.id} className="border-b dark:border-slate-800 hover:bg-stone-50 dark:hover:bg-slate-800/30">
-                        <TableCell className="font-mono text-sm dark:text-slate-300">{b.hhid}</TableCell>
-                        <TableCell className="dark:text-slate-300">{b.last_name}, {b.first_name}</TableCell>
-                        <TableCell className="dark:text-slate-300">{b.barangay}</TableCell>
-                        <TableCell className="dark:text-slate-300">{b.municipality}</TableCell>
-                        <TableCell className="dark:text-slate-300">{b.province}</TableCell>
+                      <TableRow key={b.id} className="border-b dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                        <TableCell className="font-medium text-slate-700 dark:text-slate-300">{b.hhid}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="font-medium text-slate-900 dark:text-slate-100">{b.last_name}, {b.first_name}</span>
+                            <span className="text-[10px] text-slate-500 dark:text-slate-500 uppercase tracking-wider">{b.middle_name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col text-xs text-slate-600 dark:text-slate-400">
+                            <span>{b.barangay}</span>
+                            <span>{b.municipality}</span>
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <Select
                             value={redemption?.attendance || "none"}
@@ -467,8 +651,8 @@ const RedemptionPage = () => {
                             </SelectTrigger>
                             <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
                               <SelectItem value="none">Not Recorded</SelectItem>
-                              <SelectItem value="present">Redeemed</SelectItem>
-                              <SelectItem value="absent">Unredeemed</SelectItem>
+                              <SelectItem value="present">Attended</SelectItem>
+                              <SelectItem value="absent">Missed</SelectItem>
                             </SelectContent>
                           </Select>
                         </TableCell>
@@ -548,6 +732,26 @@ const RedemptionPage = () => {
           </Button>
         </div>
       )}
+
+      {/* Import Controls */}
+      <div className="flex items-center justify-end gap-2 pt-2">
+        <input
+          type="file"
+          id="import-excel"
+          className="hidden"
+          accept=".xlsx, .xls"
+          onChange={handleImport}
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => document.getElementById("import-excel").click()}
+          className="border-emerald-600 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 dark:border-emerald-500 dark:text-emerald-400"
+        >
+          <Upload className="w-3.5 h-3.5 mr-1.5" />
+          Import from Excel
+        </Button>
+      </div>
     </div>
   );
 };
