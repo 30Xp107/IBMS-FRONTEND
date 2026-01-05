@@ -10,6 +10,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Table,
@@ -28,7 +30,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Plus, Search, Edit, Trash2, Users, Download, Upload, ArrowUpDown, ArrowUp, ArrowDown, Trash } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Users, Download, Upload, ArrowUpDown, ArrowUp, ArrowDown, Trash, Settings } from "lucide-react";
 import * as XLSX from "xlsx";
 
 const BeneficiariesPage = () => {
@@ -48,6 +50,27 @@ const BeneficiariesPage = () => {
   const [sortConfig, setSortConfig] = useState({ key: "last_name", direction: "asc" });
   const [selectedIds, setSelectedIds] = useState([]);
   const [isAllSelectedGlobally, setIsAllSelectedGlobally] = useState(false);
+
+  // Import Preview State
+  const [importPreviewData, setImportPreviewData] = useState(null);
+  const [isImportPreviewOpen, setIsImportPreviewOpen] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+
+  // Import Requirements State
+  const [importRequirements, setImportRequirements] = useState({
+    hhid: true,
+    pkno: true,
+    first_name: true,
+    last_name: true,
+    birthdate: false,
+    gender: false,
+    barangay: false,
+    municipality: false,
+    province: false,
+    region: false,
+  });
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   const handleSort = (key) => {
     let direction = "asc";
@@ -141,7 +164,34 @@ const BeneficiariesPage = () => {
 
   useEffect(() => {
     fetchAreas("region");
+    fetchImportRequirements();
   }, []);
+
+  const fetchImportRequirements = async () => {
+    try {
+      const response = await api.get("/system-configs/beneficiary_import_requirements");
+      if (response.data && response.data.value) {
+        setImportRequirements(response.data.value);
+      }
+    } catch (error) {
+      console.error("Failed to fetch import requirements:", error);
+    }
+  };
+
+  const saveImportRequirements = async () => {
+    setIsSavingSettings(true);
+    try {
+      await api.put("/system-configs/beneficiary_import_requirements", {
+        value: importRequirements
+      });
+      toast.success("Import requirements updated successfully");
+      setIsSettingsOpen(false);
+    } catch (error) {
+      toast.error("Failed to update import requirements");
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
 
   const fetchAreas = async (type = null, parentId = null) => {
     try {
@@ -509,43 +559,67 @@ const BeneficiariesPage = () => {
           })
           .filter(b => b !== null);
 
-        // Basic validation
-        const invalidRows = mappedData.filter(b => !b.hhid || b.pkno === "" || !b.first_name || !b.last_name);
+        // Basic validation using dynamic requirements
+        const invalidRows = mappedData.filter(b => {
+          for (const [field, isRequired] of Object.entries(importRequirements)) {
+            if (isRequired && !b[field]) return true;
+          }
+          return false;
+        });
         
         if (invalidRows.length > 0) {
           // Find out which specific field is missing to help the user
           const sample = invalidRows[0];
           let missing = [];
-          if (!sample.hhid) missing.push("HHID");
-          if (sample.pkno === "") missing.push("PKNO");
-          if (!sample.first_name) missing.push("First Name");
-          if (!sample.last_name) missing.push("Last Name");
+          for (const [field, isRequired] of Object.entries(importRequirements)) {
+            if (isRequired && !sample[field]) {
+              // Format field name for display
+              const label = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+              missing.push(label);
+            }
+          }
           
-          toast.error(`Invalid data in ${invalidRows.length} rows. Missing: ${missing.join(", ")}`);
+          toast.error(`Invalid data in ${invalidRows.length} rows. Missing required fields: ${missing.join(", ")}`);
           return;
         }
 
-        const loadingToast = toast.loading(`Importing ${mappedData.length} beneficiaries...`);
+        const loadingToast = toast.loading("Checking for duplicates...");
         
         try {
-          // Send all records to backend
-          // We'll use a loop for now if there's no bulk endpoint, but ideally there should be one
-          let successCount = 0;
-          for (const beneficiary of mappedData) {
-            try {
-              await api.post("/beneficiaries", beneficiary);
-              successCount++;
-            } catch (err) {
-              console.error(`Failed to import beneficiary ${beneficiary.hhid}:`, err);
+          // 1. Check for internal duplicates in the file
+          const hhidCounts = {};
+          const internalDuplicates = [];
+          mappedData.forEach(b => {
+            hhidCounts[b.hhid] = (hhidCounts[b.hhid] || 0) + 1;
+            if (hhidCounts[b.hhid] === 2) {
+              internalDuplicates.push(b.hhid);
             }
-          }
+          });
+
+          // 2. Check for existing duplicates in the database
+          const hhids = mappedData.map(b => b.hhid);
+          const response = await api.post("/beneficiaries/check-duplicates", { hhids });
+          const dbDuplicates = response.data.duplicates || [];
+          const dbDuplicateHhids = dbDuplicates.map(d => d.hhid);
 
           toast.dismiss(loadingToast);
-          toast.success(`Successfully imported ${successCount} of ${mappedData.length} beneficiaries`);
-          fetchBeneficiaries();
+
+          if (internalDuplicates.length > 0 || dbDuplicateHhids.length > 0) {
+            setImportPreviewData({
+              total: mappedData.length,
+              allData: mappedData,
+              internalDuplicates,
+              dbDuplicates: dbDuplicateHhids,
+              dbDuplicateDetails: dbDuplicates
+            });
+            setIsImportPreviewOpen(true);
+          } else {
+            // No duplicates, proceed with import
+            await proceedWithImport(mappedData);
+          }
         } catch (error) {
           toast.dismiss(loadingToast);
-          toast.error("Failed to import beneficiaries");
+          toast.error("Failed to check for duplicates");
         }
       } catch (error) {
         console.error("Error parsing file:", error);
@@ -553,8 +627,42 @@ const BeneficiariesPage = () => {
       }
     };
     reader.readAsArrayBuffer(file);
-    // Reset input
     e.target.value = null;
+  };
+
+  const proceedWithImport = async (dataToImport) => {
+    setIsImporting(true);
+    const loadingToast = toast.loading(`Importing ${dataToImport.length} beneficiaries...`);
+    
+    try {
+      let successCount = 0;
+      let errorCount = 0;
+      
+      for (const beneficiary of dataToImport) {
+        try {
+          await api.post("/beneficiaries", beneficiary);
+          successCount++;
+        } catch (err) {
+          console.error(`Failed to import beneficiary ${beneficiary.hhid}:`, err);
+          errorCount++;
+        }
+      }
+
+      toast.dismiss(loadingToast);
+      if (errorCount === 0) {
+        toast.success(`Successfully imported all ${successCount} beneficiaries`);
+      } else {
+        toast.success(`Imported ${successCount} beneficiaries. ${errorCount} failed.`);
+      }
+      setIsImportPreviewOpen(false);
+      setImportPreviewData(null);
+      fetchBeneficiaries();
+    } catch (error) {
+      toast.dismiss(loadingToast);
+      toast.error("Failed to import beneficiaries");
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   // Sort beneficiaries on the client side for the current page
@@ -605,6 +713,60 @@ const BeneficiariesPage = () => {
               <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
               Export
             </Button>
+
+            {user?.role === "admin" && (
+              <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="border-slate-300 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 text-xs sm:text-sm h-9 sm:h-10"
+                  >
+                    <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
+                    Import Settings
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="w-[95vw] sm:max-w-md dark:bg-slate-900 dark:border-slate-800 p-4 sm:p-6">
+                  <DialogHeader>
+                    <DialogTitle className="dark:text-slate-100 text-lg sm:text-xl">Import Requirements</DialogTitle>
+                    <DialogDescription className="dark:text-slate-400">
+                      Toggle which fields are required during beneficiary import.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="grid gap-4">
+                      {Object.keys(importRequirements).map((field) => (
+                        <div key={field} className="flex items-center justify-between space-x-2">
+                          <Label htmlFor={`req-${field}`} className="capitalize">
+                            {field.replace(/_/g, ' ')}
+                          </Label>
+                          <Checkbox
+                            id={`req-${field}`}
+                            checked={importRequirements[field]}
+                            onCheckedChange={(checked) => {
+                              setImportRequirements(prev => ({
+                                ...prev,
+                                [field]: !!checked
+                              }));
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsSettingsOpen(false)}>Cancel</Button>
+                    <Button 
+                      className="bg-emerald-600 hover:bg-emerald-700" 
+                      onClick={saveImportRequirements}
+                      disabled={isSavingSettings}
+                    >
+                      {isSavingSettings ? "Saving..." : "Save Changes"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
+
             <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
               <DialogTrigger asChild>
                 <Button className="col-span-2 sm:col-auto bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-700 text-white text-xs sm:text-sm h-9 sm:h-10">
@@ -1181,6 +1343,127 @@ const BeneficiariesPage = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Import Preview Dialog */}
+      <Dialog open={isImportPreviewOpen} onOpenChange={(open) => { if (!isImporting) setIsImportPreviewOpen(open); }}>
+        <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-slate-900 dark:border-slate-800 p-4 sm:p-6">
+          <DialogHeader>
+            <DialogTitle className="dark:text-slate-100 text-lg sm:text-xl flex items-center gap-2">
+              <Upload className="w-5 h-5 text-blue-600" />
+              Import Preview & Duplicate Check
+            </DialogTitle>
+          </DialogHeader>
+
+          {importPreviewData && (
+            <div className="space-y-6 mt-4">
+              <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg border dark:border-slate-700 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Total records in file:</span>
+                  <span className="font-semibold">{importPreviewData.total}</span>
+                </div>
+                {importPreviewData.internalDuplicates.length > 0 && (
+                  <div className="flex justify-between text-sm text-amber-600 dark:text-amber-400">
+                    <span>Duplicates within file (HHID):</span>
+                    <span className="font-semibold">{importPreviewData.internalDuplicates.length}</span>
+                  </div>
+                )}
+                {importPreviewData.dbDuplicates.length > 0 && (
+                  <div className="flex justify-between text-sm text-rose-600 dark:text-rose-400">
+                    <span>Already exists in database:</span>
+                    <span className="font-semibold">{importPreviewData.dbDuplicates.length}</span>
+                  </div>
+                )}
+                <div className="pt-2 border-t dark:border-slate-700 flex justify-between text-sm font-bold">
+                  <span>New records to be added:</span>
+                  <span className="text-emerald-600 dark:text-emerald-400">
+                    {importPreviewData.allData.filter(b => 
+                      !importPreviewData.internalDuplicates.includes(b.hhid) && 
+                      !importPreviewData.dbDuplicates.includes(b.hhid)
+                    ).length}
+                  </span>
+                </div>
+              </div>
+
+              {(importPreviewData.dbDuplicates.length > 0 || importPreviewData.internalDuplicates.length > 0) && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Duplicate Details</h3>
+                  <div className="max-h-40 overflow-y-auto border dark:border-slate-700 rounded-md">
+                    <Table>
+                      <TableHeader className="sticky top-0 bg-slate-100 dark:bg-slate-800">
+                        <TableRow>
+                          <TableHead className="text-xs">HHID</TableHead>
+                          <TableHead className="text-xs">Type</TableHead>
+                          <TableHead className="text-xs">Issue</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {importPreviewData.internalDuplicates.map(hhid => (
+                          <TableRow key={`int-${hhid}`}>
+                            <TableCell className="text-xs py-2 font-mono">{hhid}</TableCell>
+                            <TableCell className="text-xs py-2">
+                              <span className="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">File</span>
+                            </TableCell>
+                            <TableCell className="text-xs py-2 text-amber-600">Duplicate in file</TableCell>
+                          </TableRow>
+                        ))}
+                        {importPreviewData.dbDuplicateDetails.map(d => (
+                          <TableRow key={`db-${d.hhid}`}>
+                            <TableCell className="text-xs py-2 font-mono">{d.hhid}</TableCell>
+                            <TableCell className="text-xs py-2">
+                              <span className="px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400">System</span>
+                            </TableCell>
+                            <TableCell className="text-xs py-2 text-rose-600">Already exists: {d.first_name} {d.last_name}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md border border-blue-100 dark:border-blue-800/50">
+                <p className="text-xs text-blue-700 dark:text-blue-400">
+                  <strong>Recommendation:</strong> Only unique records that don't already exist in the system will be imported if you choose "Import Unique Only".
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t dark:border-slate-800">
+                <Button 
+                  variant="outline" 
+                  className="flex-1 dark:border-slate-700" 
+                  onClick={() => { setIsImportPreviewOpen(false); setImportPreviewData(null); }}
+                  disabled={isImporting}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={() => {
+                    const uniqueData = importPreviewData.allData.filter(b => 
+                      !importPreviewData.internalDuplicates.includes(b.hhid) && 
+                      !importPreviewData.dbDuplicates.includes(b.hhid)
+                    );
+                    proceedWithImport(uniqueData);
+                  }}
+                  disabled={isImporting || importPreviewData.allData.filter(b => 
+                    !importPreviewData.internalDuplicates.includes(b.hhid) && 
+                    !importPreviewData.dbDuplicates.includes(b.hhid)
+                  ).length === 0}
+                >
+                  Import Unique Only
+                </Button>
+                <Button 
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                  onClick={() => proceedWithImport(importPreviewData.allData)}
+                  disabled={isImporting}
+                >
+                  Import All Anyway
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
