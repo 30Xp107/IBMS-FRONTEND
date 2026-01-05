@@ -34,7 +34,7 @@ import { Plus, Search, Edit, Trash2, Users, Download, Upload, ArrowUpDown, Arrow
 import * as XLSX from "xlsx";
 
 const BeneficiariesPage = () => {
-  const { api, isAdmin } = useAuth();
+  const { api, isAdmin, user } = useAuth();
   const [beneficiaries, setBeneficiaries] = useState([]);
   const [areas, setAreas] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
