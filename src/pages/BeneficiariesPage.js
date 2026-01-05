@@ -47,6 +47,7 @@ const BeneficiariesPage = () => {
   const [totalBeneficiaries, setTotalBeneficiaries] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const itemsPerPage = 10;
+  const MAX_IMPORT_LIMIT = 30000;
   const [sortConfig, setSortConfig] = useState({ key: "last_name", direction: "asc" });
   const [selectedIds, setSelectedIds] = useState([]);
   const [isAllSelectedGlobally, setIsAllSelectedGlobally] = useState(false);
@@ -193,19 +194,15 @@ const BeneficiariesPage = () => {
     }
   };
 
-  const fetchAreas = async (type = null, parentId = null) => {
+  const fetchAreas = async (type = null, parentId = null, parentCode = null) => {
     try {
-      // Don't fetch if both are null to avoid loading all 40,000+ areas
-      if (!type && !parentId) return [];
+      // Don't fetch if all are null to avoid loading all 40,000+ areas
+      if (!type && !parentId && !parentCode) return [];
 
       let query = `?limit=500`; // Use a large enough limit for any single level
-      if (type && parentId) {
-        query += `&type=${type}&parent_id=${parentId}`;
-      } else if (type) {
-        query += `&type=${type}`;
-      } else if (parentId) {
-        query += `&parent_id=${parentId}`;
-      }
+      if (type) query += `&type=${type}`;
+      if (parentId) query += `&parent_id=${parentId}`;
+      if (parentCode) query += `&parent_code=${parentCode}`;
 
       const response = await api.get(`/areas${query}`);
       const data = Array.isArray(response.data) ? response.data : (response.data.areas || []);
@@ -280,19 +277,20 @@ const BeneficiariesPage = () => {
         newData.municipality = "";
         newData.barangay = "";
         const regionObj = areas.find(a => a.name === value && a.type === "region");
-        if (regionObj) fetchAreas("province", regionObj.id);
+        if (regionObj) fetchAreas("province", regionObj.id, regionObj.code);
       } else if (name === "province") {
         newData.municipality = "";
         newData.barangay = "";
         const regionObj = areas.find(a => a.name === prev.region && a.type === "region");
-        const provinceObj = areas.find(a => a.name === value && a.type === "province" && (regionObj ? a.parent_id === regionObj.id : true));
-        if (provinceObj) fetchAreas("municipality", provinceObj.id);
+        const provinceObj = areas.find(a => a.name === value && a.type === "province" && 
+          (regionObj ? (a.parent_id === regionObj.id || a.parent_code === regionObj.code) : true));
+        if (provinceObj) fetchAreas("municipality", provinceObj.id, provinceObj.code);
       } else if (name === "municipality") {
         newData.barangay = "";
-        const regionObj = areas.find(a => a.name === prev.region && a.type === "region");
-        const provinceObj = areas.find(a => a.name === prev.province && a.type === "province" && (regionObj ? a.parent_id === regionObj.id : true));
-        const municipalityObj = areas.find(a => a.name === value && a.type === "municipality" && (provinceObj ? a.parent_id === provinceObj.id : true));
-        if (municipalityObj) fetchAreas("barangay", municipalityObj.id);
+        const provinceObj = areas.find(a => a.name === prev.province && a.type === "province");
+        const municipalityObj = areas.find(a => a.name === value && a.type === "municipality" && 
+          (provinceObj ? (a.parent_id === provinceObj.id || a.parent_code === provinceObj.code) : true));
+        if (municipalityObj) fetchAreas("barangay", municipalityObj.id, municipalityObj.code);
       }
       
       return newData;
@@ -305,25 +303,27 @@ const BeneficiariesPage = () => {
     if (!formData.region) return [];
     const region = areas.find(a => a.name === formData.region && a.type === "region");
     if (!region) return [];
-    return areas.filter(a => a.type === "province" && a.parent_id === region.id);
+    return areas.filter(a => a.type === "province" && (a.parent_id === region.id || a.parent_code === region.code));
   };
   
   const getMunicipalities = () => {
     if (!formData.province) return [];
+    const region = areas.find(a => a.name === formData.region && a.type === "region");
     const province = areas.find(a => a.name === formData.province && a.type === "province" &&
-      (formData.region ? a.parent_id === areas.find(r => r.name === formData.region && r.type === "region")?.id : true)
+      (region ? (a.parent_id === region.id || a.parent_code === region.code) : true)
     );
     if (!province) return [];
-    return areas.filter(a => a.type === "municipality" && a.parent_id === province.id);
+    return areas.filter(a => a.type === "municipality" && (a.parent_id === province.id || a.parent_code === province.code));
   };
 
   const getBarangays = () => {
     if (!formData.municipality) return [];
+    const province = areas.find(a => a.name === formData.province && a.type === "province");
     const municipality = areas.find(a => a.name === formData.municipality && a.type === "municipality" && 
-      (formData.province ? a.parent_id === areas.find(p => p.name === formData.province && p.type === "province")?.id : true)
+      (province ? (a.parent_id === province.id || a.parent_code === province.code) : true)
     );
     if (!municipality) return [];
-    return areas.filter(a => a.type === "barangay" && a.parent_id === municipality.id);
+    return areas.filter(a => a.type === "barangay" && (a.parent_id === municipality.id || a.parent_code === municipality.code));
   };
 
   const resetForm = () => {
@@ -385,15 +385,15 @@ const BeneficiariesPage = () => {
         const regions = await fetchAreas("region");
         const regionObj = regions.find(r => r.name === beneficiary.region);
         if (regionObj) {
-          const provinces = await fetchAreas("province", regionObj.id);
+          const provinces = await fetchAreas("province", regionObj.id, regionObj.code);
           if (beneficiary.province) {
             const provinceObj = provinces.find(p => p.name === beneficiary.province);
             if (provinceObj) {
-              const municipalities = await fetchAreas("municipality", provinceObj.id);
+              const municipalities = await fetchAreas("municipality", provinceObj.id, provinceObj.code);
               if (beneficiary.municipality) {
                 const municipalityObj = municipalities.find(m => m.name === beneficiary.municipality);
                 if (municipalityObj) {
-                  await fetchAreas("barangay", municipalityObj.id);
+                  await fetchAreas("barangay", municipalityObj.id, municipalityObj.code);
                 }
               }
             }
@@ -499,20 +499,62 @@ const BeneficiariesPage = () => {
       try {
         const data = new Uint8Array(event.target.result);
         const workbook = XLSX.read(data, { type: "array" });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
         
-        // Use header: 1 to get an array of arrays, which is more reliable
-        const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        let rows = [];
+        let sheetName = "";
+        
+        // Try to find the first sheet that has data
+        for (const name of workbook.SheetNames) {
+          const worksheet = workbook.Sheets[name];
+          const sheetRows = XLSX.utils.sheet_to_json(worksheet, { 
+            header: 1,
+            defval: "", 
+            raw: false
+          });
+          
+          if (sheetRows && sheetRows.length >= 2) {
+            // Check if this sheet has an HHID header
+            const hasHhid = sheetRows.some(row => 
+              Array.isArray(row) && row.some(cell => {
+                const val = String(cell || "").toLowerCase().replace(/[^a-z0-9]/g, '');
+                return val.includes('hhid') || val.includes('householdid');
+              })
+            );
+            
+            if (hasHhid) {
+              rows = sheetRows;
+              sheetName = name;
+              break;
+            }
+          }
+        }
 
-        if (rows.length < 2) {
-          toast.error("The file is empty or missing data");
+        if (rows.length === 0) {
+          toast.error("Could not find a sheet with beneficiary data and 'HHID' header.");
+          return;
+        }
+
+        // Filter out completely empty rows
+        const nonEmptyRows = rows.filter(row => 
+          Array.isArray(row) && row.some(cell => cell !== null && cell !== undefined && String(cell).trim() !== "")
+        );
+
+        if (nonEmptyRows.length < 2) {
+          toast.error("The file is empty or missing beneficiary data rows");
+          return;
+        }
+
+        if (nonEmptyRows.length > MAX_IMPORT_LIMIT) {
+          toast.error(`Import limit exceeded. Maximum ${MAX_IMPORT_LIMIT.toLocaleString()} records allowed per file.`);
           return;
         }
 
         // Find the header row (usually the first row, but we'll look for HHID just in case)
-        const headerRowIndex = rows.findIndex(row => 
-          row.some(cell => String(cell).toLowerCase().replace(/[^a-z0-9]/g, '').includes('hhid'))
+        const headerRowIndex = nonEmptyRows.findIndex(row => 
+          row.some(cell => {
+            const val = String(cell || "").toLowerCase().replace(/[^a-z0-9]/g, '');
+            return val.includes('hhid') || val.includes('householdid');
+          })
         );
 
         if (headerRowIndex === -1) {
@@ -520,8 +562,8 @@ const BeneficiariesPage = () => {
           return;
         }
 
-        const headers = rows[headerRowIndex].map(h => String(h).toLowerCase().replace(/[^a-z0-9]/g, ''));
-        const dataRows = rows.slice(headerRowIndex + 1);
+        const headers = nonEmptyRows[headerRowIndex].map(h => String(h || "").toLowerCase().replace(/[^a-z0-9]/g, ''));
+        const dataRows = nonEmptyRows.slice(headerRowIndex + 1);
 
         const mappedData = dataRows
           .map(row => {
@@ -596,11 +638,25 @@ const BeneficiariesPage = () => {
             }
           });
 
-          // 2. Check for existing duplicates in the database
+          // 2. Check for existing duplicates in the database in chunks
           const hhids = mappedData.map(b => b.hhid);
-          const response = await api.post("/beneficiaries/check-duplicates", { hhids });
-          const dbDuplicates = response.data.duplicates || [];
-          const dbDuplicateHhids = dbDuplicates.map(d => d.hhid);
+          const dbDuplicateHhids = [];
+          const dbDuplicateDetails = [];
+          const checkChunkSize = 5000;
+          
+          for (let i = 0; i < hhids.length; i += checkChunkSize) {
+            const chunk = hhids.slice(i, i + checkChunkSize);
+            const response = await api.post("/beneficiaries/check-duplicates", { hhids: chunk });
+            const chunkDuplicates = response.data.duplicates || [];
+            dbDuplicateHhids.push(...chunkDuplicates.map(d => d.hhid));
+            dbDuplicateDetails.push(...chunkDuplicates);
+            
+            // Update progress if there are many chunks
+            if (hhids.length > checkChunkSize) {
+              const progress = Math.min(100, Math.round(((i + chunk.length) / hhids.length) * 100));
+              toast.loading(`Checking for duplicates: ${progress}%`, { id: loadingToast });
+            }
+          }
 
           toast.dismiss(loadingToast);
 
@@ -610,7 +666,7 @@ const BeneficiariesPage = () => {
               allData: mappedData,
               internalDuplicates,
               dbDuplicates: dbDuplicateHhids,
-              dbDuplicateDetails: dbDuplicates
+              dbDuplicateDetails: dbDuplicateDetails
             });
             setIsImportPreviewOpen(true);
           } else {
@@ -638,13 +694,22 @@ const BeneficiariesPage = () => {
       let successCount = 0;
       let errorCount = 0;
       
-      for (const beneficiary of dataToImport) {
+      // Send data in chunks of 5000 to the backend
+      const chunkSize = 5000;
+      for (let i = 0; i < dataToImport.length; i += chunkSize) {
+        const chunk = dataToImport.slice(i, i + chunkSize);
         try {
-          await api.post("/beneficiaries", beneficiary);
-          successCount++;
+          const response = await api.post("/beneficiaries/bulk", { beneficiaries: chunk });
+          successCount += response.data.success;
+          errorCount += response.data.failed;
+          
+          // Update toast with progress if there are multiple chunks
+          if (dataToImport.length > chunkSize) {
+            toast.loading(`Imported ${successCount} of ${dataToImport.length}...`, { id: loadingToast });
+          }
         } catch (err) {
-          console.error(`Failed to import beneficiary ${beneficiary.hhid}:`, err);
-          errorCount++;
+          console.error(`Failed to import chunk starting at ${i}:`, err);
+          errorCount += chunk.length;
         }
       }
 
@@ -652,7 +717,10 @@ const BeneficiariesPage = () => {
       if (errorCount === 0) {
         toast.success(`Successfully imported all ${successCount} beneficiaries`);
       } else {
-        toast.success(`Imported ${successCount} beneficiaries. ${errorCount} failed.`);
+        toast.error(`Import failed for ${errorCount} records. Check server logs for details.`, { duration: 5000 });
+        if (successCount > 0) {
+          toast.success(`Successfully imported ${successCount} beneficiaries.`);
+        }
       }
       setIsImportPreviewOpen(false);
       setImportPreviewData(null);
@@ -690,14 +758,19 @@ const BeneficiariesPage = () => {
         </div>
         {isAdmin && (
           <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2">
-            <Button
-              variant="outline"
-              onClick={() => document.getElementById("excel-import").click()}
-              className="border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:border-blue-500 dark:text-blue-400 text-xs sm:text-sm h-9 sm:h-10"
-            >
-              <Upload className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
-              Import
-            </Button>
+            <div className="relative group">
+              <Button
+                variant="outline"
+                onClick={() => document.getElementById("excel-import").click()}
+                className="w-full border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:border-blue-500 dark:text-blue-400 text-xs sm:text-sm h-9 sm:h-10"
+              >
+                <Upload className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
+                Import
+              </Button>
+              <div className="absolute hidden group-hover:block bg-slate-800 text-white text-[10px] p-1 rounded -bottom-8 left-0 z-50 whitespace-nowrap">
+                Max {MAX_IMPORT_LIMIT.toLocaleString()} records
+              </div>
+            </div>
             <input
               id="excel-import"
               type="file"
@@ -727,11 +800,13 @@ const BeneficiariesPage = () => {
                 </DialogTrigger>
                 <DialogContent className="w-[95vw] sm:max-w-md dark:bg-slate-900 dark:border-slate-800 p-4 sm:p-6">
                   <DialogHeader>
-                    <DialogTitle className="dark:text-slate-100 text-lg sm:text-xl">Import Requirements</DialogTitle>
-                    <DialogDescription className="dark:text-slate-400">
-                      Toggle which fields are required during beneficiary import.
-                    </DialogDescription>
-                  </DialogHeader>
+            <DialogTitle className="dark:text-slate-100 text-lg sm:text-xl">Import Requirements</DialogTitle>
+            <DialogDescription className="dark:text-slate-400">
+              Toggle which fields are required during beneficiary import. 
+              <br />
+              <span className="text-amber-600 dark:text-amber-500 font-medium">Note: Maximum {MAX_IMPORT_LIMIT.toLocaleString()} records per import file.</span>
+            </DialogDescription>
+          </DialogHeader>
                   <div className="space-y-4 py-4">
                     <div className="grid gap-4">
                       {Object.keys(importRequirements).map((field) => (
@@ -988,13 +1063,13 @@ const BeneficiariesPage = () => {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Select value={regionFilter} onValueChange={(val) => {
-                setRegionFilter(val);
-                setProvinceFilter("all");
-                setMunicipalityFilter("all");
-                setBarangayFilter("all");
-                const regionObj = areas.find(a => a.name === val && a.type === "region");
-                if (regionObj) fetchAreas("province", regionObj.id);
-              }}>
+                  setRegionFilter(val);
+                  setProvinceFilter("all");
+                  setMunicipalityFilter("all");
+                  setBarangayFilter("all");
+                  const regionObj = areas.find(a => a.name === val && a.type === "region");
+                  if (regionObj) fetchAreas("province", regionObj.id, regionObj.code);
+                }}>
                 <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
                   <SelectValue placeholder="Region" />
                 </SelectTrigger>
@@ -1016,8 +1091,9 @@ const BeneficiariesPage = () => {
                   setMunicipalityFilter("all");
                   setBarangayFilter("all");
                   const regionObj = areas.find(a => a.name === regionFilter && a.type === "region");
-                  const provinceObj = areas.find(a => a.name === val && a.type === "province" && (regionObj ? a.parent_id === regionObj.id : true));
-                  if (provinceObj) fetchAreas("municipality", provinceObj.id);
+                  const provinceObj = areas.find(a => a.name === val && a.type === "province" && 
+                    (regionObj ? (a.parent_id === regionObj.id || a.parent_code === regionObj.code) : true));
+                  if (provinceObj) fetchAreas("municipality", provinceObj.id, provinceObj.code);
                 }}
                 disabled={regionFilter === "all"}
               >
@@ -1027,7 +1103,11 @@ const BeneficiariesPage = () => {
                 <SelectContent>
                   <SelectItem value="all">All Provinces</SelectItem>
                   {areas
-                    .filter(a => a.type === "province" && (regionFilter !== "all" ? a.parent_id === areas.find(r => r.name === regionFilter)?.id : true))
+                    .filter(a => a.type === "province" && (regionFilter !== "all" ? 
+                      (() => {
+                        const r = areas.find(area => area.name === regionFilter);
+                        return r ? (a.parent_id === r.id || a.parent_code === r.code) : true;
+                      })() : true))
                     .map(p => (
                       <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
                     ))
@@ -1040,10 +1120,10 @@ const BeneficiariesPage = () => {
                 onValueChange={(val) => {
                   setMunicipalityFilter(val);
                   setBarangayFilter("all");
-                  const regionObj = areas.find(a => a.name === regionFilter && a.type === "region");
-                  const provinceObj = areas.find(a => a.name === provinceFilter && a.type === "province" && (regionObj ? a.parent_id === regionObj.id : true));
-                  const municipalityObj = areas.find(a => a.name === val && a.type === "municipality" && (provinceObj ? a.parent_id === provinceObj.id : true));
-                  if (municipalityObj) fetchAreas("barangay", municipalityObj.id);
+                  const provinceObj = areas.find(a => a.name === provinceFilter && a.type === "province");
+                  const municipalityObj = areas.find(a => a.name === val && a.type === "municipality" && 
+                    (provinceObj ? (a.parent_id === provinceObj.id || a.parent_code === provinceObj.code) : true));
+                  if (municipalityObj) fetchAreas("barangay", municipalityObj.id, municipalityObj.code);
                 }}
                 disabled={provinceFilter === "all"}
               >
@@ -1053,7 +1133,11 @@ const BeneficiariesPage = () => {
                 <SelectContent>
                   <SelectItem value="all">All Municipalities</SelectItem>
                   {areas
-                    .filter(a => a.type === "municipality" && (provinceFilter !== "all" ? a.parent_id === areas.find(p => p.name === provinceFilter)?.id : true))
+                    .filter(a => a.type === "municipality" && (provinceFilter !== "all" ? 
+                      (() => {
+                        const p = areas.find(area => area.name === provinceFilter);
+                        return p ? (a.parent_id === p.id || a.parent_code === p.code) : true;
+                      })() : true))
                     .map(m => (
                       <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>
                     ))
@@ -1072,7 +1156,11 @@ const BeneficiariesPage = () => {
                 <SelectContent>
                   <SelectItem value="all">All Barangays</SelectItem>
                   {areas
-                    .filter(a => a.type === "barangay" && (municipalityFilter !== "all" ? a.parent_id === areas.find(m => m.name === municipalityFilter)?.id : true))
+                    .filter(a => a.type === "barangay" && (municipalityFilter !== "all" ? 
+                      (() => {
+                        const m = areas.find(area => area.name === municipalityFilter);
+                        return m ? (a.parent_id === m.id || a.parent_code === m.code) : true;
+                      })() : true))
                     .map(b => (
                       <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
                     ))
@@ -1386,7 +1474,12 @@ const BeneficiariesPage = () => {
 
               {(importPreviewData.dbDuplicates.length > 0 || importPreviewData.internalDuplicates.length > 0) && (
                 <div className="space-y-3">
-                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Duplicate Details</h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Duplicate Details</h3>
+                    {(importPreviewData.internalDuplicates.length + importPreviewData.dbDuplicateDetails.length > 500) && (
+                      <span className="text-[10px] text-slate-500">Showing first 500 only</span>
+                    )}
+                  </div>
                   <div className="max-h-40 overflow-y-auto border dark:border-slate-700 rounded-md">
                     <Table>
                       <TableHeader className="sticky top-0 bg-slate-100 dark:bg-slate-800">
@@ -1397,7 +1490,7 @@ const BeneficiariesPage = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {importPreviewData.internalDuplicates.map(hhid => (
+                        {importPreviewData.internalDuplicates.slice(0, 500).map(hhid => (
                           <TableRow key={`int-${hhid}`}>
                             <TableCell className="text-xs py-2 font-mono">{hhid}</TableCell>
                             <TableCell className="text-xs py-2">
@@ -1406,7 +1499,7 @@ const BeneficiariesPage = () => {
                             <TableCell className="text-xs py-2 text-amber-600">Duplicate in file</TableCell>
                           </TableRow>
                         ))}
-                        {importPreviewData.dbDuplicateDetails.map(d => (
+                        {importPreviewData.dbDuplicateDetails.slice(0, Math.max(0, 500 - importPreviewData.internalDuplicates.length)).map(d => (
                           <TableRow key={`db-${d.hhid}`}>
                             <TableCell className="text-xs py-2 font-mono">{d.hhid}</TableCell>
                             <TableCell className="text-xs py-2">
