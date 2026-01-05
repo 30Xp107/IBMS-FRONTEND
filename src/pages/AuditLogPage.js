@@ -89,52 +89,53 @@ const AuditLogPage = () => {
 
   const handleExport = async () => {
     try {
-      // For export, we might want to fetch more, but let's just export current view or all with a warning
-      const response = await api.get("/audit-logs?limit=1000"); // Export top 1000
-      const logsToExport = response.data.logs || [];
+      const toastId = toast.loading("Preparing export...");
       
-      if (logsToExport.length === 0) {
+      // Fetch all logs with current filters but no pagination
+      let query = `?limit=all`;
+      if (moduleFilter) query += `&module=${moduleFilter}`;
+      if (searchQuery) query += `&search=${searchQuery}`;
+      
+      const response = await api.get(`/audit-logs${query}`);
+      const allLogs = response.data.logs || [];
+      
+      if (allLogs.length === 0) {
+        toast.dismiss(toastId);
         toast.error("No data to export");
         return;
       }
 
-      const exportData = logsToExport.map(log => {
-        const { date, time } = formatTimestamp(log.timestamp || log.createdAt);
-        return {
-          "Timestamp": `${date} ${time}`,
-          "User": log.user_name,
-          "Role": log.user_role,
-          "Action": log.action,
-          "Module": log.module,
-          "Record ID": log.record_id,
-          "Field": log.field_name || "-",
-          "Old Value": log.old_value || "-",
-          "New Value": log.new_value || "-"
-        };
-      });
+      const exportData = allLogs.map(log => ({
+        "Timestamp": new Date(log.createdAt).toLocaleString(),
+        "User": log.user_name,
+        "Action": log.action,
+        "Module": log.module,
+        "Record ID": log.record_id,
+        "Old Value": log.old_value || "-",
+        "New Value": log.new_value || "-"
+      }));
 
       const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Audit Logs");
       
-      // Add column widths
       const wscols = [
-        { wch: 20 }, // Timestamp
+        { wch: 25 }, // Timestamp
         { wch: 20 }, // User
-        { wch: 15 }, // Role
         { wch: 15 }, // Action
         { wch: 15 }, // Module
-        { wch: 30 }, // Record ID
-        { wch: 20 }, // Field
+        { wch: 25 }, // Record ID
         { wch: 40 }, // Old Value
         { wch: 40 }, // New Value
       ];
       worksheet["!cols"] = wscols;
 
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Audit_Logs");
-      XLSX.writeFile(workbook, `Audit_Logs_${new Date().toISOString().split('T')[0]}.xlsx`);
-      toast.success("Audit logs exported successfully");
+      XLSX.writeFile(workbook, `audit_logs_${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.dismiss(toastId);
+      toast.success(`Exported ${allLogs.length} logs`);
     } catch (error) {
-      toast.error("Export failed");
+      console.error("Export error:", error);
+      toast.error("Failed to export logs");
     }
   };
 
@@ -461,33 +462,45 @@ const AuditLogPage = () => {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between px-2 py-4">
-          <div className="text-xs text-slate-500 dark:text-slate-400">
-            Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalLogs)} of {totalLogs} logs
-          </div>
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => paginate(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="h-8 text-xs dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300"
-            >
-              Previous
-            </Button>
-            <div className="text-xs font-medium dark:text-slate-300">
-              Page {currentPage} of {totalPages}
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => paginate(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="h-8 text-xs dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300"
-            >
-              Next
-            </Button>
-          </div>
+        <div className="flex items-center justify-center gap-2 py-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => paginate(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
+          >
+            Previous
+          </Button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1)
+            .filter(page => {
+              // Show first, last, and pages around current
+              return page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1;
+            })
+            .map((page, index, array) => (
+              <div key={page} className="flex items-center">
+                {index > 0 && array[index - 1] !== page - 1 && (
+                  <span className="px-2 text-slate-400 dark:text-slate-600">...</span>
+                )}
+                <Button
+                  variant={currentPage === page ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => paginate(page)}
+                  className={`w-8 ${currentPage === page ? 'dark:bg-emerald-600 dark:text-white' : 'dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800'}`}
+                >
+                  {page}
+                </Button>
+              </div>
+            ))}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => paginate(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
+          >
+            Next
+          </Button>
         </div>
       )}
 

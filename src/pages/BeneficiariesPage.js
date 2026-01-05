@@ -26,8 +26,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Plus, Search, Edit, Trash2, Users, Download, Upload, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Users, Download, Upload, ArrowUpDown, ArrowUp, ArrowDown, Trash } from "lucide-react";
 import * as XLSX from "xlsx";
 
 const BeneficiariesPage = () => {
@@ -45,6 +46,8 @@ const BeneficiariesPage = () => {
   const [totalPages, setTotalPages] = useState(1);
   const itemsPerPage = 10;
   const [sortConfig, setSortConfig] = useState({ key: "last_name", direction: "asc" });
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [isAllSelectedGlobally, setIsAllSelectedGlobally] = useState(false);
 
   const handleSort = (key) => {
     let direction = "asc";
@@ -52,6 +55,63 @@ const BeneficiariesPage = () => {
       direction = "desc";
     }
     setSortConfig({ key, direction });
+  };
+
+  const handleSelectAll = (checked) => {
+    if (checked) {
+      setSelectedIds(beneficiaries.map(b => b.id));
+    } else {
+      setSelectedIds([]);
+      setIsAllSelectedGlobally(false);
+    }
+  };
+
+  const handleSelectOne = (id, checked) => {
+    if (checked) {
+      setSelectedIds(prev => [...prev, id]);
+    } else {
+      setSelectedIds(prev => prev.filter(selectedId => selectedId !== id));
+      setIsAllSelectedGlobally(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const count = isAllSelectedGlobally ? totalBeneficiaries : selectedIds.length;
+    if (count === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ${count} beneficiaries? This action cannot be undone.`)) return;
+
+    const toastId = toast.loading(`Deleting ${count} beneficiaries...`);
+    try {
+      if (isAllSelectedGlobally) {
+        // Fetch all IDs matching current filters
+        let query = `?limit=all`;
+        if (search) query += `&search=${search}`;
+        if (regionFilter !== "all") query += `&region=${regionFilter}`;
+        if (provinceFilter !== "all") query += `&province=${provinceFilter}`;
+        if (municipalityFilter !== "all") query += `&municipality=${municipalityFilter}`;
+        if (barangayFilter !== "all") query += `&barangay=${barangayFilter}`;
+        
+        const response = await api.get(`/beneficiaries${query}`);
+        const allToDelele = response.data.beneficiaries || [];
+        
+        for (const b of allToDelele) {
+          await api.delete(`/beneficiaries/${b._id || b.id}`);
+        }
+      } else {
+        for (const id of selectedIds) {
+          await api.delete(`/beneficiaries/${id}`);
+        }
+      }
+      
+      toast.dismiss(toastId);
+      toast.success(`Successfully deleted ${count} beneficiaries`);
+      setSelectedIds([]);
+      setIsAllSelectedGlobally(false);
+      fetchBeneficiaries();
+    } catch (error) {
+      toast.dismiss(toastId);
+      toast.error("Failed to delete some beneficiaries");
+    }
   };
 
   const getSortIcon = (key) => {
@@ -146,6 +206,8 @@ const BeneficiariesPage = () => {
       setBeneficiaries(normalizedData);
       setTotalBeneficiaries(data.total || 0);
       setTotalPages(data.totalPages || 1);
+      setSelectedIds([]); // Clear selection when data changes
+      setIsAllSelectedGlobally(false);
     } catch (error) {
       toast.error("Failed to load beneficiaries");
     } finally {
@@ -306,55 +368,76 @@ const BeneficiariesPage = () => {
     }
   };
 
-  const handleExport = () => {
-    if (beneficiaries.length === 0) {
-      toast.error("No data to export");
-      return;
+  const handleExport = async () => {
+    try {
+      const toastId = toast.loading("Preparing export...");
+      
+      // Fetch all beneficiaries with current filters but no pagination
+      let query = `?limit=all`;
+      if (search) query += `&search=${search}`;
+      if (regionFilter !== "all") query += `&region=${regionFilter}`;
+      if (provinceFilter !== "all") query += `&province=${provinceFilter}`;
+      if (municipalityFilter !== "all") query += `&municipality=${municipalityFilter}`;
+      if (barangayFilter !== "all") query += `&barangay=${barangayFilter}`;
+      
+      const response = await api.get(`/beneficiaries${query}`);
+      const allBeneficiaries = response.data.beneficiaries || [];
+
+      if (allBeneficiaries.length === 0) {
+        toast.dismiss(toastId);
+        toast.error("No data to export");
+        return;
+      }
+
+      const headers = [
+        "HHID",
+        "PKNO",
+        "First Name",
+        "Last Name",
+        "Middle Name",
+        "Birthdate",
+        "Gender",
+        "Barangay",
+        "Municipality",
+        "Province",
+        "Region",
+        "Contact"
+      ];
+
+      const csvContent = [
+        headers.join(","),
+        ...allBeneficiaries.map(b => [
+          `"${b.hhid}"`,
+          `"${b.pkno}"`,
+          `"${b.first_name}"`,
+          `"${b.last_name}"`,
+          `"${b.middle_name || ""}"`,
+          `"${b.birthdate}"`,
+          `"${b.gender}"`,
+          `"${b.barangay}"`,
+          `"${b.municipality}"`,
+          `"${b.province}"`,
+          `"${b.region || ""}"`,
+          `"${b.contact || ""}"`
+        ].join(","))
+      ].join("\n");
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `beneficiaries_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.dismiss(toastId);
+      toast.success(`Exported ${allBeneficiaries.length} records`);
+    } catch (error) {
+      console.error("Export error:", error);
+      toast.error("Failed to export data");
     }
-
-    const headers = [
-      "HHID",
-      "PKNO",
-      "First Name",
-      "Last Name",
-      "Middle Name",
-      "Birthdate",
-      "Gender",
-      "Barangay",
-      "Municipality",
-      "Province",
-      "Region",
-      "Contact"
-    ];
-
-    const csvContent = [
-      headers.join(","),
-      ...beneficiaries.map(b => [
-        `"${b.hhid}"`,
-        `"${b.pkno}"`,
-        `"${b.first_name}"`,
-        `"${b.last_name}"`,
-        `"${b.middle_name || ""}"`,
-        `"${b.birthdate}"`,
-        `"${b.gender}"`,
-        `"${b.barangay}"`,
-        `"${b.municipality}"`,
-        `"${b.province}"`,
-        `"${b.region || ""}"`,
-        `"${b.contact || ""}"`
-      ].join(","))
-    ].join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `beneficiaries_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success("Beneficiaries exported successfully");
   };
 
   const handleImport = async (e) => {
@@ -857,10 +940,34 @@ const BeneficiariesPage = () => {
 
       <Card className="border-stone-200 dark:border-slate-800 shadow-sm">
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-            <Users className="w-5 h-5 text-emerald-600 dark:text-emerald-500" />
-            Beneficiary List ({totalBeneficiaries})
-          </CardTitle>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <CardTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <Users className="w-5 h-5 text-emerald-600 dark:text-emerald-500" />
+              Beneficiary List ({totalBeneficiaries})
+            </CardTitle>
+            
+            {isAdmin && selectedIds.length > 0 && (
+              <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-800 animate-in fade-in slide-in-from-top-2">
+                <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                  {isAllSelectedGlobally ? totalBeneficiaries : selectedIds.length} selected
+                </span>
+                <div className="h-4 w-px bg-emerald-200 dark:bg-emerald-800 mx-1" />
+                <button
+                  onClick={handleBulkDelete}
+                  className="flex items-center h-7 px-2 text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
+                >
+                  <Trash className="w-3.5 h-3.5 mr-1" />
+                  Delete
+                </button>
+                <button
+                  onClick={() => setSelectedIds([])}
+                  className="h-7 px-2 text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
@@ -874,10 +981,49 @@ const BeneficiariesPage = () => {
             </div>
           ) : (
             <>
+              {/* Global Selection Banner */}
+              {isAdmin && selectedIds.length === beneficiaries.length && totalBeneficiaries > beneficiaries.length && (
+                <div className="bg-emerald-50 dark:bg-emerald-900/10 border-b border-emerald-100 dark:border-emerald-800/50 py-2 px-4 text-center">
+                  {isAllSelectedGlobally ? (
+                    <p className="text-sm text-emerald-700 dark:text-emerald-400">
+                      All {totalBeneficiaries} beneficiaries are selected.{" "}
+                      <button 
+                        onClick={() => {
+                          setSelectedIds([]);
+                          setIsAllSelectedGlobally(false);
+                        }}
+                        className="font-semibold underline hover:text-emerald-800 dark:hover:text-emerald-300"
+                      >
+                        Clear selection
+                      </button>
+                    </p>
+                  ) : (
+                    <p className="text-sm text-emerald-700 dark:text-emerald-400">
+                      All {beneficiaries.length} beneficiaries on this page are selected.{" "}
+                      <button 
+                        onClick={() => setIsAllSelectedGlobally(true)}
+                        className="font-semibold underline hover:text-emerald-800 dark:hover:text-emerald-300"
+                      >
+                        Select all {totalBeneficiaries} beneficiaries
+                      </button>
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-stone-100 dark:bg-slate-800/50 hover:bg-stone-100 dark:hover:bg-slate-800/50 border-b dark:border-slate-800">
+                      {isAdmin && (
+                        <TableHead className="w-[50px]">
+                          <Checkbox 
+                            checked={beneficiaries.length > 0 && selectedIds.length === beneficiaries.length}
+                            onCheckedChange={handleSelectAll}
+                            className="translate-y-[2px] dark:border-slate-700"
+                          />
+                        </TableHead>
+                      )}
                       <TableHead 
                         className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
                         onClick={() => handleSort("hhid")}
@@ -941,6 +1087,15 @@ const BeneficiariesPage = () => {
                   <TableBody>
                     {sortedBeneficiaries.map((b) => (
                       <TableRow key={b.id} className="border-b dark:border-slate-800 hover:bg-stone-50 dark:hover:bg-slate-800/30">
+                        {isAdmin && (
+                          <TableCell>
+                            <Checkbox 
+                              checked={selectedIds.includes(b.id)}
+                              onCheckedChange={(checked) => handleSelectOne(b.id, checked)}
+                              className="translate-y-[2px] dark:border-slate-700"
+                            />
+                          </TableCell>
+                        )}
                         <TableCell className="font-mono text-sm dark:text-slate-300">{b.hhid}</TableCell>
                         <TableCell className="font-mono text-sm dark:text-slate-300">{b.pkno}</TableCell>
                         <TableCell className="dark:text-slate-300">
@@ -981,33 +1136,45 @@ const BeneficiariesPage = () => {
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-between px-4 py-4 border-t dark:border-slate-800">
-                  <div className="text-xs text-slate-500 dark:text-slate-400">
-                    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalBeneficiaries)} of {totalBeneficiaries} beneficiaries
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                      disabled={currentPage === 1}
-                      className="h-8 text-xs dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300"
-                    >
-                      Previous
-                    </Button>
-                    <div className="text-xs font-medium dark:text-slate-300">
-                      Page {currentPage} of {totalPages}
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                      disabled={currentPage === totalPages}
-                      className="h-8 text-xs dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300"
-                    >
-                      Next
-                    </Button>
-                  </div>
+                <div className="flex items-center justify-center gap-2 py-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => paginate(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
+                  >
+                    Previous
+                  </Button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(page => {
+                      // Show first, last, and pages around current
+                      return page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1;
+                    })
+                    .map((page, index, array) => (
+                      <div key={page} className="flex items-center">
+                        {index > 0 && array[index - 1] !== page - 1 && (
+                          <span className="px-2 text-slate-400 dark:text-slate-600">...</span>
+                        )}
+                        <Button
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => paginate(page)}
+                          className={`w-8 ${currentPage === page ? 'dark:bg-emerald-600 dark:text-white' : 'dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800'}`}
+                        >
+                          {page}
+                        </Button>
+                      </div>
+                    ))}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => paginate(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
+                  >
+                    Next
+                  </Button>
                 </div>
               )}
             </>

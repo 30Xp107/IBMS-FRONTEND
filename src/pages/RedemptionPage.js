@@ -217,51 +217,84 @@ const RedemptionPage = () => {
     }
   };
 
-  const handleExport = () => {
-    if (beneficiaries.length === 0) {
-      toast.error("No data to export");
-      return;
+  const handleExport = async () => {
+    try {
+      const toastId = toast.loading("Preparing export...");
+      
+      // Fetch all beneficiaries for the current filter
+      let benQuery = `?limit=all`;
+      if (search) benQuery += `&search=${encodeURIComponent(search)}`;
+      if (regionFilter !== "all") benQuery += `&region=${encodeURIComponent(regionFilter)}`;
+      if (provinceFilter !== "all") benQuery += `&province=${encodeURIComponent(provinceFilter)}`;
+      if (municipalityFilter !== "all") benQuery += `&municipality=${encodeURIComponent(municipalityFilter)}`;
+      if (barangayFilter !== "all") benQuery += `&barangay=${encodeURIComponent(barangayFilter)}`;
+
+      const benResponse = await api.get(`/beneficiaries${benQuery}`);
+      const allBeneficiaries = (benResponse.data.beneficiaries || []).map(b => ({
+        ...b,
+        id: String(b._id || b.id)
+      }));
+
+      if (allBeneficiaries.length === 0) {
+        toast.dismiss(toastId);
+        toast.error("No data to export");
+        return;
+      }
+
+      // Fetch all redemptions for these beneficiaries and current FRM period
+      const benIds = allBeneficiaries.map(b => b.id);
+      
+      // Batch fetch redemptions if too many beneficiaries (though limit=all should work if we pass filters)
+      // Actually, it's better to fetch redemptions with the same filters as beneficiaries
+      const redResponse = await api.get(`/redemptions?limit=all&frm_period=${encodeURIComponent(frmFilter)}`);
+      const allRedemptions = (redResponse.data.redemptions || []).map(r => ({
+        ...r,
+        beneficiary_id: r.beneficiary_id ? (typeof r.beneficiary_id === "object" ? String(r.beneficiary_id?._id || r.beneficiary_id?.id) : String(r.beneficiary_id)) : ""
+      }));
+
+      const exportData = allBeneficiaries.map(b => {
+        const redemption = allRedemptions.find(r => r.beneficiary_id === b.id);
+        return {
+          "HHID": b.hhid,
+          "Last Name": b.last_name,
+          "First Name": b.first_name,
+          "Region": b.region,
+          "Province": b.province,
+          "Municipality": b.municipality,
+          "Barangay": b.barangay,
+          "FRM Period": frmFilter,
+          "Attendance": redemption?.attendance || "none",
+          "Reason": redemption?.reason || "",
+          "Date Recorded": redemption?.date_recorded || ""
+        };
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Redemptions");
+      
+      const wscols = [
+        { wch: 15 }, // HHID
+        { wch: 20 }, // Last Name
+        { wch: 20 }, // First Name
+        { wch: 20 }, // Region
+        { wch: 20 }, // Province
+        { wch: 20 }, // Municipality
+        { wch: 20 }, // Barangay
+        { wch: 15 }, // FRM Period
+        { wch: 15 }, // Attendance
+        { wch: 30 }, // Reason
+        { wch: 15 }, // Date Recorded
+      ];
+      worksheet["!cols"] = wscols;
+
+      XLSX.writeFile(workbook, `redemptions_${frmFilter.replace(" ", "_")}_${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.dismiss(toastId);
+      toast.success(`Exported ${allBeneficiaries.length} records`);
+    } catch (error) {
+      console.error("Export error:", error);
+      toast.error("Failed to export data");
     }
-
-    const exportData = beneficiaries.map(b => {
-      const redemption = redemptions.find(r => r.beneficiary_id === b.id);
-      return {
-        "HHID": b.hhid,
-        "Last Name": b.last_name,
-        "First Name": b.first_name,
-        "Region": b.region,
-        "Province": b.province,
-        "Municipality": b.municipality,
-        "Barangay": b.barangay,
-        "FRM Period": frmFilter,
-        "Attendance": redemption?.attendance || "none",
-        "Reason": redemption?.reason || "",
-        "Date Recorded": redemption?.date_recorded || ""
-      };
-    });
-
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Redemptions");
-    
-    // Set column widths
-    const wscols = [
-      { wch: 15 }, // HHID
-      { wch: 20 }, // Last Name
-      { wch: 20 }, // First Name
-      { wch: 20 }, // Region
-      { wch: 20 }, // Province
-      { wch: 20 }, // Municipality
-      { wch: 20 }, // Barangay
-      { wch: 15 }, // FRM Period
-      { wch: 15 }, // Attendance
-      { wch: 30 }, // Reason
-      { wch: 15 }, // Date Recorded
-    ];
-    worksheet["!cols"] = wscols;
-
-    XLSX.writeFile(workbook, `redemptions_${frmFilter.replace(" ", "_")}_${new Date().toISOString().split('T')[0]}.xlsx`);
-    toast.success("Redemptions exported successfully");
   };
 
   const handleImport = async (e) => {

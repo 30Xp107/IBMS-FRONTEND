@@ -218,49 +218,78 @@ const NESPage = () => {
     }
   };
 
-  const handleExport = () => {
-    if (beneficiaries.length === 0) {
-      toast.error("No data to export");
-      return;
+  const handleExport = async () => {
+    try {
+      const toastId = toast.loading("Preparing export...");
+      
+      // Fetch all beneficiaries for the current filter
+      let benQuery = `?limit=all`;
+      if (search) benQuery += `&search=${encodeURIComponent(search)}`;
+      if (regionFilter !== "all") benQuery += `&region=${encodeURIComponent(regionFilter)}`;
+      if (provinceFilter !== "all") benQuery += `&province=${encodeURIComponent(provinceFilter)}`;
+      if (municipalityFilter !== "all") benQuery += `&municipality=${encodeURIComponent(municipalityFilter)}`;
+      if (barangayFilter !== "all") benQuery += `&barangay=${encodeURIComponent(barangayFilter)}`;
+
+      const benResponse = await api.get(`/beneficiaries${benQuery}`);
+      const allBeneficiaries = (benResponse.data.beneficiaries || []).map(b => ({
+        ...b,
+        id: String(b._id || b.id)
+      }));
+
+      if (allBeneficiaries.length === 0) {
+        toast.dismiss(toastId);
+        toast.error("No data to export");
+        return;
+      }
+
+      // Fetch all NES records for the current FRM period
+      const nesResponse = await api.get(`/nes?limit=all&frm_period=${encodeURIComponent(frmFilter)}`);
+      const allNesRecords = (Array.isArray(nesResponse.data) ? nesResponse.data : (nesResponse.data.nesRecords || [])).map(r => ({
+        ...r,
+        beneficiary_id: r.beneficiary_id ? (typeof r.beneficiary_id === "object" ? String(r.beneficiary_id?._id || r.beneficiary_id?.id) : String(r.beneficiary_id)) : ""
+      }));
+
+      const exportData = allBeneficiaries.map(b => {
+        const nes = allNesRecords.find(r => r.beneficiary_id === b.id);
+        return {
+          "HHID": b.hhid,
+          "Last Name": b.last_name,
+          "First Name": b.first_name,
+          "Barangay": b.barangay,
+          "Municipality": b.municipality,
+          "Province": b.province,
+          "FRM Period": frmFilter,
+          "Attendance": nes?.attendance || "none",
+          "Reason": nes?.reason || "",
+          "Date Recorded": nes?.date_recorded || ""
+        };
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "NES_Records");
+      
+      const wscols = [
+        { wch: 15 }, // HHID
+        { wch: 20 }, // Last Name
+        { wch: 20 }, // First Name
+        { wch: 20 }, // Barangay
+        { wch: 20 }, // Municipality
+        { wch: 20 }, // Province
+        { wch: 15 }, // FRM Period
+        { wch: 15 }, // Attendance
+        { wch: 30 }, // Reason
+        { wch: 15 }, // Date Recorded
+      ];
+      worksheet["!cols"] = wscols;
+
+      XLSX.writeFile(workbook, `nes_records_${frmFilter.replace(" ", "_")}_${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.dismiss(toastId);
+      toast.success(`Exported ${allBeneficiaries.length} records`);
+    } catch (error) {
+      console.error("Export error:", error);
+      toast.error("Failed to export data");
     }
-
-    const exportData = beneficiaries.map(b => {
-      const nes = nesRecords.find(r => r.beneficiary_id === b.id);
-      return {
-        "HHID": b.hhid,
-        "Last Name": b.last_name,
-        "First Name": b.first_name,
-        "Barangay": b.barangay,
-        "Municipality": b.municipality,
-        "Province": b.province,
-        "FRM Period": frmFilter,
-        "Attendance": nes?.attendance || "none",
-        "Reason": nes?.reason || "",
-        "Date Recorded": nes?.date_recorded || ""
-      };
-    });
-
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "NES_Records");
-    
-    // Set column widths
-    const wscols = [
-      { wch: 15 }, // HHID
-      { wch: 20 }, // Last Name
-      { wch: 20 }, // First Name
-      { wch: 20 }, // Barangay
-      { wch: 20 }, // Municipality
-      { wch: 20 }, // Province
-      { wch: 15 }, // FRM Period
-      { wch: 15 }, // Attendance
-      { wch: 30 }, // Reason
-      { wch: 15 }, // Date Recorded
-    ];
-    worksheet["!cols"] = wscols;
-
-    XLSX.writeFile(workbook, `nes_records_${frmFilter.replace(" ", "_")}_${new Date().toISOString().split('T')[0]}.xlsx`);
-    toast.success("NES records exported successfully");
   };
 
   useEffect(() => {

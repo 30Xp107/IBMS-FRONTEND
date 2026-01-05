@@ -28,7 +28,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Search, UserCheck, UserX, Trash2, Users, Clock, CheckCircle, XCircle, Pencil, Save, Download, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Search, UserCheck, UserX, Trash2, Users, Clock, CheckCircle, XCircle, Pencil, Save, Download, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from "lucide-react";
 import * as XLSX from "xlsx";
 
 const UsersPage = () => {
@@ -190,40 +190,71 @@ const UsersPage = () => {
   };
 
   const getAreaName = (areaId) => {
-    const area = areas.find(a => a.id === areaId);
-    return area ? area.name : areaId;
-  };
+    if (!areaId) return "-";
+    // If it's already an object with a name, use it
+    if (typeof areaId === 'object' && areaId.name) return areaId.name;
+    
+    // Search in the local areas state
+    const area = areas.find(a => a.id === String(areaId) || a._id === String(areaId) || a.code === String(areaId));
+    if (area) return area.name;
 
-  const handleExport = () => {
-    if (filteredUsers.length === 0) {
-      toast.error("No data to export");
-      return;
+    // If not found in local areas, check if it's available in any of the users' assigned_areas (which are populated)
+    for (const u of users) {
+      const found = (u.assigned_areas || []).find(aa => 
+        (typeof aa === 'object' && (aa._id === String(areaId) || aa.id === String(areaId)))
+      );
+      if (found && typeof found === 'object' && found.name) return found.name;
     }
 
-    const exportData = filteredUsers.map(user => ({
-      "Name": user.name,
-      "Email": user.email,
-      "Role": user.role,
-      "Status": user.status,
-      "Assigned Areas": (user.assigned_areas || []).map(id => getAreaName(id)).join(", ")
-    }));
+    return areaId;
+  };
 
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Users");
-    
-    // Set column widths
-    const wscols = [
-      { wch: 25 }, // Name
-      { wch: 30 }, // Email
-      { wch: 15 }, // Role
-      { wch: 15 }, // Status
-      { wch: 50 }, // Assigned Areas
-    ];
-    worksheet["!cols"] = wscols;
+  const handleExport = async () => {
+    try {
+      const toastId = toast.loading("Preparing export...");
+      
+      // Fetch all users with current filters but no pagination
+      let query = `?limit=all`;
+      if (search) query += `&search=${encodeURIComponent(search)}`;
+      if (statusFilter !== "all") query += `&status=${statusFilter}`;
+      
+      const response = await api.get(`/auth/users${query}`);
+      const allUsers = response.data.users || [];
 
-    XLSX.writeFile(workbook, `users_list_${new Date().toISOString().split('T')[0]}.xlsx`);
-    toast.success("Users list exported successfully");
+      if (allUsers.length === 0) {
+        toast.dismiss(toastId);
+        toast.error("No data to export");
+        return;
+      }
+
+      const exportData = allUsers.map(user => ({
+        "Name": user.name,
+        "Email": user.email,
+        "Role": user.role,
+        "Status": user.status,
+        "Assigned Areas": (user.assigned_areas || []).map(area => typeof area === 'object' ? area.name : getAreaName(area)).join(", ")
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Users");
+      
+      const wscols = [
+        { wch: 25 }, // Name
+        { wch: 30 }, // Email
+        { wch: 15 }, // Role
+        { wch: 15 }, // Status
+        { wch: 50 }, // Assigned Areas
+      ];
+      worksheet["!cols"] = wscols;
+
+      XLSX.writeFile(workbook, `users_list_${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.dismiss(toastId);
+      toast.success(`Exported ${allUsers.length} users`);
+    } catch (error) {
+      console.error("Export error:", error);
+      toast.error("Failed to export data");
+    }
   };
 
   const filteredUsers = [...users].sort((a, b) => {
@@ -250,6 +281,29 @@ const UsersPage = () => {
 
   const currentUsers = filteredUsers;
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+  const getPaginationRange = () => {
+    const delta = 1;
+    const range = [];
+    const left = currentPage - delta;
+    const right = currentPage + delta;
+    let l;
+
+    for (let i = 1; i <= totalPages; i++) {
+      if (i === 1 || i === totalPages || (i >= left && i <= right)) {
+        if (l) {
+          if (i - l === 2) {
+            range.push(l + 1);
+          } else if (i - l !== 1) {
+            range.push("...");
+          }
+        }
+        range.push(i);
+        l = i;
+      }
+    }
+    return range;
+  };
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -332,7 +386,7 @@ const UsersPage = () => {
         <CardHeader className="pb-3 border-b dark:border-slate-800">
           <CardTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
             <Users className="w-5 h-5 text-emerald-600 dark:text-emerald-500" />
-            Users ({filteredUsers.length})
+            Users ({totalUsers})
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -424,14 +478,18 @@ const UsersPage = () => {
                       <TableCell>
                         {user.assigned_areas && user.assigned_areas.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
-                            {user.assigned_areas.map((areaId) => (
-                              <span
-                                key={areaId}
-                                className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs rounded border dark:border-slate-700"
-                              >
-                                {getAreaName(areaId)}
-                              </span>
-                            ))}
+                            {user.assigned_areas.map((area) => {
+                              const areaName = typeof area === 'object' ? area.name : getAreaName(area);
+                              const areaId = typeof area === 'object' ? (area._id || area.id) : area;
+                              return (
+                                <span
+                                  key={areaId}
+                                  className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs rounded border dark:border-slate-700"
+                                >
+                                  {areaName}
+                                </span>
+                              );
+                            })}
                           </div>
                         ) : (
                           <span className="text-slate-400 dark:text-slate-600">-</span>
@@ -476,6 +534,61 @@ const UsersPage = () => {
             </div>
           )}
         </CardContent>
+
+        {/* Pagination Footer */}
+        {totalPages > 1 && (
+          <div className="px-6 py-4 border-t dark:border-slate-800 bg-stone-50/50 dark:bg-slate-800/20 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+              Showing <span className="font-medium text-slate-700 dark:text-slate-200">{(currentPage - 1) * itemsPerPage + 1}</span> to{" "}
+              <span className="font-medium text-slate-700 dark:text-slate-200">{Math.min(currentPage * itemsPerPage, totalUsers)}</span> of{" "}
+              <span className="font-medium text-slate-700 dark:text-slate-200">{totalUsers}</span> users
+            </div>
+            
+            <div className="flex items-center gap-1 sm:gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8 dark:bg-slate-900 dark:border-slate-700"
+                onClick={() => paginate(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+
+              <div className="flex items-center gap-1">
+                {getPaginationRange().map((page, index) => (
+                  page === "..." ? (
+                    <span key={`dots-${index}`} className="px-2 text-slate-400">...</span>
+                  ) : (
+                    <Button
+                      key={page}
+                      variant={currentPage === page ? "default" : "outline"}
+                      size="sm"
+                      className={`h-8 w-8 text-xs p-0 ${
+                        currentPage === page 
+                        ? "bg-emerald-600 hover:bg-emerald-700 text-white" 
+                        : "dark:bg-slate-900 dark:border-slate-700"
+                      }`}
+                      onClick={() => paginate(page)}
+                    >
+                      {page}
+                    </Button>
+                  )
+                ))}
+              </div>
+
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8 dark:bg-slate-900 dark:border-slate-700"
+                onClick={() => paginate(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* Approval/Edit Dialog */}
