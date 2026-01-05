@@ -107,24 +107,23 @@ const BeneficiariesPage = () => {
     const toastId = toast.loading(`Deleting ${count} beneficiaries...`);
     try {
       if (isAllSelectedGlobally) {
-        // Fetch all IDs matching current filters
-        let query = `?limit=all`;
-        if (search) query += `&search=${search}`;
-        if (regionFilter !== "all") query += `&region=${regionFilter}`;
-        if (provinceFilter !== "all") query += `&province=${provinceFilter}`;
-        if (municipalityFilter !== "all") query += `&municipality=${municipalityFilter}`;
-        if (barangayFilter !== "all") query += `&barangay=${barangayFilter}`;
-        
-        const response = await api.get(`/beneficiaries${query}`);
-        const allToDelele = response.data.beneficiaries || [];
-        
-        for (const b of allToDelele) {
-          await api.delete(`/beneficiaries/${b._id || b.id}`);
-        }
+        // Use bulk-delete endpoint with filters
+        await api.post("/beneficiaries/bulk-delete", {
+          all: true,
+          filters: {
+            search,
+            region: regionFilter,
+            province: provinceFilter,
+            municipality: municipalityFilter,
+            barangay: barangayFilter
+          }
+        });
       } else {
-        for (const id of selectedIds) {
-          await api.delete(`/beneficiaries/${id}`);
-        }
+        // Use bulk-delete endpoint with specific IDs
+        await api.post("/beneficiaries/bulk-delete", {
+          ids: selectedIds,
+          all: false
+        });
       }
       
       toast.dismiss(toastId);
@@ -134,7 +133,8 @@ const BeneficiariesPage = () => {
       fetchBeneficiaries();
     } catch (error) {
       toast.dismiss(toastId);
-      toast.error("Failed to delete some beneficiaries");
+      toast.error("Failed to delete beneficiaries");
+      console.error("Bulk delete error:", error);
     }
   };
 
