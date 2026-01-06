@@ -28,7 +28,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Search, UserCheck, UserX, Trash2, Users, Clock, CheckCircle, XCircle, Pencil, Save, Download, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, UserCheck, UserX, Trash2, Users, Clock, CheckCircle, XCircle, Pencil, Save, Download, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, X } from "lucide-react";
 import * as XLSX from "xlsx";
 
 const UsersPage = () => {
@@ -48,6 +48,7 @@ const UsersPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [itemsPerPage] = useState(10);
 
   useEffect(() => {
@@ -83,19 +84,15 @@ const UsersPage = () => {
     }
   };
 
-  const fetchAreas = async (type = null, parentId = null) => {
+  const fetchAreas = async (type = null, parentId = null, parentCode = null) => {
     try {
-      // Don't fetch if both are null to avoid loading all 40,000+ areas
-      if (!type && !parentId) return;
+      // Don't fetch if all are null to avoid loading all 40,000+ areas
+      if (!type && !parentId && !parentCode) return;
 
       let query = `?limit=500`; // Use a large enough limit for any single level
-      if (type && parentId) {
-        query += `&type=${type}&parent_id=${parentId}`;
-      } else if (type) {
-        query += `&type=${type}`;
-      } else if (parentId) {
-        query += `&parent_id=${parentId}`;
-      }
+      if (type) query += `&type=${type}`;
+      if (parentId) query += `&parent_id=${parentId}`;
+      if (parentCode) query += `&parent_code=${parentCode}`;
 
       const response = await api.get(`/areas${query}`);
       const data = Array.isArray(response.data) ? response.data : (response.data.areas || []);
@@ -132,13 +129,18 @@ const UsersPage = () => {
 
   const handleApprove = (user) => {
     setSelectedUser(user);
-    setSelectedAreas(user.assigned_areas || []);
+    // Normalize assigned_areas to be an array of string IDs
+    const areaIds = (user.assigned_areas || []).map(area => 
+      typeof area === 'object' ? (area._id || area.id) : String(area)
+    );
+    setSelectedAreas(areaIds);
     setSelectedRegionFilter("all");
     setSelectedProvinceFilter("all");
     setIsDialogOpen(true);
   };
 
   const confirmApproval = async (status) => {
+    setIsUpdating(true);
     try {
       await api.put(`/users/${selectedUser.id}/approve`, {
         status,
@@ -152,6 +154,8 @@ const UsersPage = () => {
       setSelectedAreas([]);
     } catch (error) {
       toast.error("Failed to update user status");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -182,10 +186,11 @@ const UsersPage = () => {
   };
 
   const toggleArea = (areaId) => {
+    const id = String(areaId);
     setSelectedAreas((prev) =>
-      prev.includes(areaId)
-        ? prev.filter((a) => a !== areaId)
-        : [...prev, areaId]
+      prev.some(a => String(a) === id)
+        ? prev.filter((a) => String(a) !== id)
+        : [...prev, id]
     );
   };
 
@@ -630,7 +635,10 @@ const UsersPage = () => {
                   <Select value={selectedRegionFilter} onValueChange={(val) => {
                     setSelectedRegionFilter(val);
                     setSelectedProvinceFilter("all");
-                    if (val !== "all") fetchAreas("province", val);
+                    if (val !== "all") {
+                      const regionObj = areas.find(a => a.id === val);
+                      fetchAreas("province", val, regionObj?.code);
+                    }
                   }}>
                     <SelectTrigger className="h-8 text-xs dark:bg-slate-900 dark:border-slate-700">
                       <SelectValue placeholder="Region" />
@@ -650,7 +658,10 @@ const UsersPage = () => {
                     value={selectedProvinceFilter} 
                     onValueChange={(val) => {
                       setSelectedProvinceFilter(val);
-                      if (val !== "all") fetchAreas("municipality", val);
+                      if (val !== "all") {
+                        const provinceObj = areas.find(a => a.id === val);
+                        fetchAreas("municipality", val, provinceObj?.code);
+                      }
                     }}
                     disabled={selectedRegionFilter === "all"}
                   >
@@ -672,6 +683,26 @@ const UsersPage = () => {
                   <Label className="dark:text-slate-300">Assign Areas</Label>
                   <span className="text-xs text-slate-500">{selectedAreas.length} selected</span>
                 </div>
+                
+                {/* Selected Areas Tags */}
+                {selectedAreas.length > 0 && (
+                  <div className="flex flex-wrap gap-2 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-dashed border-slate-300 dark:border-slate-700">
+                    {selectedAreas.map(areaId => (
+                      <Badge 
+                        key={areaId} 
+                        variant="secondary" 
+                        className="flex items-center gap-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
+                      >
+                        {getAreaName(areaId)}
+                        <X 
+                          className="w-3 h-3 cursor-pointer hover:text-rose-500" 
+                          onClick={() => toggleArea(areaId)}
+                        />
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+
                 <div className="max-h-60 overflow-y-auto border border-stone-200 dark:border-slate-800 rounded-lg p-3 space-y-2 bg-white dark:bg-slate-900/50 shadow-sm">
                   {areas.length === 0 ? (
                     <p className="text-sm text-slate-400 dark:text-slate-600">No areas available.</p>
@@ -685,10 +716,12 @@ const UsersPage = () => {
                         // 4. If Municipality selected, show its Barangays
                         
                         if (selectedProvinceFilter !== "all") {
-                          return area.parent_id === selectedProvinceFilter && area.type === "municipality";
+                          const p = areas.find(a => a.id === selectedProvinceFilter);
+                          return area.type === "municipality" && (area.parent_id === selectedProvinceFilter || (p && area.parent_code === p.code));
                         }
                         if (selectedRegionFilter !== "all") {
-                          return area.parent_id === selectedRegionFilter && area.type === "province";
+                          const r = areas.find(a => a.id === selectedRegionFilter);
+                          return area.type === "province" && (area.parent_id === selectedRegionFilter || (r && area.parent_code === r.code));
                         }
                         return area.type === "region";
                       })
@@ -727,14 +760,16 @@ const UsersPage = () => {
                   <Button
                     className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
                     onClick={() => confirmApproval("approved")}
+                    disabled={isUpdating}
                   >
                     <Save className="w-4 h-4 mr-2" />
-                    Save Changes
+                    {isUpdating ? "Saving..." : "Save Changes"}
                   </Button>
                   <Button
                     variant="outline"
                     className="flex-1 border-stone-200 dark:border-slate-800 text-stone-600 dark:text-slate-400 hover:bg-stone-50 dark:hover:bg-slate-800"
                     onClick={() => setIsDialogOpen(false)}
+                    disabled={isUpdating}
                   >
                     Cancel
                   </Button>
@@ -744,17 +779,19 @@ const UsersPage = () => {
                   <Button
                     className="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white"
                     onClick={() => confirmApproval("approved")}
+                    disabled={isUpdating}
                   >
                     <UserCheck className="w-4 h-4 mr-2" />
-                    Approve
+                    {isUpdating ? "Approving..." : "Approve"}
                   </Button>
                   <Button
                     variant="destructive"
                     className="flex-1"
                     onClick={() => confirmApproval("rejected")}
+                    disabled={isUpdating}
                   >
                     <UserX className="w-4 h-4 mr-2" />
-                    Reject
+                    {isUpdating ? "Rejecting..." : "Reject"}
                   </Button>
                 </>
               )}

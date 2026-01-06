@@ -63,12 +63,12 @@ const BeneficiariesPage = () => {
     pkno: true,
     first_name: true,
     last_name: true,
-    birthdate: false,
-    gender: false,
-    barangay: false,
-    municipality: false,
-    province: false,
-    region: false,
+    birthdate: true,
+    gender: true,
+    barangay: true,
+    municipality: true,
+    province: true,
+    region: true,
   });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
@@ -238,11 +238,11 @@ const BeneficiariesPage = () => {
     setIsLoading(true);
     try {
       let query = `?page=${currentPage}&limit=${itemsPerPage}`;
-      if (search) query += `&search=${search}`;
-      if (regionFilter !== "all") query += `&region=${regionFilter}`;
-      if (provinceFilter !== "all") query += `&province=${provinceFilter}`;
-      if (municipalityFilter !== "all") query += `&municipality=${municipalityFilter}`;
-      if (barangayFilter !== "all") query += `&barangay=${barangayFilter}`;
+      if (search) query += `&search=${encodeURIComponent(search)}`;
+      if (regionFilter !== "all") query += `&region=${encodeURIComponent(regionFilter)}`;
+      if (provinceFilter !== "all") query += `&province=${encodeURIComponent(provinceFilter)}`;
+      if (municipalityFilter !== "all") query += `&municipality=${encodeURIComponent(municipalityFilter)}`;
+      if (barangayFilter !== "all") query += `&barangay=${encodeURIComponent(barangayFilter)}`;
 
       const response = await api.get(`/beneficiaries${query}`);
       const data = response.data;
@@ -276,19 +276,21 @@ const BeneficiariesPage = () => {
         newData.province = "";
         newData.municipality = "";
         newData.barangay = "";
-        const regionObj = areas.find(a => a.name === value && a.type === "region");
+        const regionObj = areas.find(a => a.name?.trim().toLowerCase() === value?.trim().toLowerCase() && a.type === "region");
         if (regionObj) fetchAreas("province", regionObj.id, regionObj.code);
       } else if (name === "province") {
         newData.municipality = "";
         newData.barangay = "";
-        const regionObj = areas.find(a => a.name === prev.region && a.type === "region");
-        const provinceObj = areas.find(a => a.name === value && a.type === "province" && 
+        const regionObj = areas.find(a => a.name?.trim().toLowerCase() === prev.region?.trim().toLowerCase() && a.type === "region");
+        const provinceObj = areas.find(a => a.name?.trim().toLowerCase() === value?.trim().toLowerCase() && a.type === "province" && 
           (regionObj ? (a.parent_id === regionObj.id || a.parent_code === regionObj.code) : true));
         if (provinceObj) fetchAreas("municipality", provinceObj.id, provinceObj.code);
       } else if (name === "municipality") {
         newData.barangay = "";
-        const provinceObj = areas.find(a => a.name === prev.province && a.type === "province");
-        const municipalityObj = areas.find(a => a.name === value && a.type === "municipality" && 
+        const regionObj = areas.find(a => a.name?.trim().toLowerCase() === prev.region?.trim().toLowerCase() && a.type === "region");
+        const provinceObj = areas.find(a => a.name?.trim().toLowerCase() === prev.province?.trim().toLowerCase() && a.type === "province" &&
+          (regionObj ? (a.parent_id === regionObj.id || a.parent_code === regionObj.code) : true));
+        const municipalityObj = areas.find(a => a.name?.trim().toLowerCase() === value?.trim().toLowerCase() && a.type === "municipality" && 
           (provinceObj ? (a.parent_id === provinceObj.id || a.parent_code === provinceObj.code) : true));
         if (municipalityObj) fetchAreas("barangay", municipalityObj.id, municipalityObj.code);
       }
@@ -301,15 +303,15 @@ const BeneficiariesPage = () => {
 
   const getProvinces = () => {
     if (!formData.region) return [];
-    const region = areas.find(a => a.name === formData.region && a.type === "region");
+    const region = areas.find(a => a.name?.trim().toLowerCase() === formData.region?.trim().toLowerCase() && a.type === "region");
     if (!region) return [];
     return areas.filter(a => a.type === "province" && (a.parent_id === region.id || a.parent_code === region.code));
   };
   
   const getMunicipalities = () => {
     if (!formData.province) return [];
-    const region = areas.find(a => a.name === formData.region && a.type === "region");
-    const province = areas.find(a => a.name === formData.province && a.type === "province" &&
+    const region = areas.find(a => a.name?.trim().toLowerCase() === formData.region?.trim().toLowerCase() && a.type === "region");
+    const province = areas.find(a => a.name?.trim().toLowerCase() === formData.province?.trim().toLowerCase() && a.type === "province" &&
       (region ? (a.parent_id === region.id || a.parent_code === region.code) : true)
     );
     if (!province) return [];
@@ -318,8 +320,11 @@ const BeneficiariesPage = () => {
 
   const getBarangays = () => {
     if (!formData.municipality) return [];
-    const province = areas.find(a => a.name === formData.province && a.type === "province");
-    const municipality = areas.find(a => a.name === formData.municipality && a.type === "municipality" && 
+    const region = areas.find(a => a.name?.trim().toLowerCase() === formData.region?.trim().toLowerCase() && a.type === "region");
+    const province = areas.find(a => a.name?.trim().toLowerCase() === formData.province?.trim().toLowerCase() && a.type === "province" &&
+      (region ? (a.parent_id === region.id || a.parent_code === region.code) : true)
+    );
+    const municipality = areas.find(a => a.name?.trim().toLowerCase() === formData.municipality?.trim().toLowerCase() && a.type === "municipality" && 
       (province ? (a.parent_id === province.id || a.parent_code === province.code) : true)
     );
     if (!municipality) return [];
@@ -424,11 +429,11 @@ const BeneficiariesPage = () => {
       
       // Fetch all beneficiaries with current filters but no pagination
       let query = `?limit=all`;
-      if (search) query += `&search=${search}`;
-      if (regionFilter !== "all") query += `&region=${regionFilter}`;
-      if (provinceFilter !== "all") query += `&province=${provinceFilter}`;
-      if (municipalityFilter !== "all") query += `&municipality=${municipalityFilter}`;
-      if (barangayFilter !== "all") query += `&barangay=${barangayFilter}`;
+      if (search) query += `&search=${encodeURIComponent(search)}`;
+      if (regionFilter !== "all") query += `&region=${encodeURIComponent(regionFilter)}`;
+      if (provinceFilter !== "all") query += `&province=${encodeURIComponent(provinceFilter)}`;
+      if (municipalityFilter !== "all") query += `&municipality=${encodeURIComponent(municipalityFilter)}`;
+      if (barangayFilter !== "all") query += `&barangay=${encodeURIComponent(barangayFilter)}`;
       
       const response = await api.get(`/beneficiaries${query}`);
       const allBeneficiaries = response.data.beneficiaries || [];
@@ -693,6 +698,7 @@ const BeneficiariesPage = () => {
     try {
       let successCount = 0;
       let errorCount = 0;
+      let sampleErrors = [];
       
       // Send data in chunks of 5000 to the backend
       const chunkSize = 5000;
@@ -703,6 +709,10 @@ const BeneficiariesPage = () => {
           successCount += response.data.success;
           errorCount += response.data.failed;
           
+          if (response.data.errors && response.data.errors.length > 0) {
+            sampleErrors = [...sampleErrors, ...response.data.errors.slice(0, 5)];
+          }
+
           // Update toast with progress if there are multiple chunks
           if (dataToImport.length > chunkSize) {
             toast.loading(`Imported ${successCount} of ${dataToImport.length}...`, { id: loadingToast });
@@ -717,7 +727,12 @@ const BeneficiariesPage = () => {
       if (errorCount === 0) {
         toast.success(`Successfully imported all ${successCount} beneficiaries`);
       } else {
-        toast.error(`Import failed for ${errorCount} records. Check server logs for details.`, { duration: 5000 });
+        const errorDetail = sampleErrors.length > 0 
+          ? ` Example: ${sampleErrors[0]}` 
+          : " Check console for details.";
+          
+        toast.error(`Import failed for ${errorCount} records.${errorDetail}`, { duration: 10000 });
+        
         if (successCount > 0) {
           toast.success(`Successfully imported ${successCount} beneficiaries.`);
         }
@@ -1067,7 +1082,7 @@ const BeneficiariesPage = () => {
                   setProvinceFilter("all");
                   setMunicipalityFilter("all");
                   setBarangayFilter("all");
-                  const regionObj = areas.find(a => a.name === val && a.type === "region");
+                  const regionObj = areas.find(a => a.name?.trim().toLowerCase() === val?.trim().toLowerCase() && a.type === "region");
                   if (regionObj) fetchAreas("province", regionObj.id, regionObj.code);
                 }}>
                 <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
@@ -1090,8 +1105,8 @@ const BeneficiariesPage = () => {
                   setProvinceFilter(val);
                   setMunicipalityFilter("all");
                   setBarangayFilter("all");
-                  const regionObj = areas.find(a => a.name === regionFilter && a.type === "region");
-                  const provinceObj = areas.find(a => a.name === val && a.type === "province" && 
+                  const regionObj = areas.find(a => a.name?.trim().toLowerCase() === regionFilter?.trim().toLowerCase() && a.type === "region");
+                  const provinceObj = areas.find(a => a.name?.trim().toLowerCase() === val?.trim().toLowerCase() && a.type === "province" && 
                     (regionObj ? (a.parent_id === regionObj.id || a.parent_code === regionObj.code) : true));
                   if (provinceObj) fetchAreas("municipality", provinceObj.id, provinceObj.code);
                 }}
@@ -1105,7 +1120,7 @@ const BeneficiariesPage = () => {
                   {areas
                     .filter(a => a.type === "province" && (regionFilter !== "all" ? 
                       (() => {
-                        const r = areas.find(area => area.name === regionFilter);
+                        const r = areas.find(area => area.name?.trim().toLowerCase() === regionFilter?.trim().toLowerCase() && area.type === "region");
                         return r ? (a.parent_id === r.id || a.parent_code === r.code) : true;
                       })() : true))
                     .map(p => (
@@ -1120,8 +1135,10 @@ const BeneficiariesPage = () => {
                 onValueChange={(val) => {
                   setMunicipalityFilter(val);
                   setBarangayFilter("all");
-                  const provinceObj = areas.find(a => a.name === provinceFilter && a.type === "province");
-                  const municipalityObj = areas.find(a => a.name === val && a.type === "municipality" && 
+                  const regionObj = areas.find(a => a.name?.trim().toLowerCase() === regionFilter?.trim().toLowerCase() && a.type === "region");
+                  const provinceObj = areas.find(a => a.name?.trim().toLowerCase() === provinceFilter?.trim().toLowerCase() && a.type === "province" &&
+                    (regionObj ? (a.parent_id === regionObj.id || a.parent_code === regionObj.code) : true));
+                  const municipalityObj = areas.find(a => a.name?.trim().toLowerCase() === val?.trim().toLowerCase() && a.type === "municipality" && 
                     (provinceObj ? (a.parent_id === provinceObj.id || a.parent_code === provinceObj.code) : true));
                   if (municipalityObj) fetchAreas("barangay", municipalityObj.id, municipalityObj.code);
                 }}
@@ -1135,7 +1152,9 @@ const BeneficiariesPage = () => {
                   {areas
                     .filter(a => a.type === "municipality" && (provinceFilter !== "all" ? 
                       (() => {
-                        const p = areas.find(area => area.name === provinceFilter);
+                        const r = areas.find(area => area.name?.trim().toLowerCase() === regionFilter?.trim().toLowerCase() && area.type === "region");
+                        const p = areas.find(area => area.name?.trim().toLowerCase() === provinceFilter?.trim().toLowerCase() && area.type === "province" &&
+                          (r ? (area.parent_id === r.id || area.parent_code === r.code) : true));
                         return p ? (a.parent_id === p.id || a.parent_code === p.code) : true;
                       })() : true))
                     .map(m => (
@@ -1158,7 +1177,11 @@ const BeneficiariesPage = () => {
                   {areas
                     .filter(a => a.type === "barangay" && (municipalityFilter !== "all" ? 
                       (() => {
-                        const m = areas.find(area => area.name === municipalityFilter);
+                        const r = areas.find(area => area.name?.trim().toLowerCase() === regionFilter?.trim().toLowerCase() && area.type === "region");
+                        const p = areas.find(area => area.name?.trim().toLowerCase() === provinceFilter?.trim().toLowerCase() && area.type === "province" &&
+                          (r ? (area.parent_id === r.id || area.parent_code === r.code) : true));
+                        const m = areas.find(area => area.name?.trim().toLowerCase() === municipalityFilter?.trim().toLowerCase() && area.type === "municipality" &&
+                          (p ? (area.parent_id === p.id || area.parent_code === p.code) : true));
                         return m ? (a.parent_id === m.id || a.parent_code === m.code) : true;
                       })() : true))
                     .map(b => (

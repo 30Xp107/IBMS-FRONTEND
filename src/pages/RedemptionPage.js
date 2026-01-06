@@ -74,19 +74,15 @@ const RedemptionPage = () => {
     fetchAreas("region");
   }, []);
 
-  const fetchAreas = async (type = null, parentId = null) => {
+  const fetchAreas = async (type = null, parentId = null, parentCode = null) => {
     try {
-      // Don't fetch if both are null to avoid loading all 40,000+ areas
-      if (!type && !parentId) return;
+      // Don't fetch if all are null to avoid loading all 40,000+ areas
+      if (!type && !parentId && !parentCode) return;
 
       let query = `?limit=500`; // Use a large enough limit for any single level
-      if (type && parentId) {
-        query += `&type=${type}&parent_id=${parentId}`;
-      } else if (type) {
-        query += `&type=${type}`;
-      } else if (parentId) {
-        query += `&parent_id=${parentId}`;
-      }
+      if (type) query += `&type=${type}`;
+      if (parentId) query += `&parent_id=${parentId}`;
+      if (parentCode) query += `&parent_code=${parentCode}`;
 
       const response = await api.get(`/areas${query}`);
       const data = Array.isArray(response.data) ? response.data : (response.data.areas || []);
@@ -363,17 +359,31 @@ const RedemptionPage = () => {
   const getProvinces = () => {
     if (regionFilter === "all") return [];
     const region = areas.find(a => a.name === regionFilter && a.type === "region");
-    return region ? areas.filter(a => a.type === "province" && a.parent_id === region.id) : [];
+    if (!region) return [];
+    return areas.filter(a => a.type === "province" && (a.parent_id === region.id || a.parent_code === region.code));
   };
+  
   const getMunicipalities = () => {
     if (provinceFilter === "all") return [];
-    const province = areas.find(a => a.name === provinceFilter && a.type === "province");
-    return province ? areas.filter(a => a.type === "municipality" && a.parent_id === province.id) : [];
+    const region = areas.find(a => a.name === regionFilter && a.type === "region");
+    const province = areas.find(a => a.name === provinceFilter && a.type === "province" &&
+      (region ? (a.parent_id === region.id || a.parent_code === region.code) : true)
+    );
+    if (!province) return [];
+    return areas.filter(a => a.type === "municipality" && (a.parent_id === province.id || a.parent_code === province.code));
   };
+
   const getBarangays = () => {
     if (municipalityFilter === "all") return [];
-    const municipality = areas.find(a => a.name === municipalityFilter && a.type === "municipality");
-    return municipality ? areas.filter(a => a.type === "barangay" && a.parent_id === municipality.id) : [];
+    const region = areas.find(a => a.name === regionFilter && a.type === "region");
+    const province = areas.find(a => a.name === provinceFilter && a.type === "province" &&
+      (region ? (a.parent_id === region.id || a.parent_code === region.code) : true)
+    );
+    const municipality = areas.find(a => a.name === municipalityFilter && a.type === "municipality" && 
+      (province ? (a.parent_id === province.id || a.parent_code === province.code) : true)
+    );
+    if (!municipality) return [];
+    return areas.filter(a => a.type === "barangay" && (a.parent_id === municipality.id || a.parent_code === municipality.code));
   };
 
   // Client-side sorting for the current page
@@ -495,8 +505,8 @@ const RedemptionPage = () => {
                 setMunicipalityFilter("all");
                 setBarangayFilter("all");
                 setCurrentPage(1);
-                const regionObj = areas.find(a => a.name === val && a.type === "region");
-                if (regionObj) fetchAreas("province", regionObj.id);
+                const regionObj = areas.find(a => a.name?.trim().toLowerCase() === val?.trim().toLowerCase() && a.type === "region");
+                if (regionObj) fetchAreas("province", regionObj.id, regionObj.code);
               }}>
                 <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
                   <SelectValue placeholder="Region" />
@@ -516,9 +526,9 @@ const RedemptionPage = () => {
                   setMunicipalityFilter("all");
                   setBarangayFilter("all");
                   setCurrentPage(1);
-                  const regionObj = areas.find(a => a.name === regionFilter && a.type === "region");
-                  const provinceObj = areas.find(a => a.name === val && a.type === "province" && (regionObj ? a.parent_id === regionObj.id : true));
-                  if (provinceObj) fetchAreas("municipality", provinceObj.id);
+                  const regionObj = areas.find(a => a.name?.trim().toLowerCase() === regionFilter?.trim().toLowerCase() && a.type === "region");
+                  const provinceObj = areas.find(a => a.name?.trim().toLowerCase() === val?.trim().toLowerCase() && a.type === "province" && (regionObj ? (a.parent_id === regionObj.id || a.parent_code === regionObj.code) : true));
+                  if (provinceObj) fetchAreas("municipality", provinceObj.id, provinceObj.code);
                 }}
                 disabled={regionFilter === "all"}
               >
@@ -539,10 +549,10 @@ const RedemptionPage = () => {
                   setMunicipalityFilter(val);
                   setBarangayFilter("all");
                   setCurrentPage(1);
-                  const regionObj = areas.find(a => a.name === regionFilter && a.type === "region");
-                  const provinceObj = areas.find(a => a.name === provinceFilter && a.type === "province" && (regionObj ? a.parent_id === regionObj.id : true));
-                  const municipalityObj = areas.find(a => a.name === val && a.type === "municipality" && (provinceObj ? a.parent_id === provinceObj.id : true));
-                  if (municipalityObj) fetchAreas("barangay", municipalityObj.id);
+                  const regionObj = areas.find(a => a.name?.trim().toLowerCase() === regionFilter?.trim().toLowerCase() && a.type === "region");
+                  const provinceObj = areas.find(a => a.name?.trim().toLowerCase() === provinceFilter?.trim().toLowerCase() && a.type === "province" && (regionObj ? (a.parent_id === regionObj.id || a.parent_code === regionObj.code) : true));
+                  const municipalityObj = areas.find(a => a.name?.trim().toLowerCase() === val?.trim().toLowerCase() && a.type === "municipality" && (provinceObj ? (a.parent_id === provinceObj.id || a.parent_code === provinceObj.code) : true));
+                  if (municipalityObj) fetchAreas("barangay", municipalityObj.id, municipalityObj.code);
                 }}
                 disabled={provinceFilter === "all"}
               >
