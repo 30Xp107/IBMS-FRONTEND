@@ -630,48 +630,57 @@ const BeneficiariesPage = () => {
           return;
         }
 
+        const getDuplicateKey = (b) => {
+          return `${b.first_name}|${b.middle_name || ""}|${b.last_name}|${b.birthdate}|${b.barangay}|${b.municipality}|${b.province}`.toLowerCase().replace(/\s+/g, ' ').trim();
+        };
+
         const loadingToast = toast.loading("Checking for duplicates...");
         
         try {
           // 1. Check for internal duplicates in the file
-          const hhidCounts = {};
+          const keyCounts = {};
           const internalDuplicates = [];
           mappedData.forEach(b => {
-            hhidCounts[b.hhid] = (hhidCounts[b.hhid] || 0) + 1;
-            if (hhidCounts[b.hhid] === 2) {
-              internalDuplicates.push(b.hhid);
+            const key = getDuplicateKey(b);
+            keyCounts[key] = (keyCounts[key] || 0) + 1;
+            if (keyCounts[key] === 2) {
+              internalDuplicates.push(key);
             }
           });
 
           // 2. Check for existing duplicates in the database in chunks
-          const hhids = mappedData.map(b => b.hhid);
-          const dbDuplicateHhids = [];
+          const dbDuplicateKeys = [];
           const dbDuplicateDetails = [];
-          const checkChunkSize = 5000;
+          const checkChunkSize = 1000;
           
-          for (let i = 0; i < hhids.length; i += checkChunkSize) {
-            const chunk = hhids.slice(i, i + checkChunkSize);
-            const response = await api.post("/beneficiaries/check-duplicates", { hhids: chunk });
+          for (let i = 0; i < mappedData.length; i += checkChunkSize) {
+            const chunk = mappedData.slice(i, i + checkChunkSize);
+            const response = await api.post("/beneficiaries/check-duplicates", { beneficiaries: chunk });
             const chunkDuplicates = response.data.duplicates || [];
-            dbDuplicateHhids.push(...chunkDuplicates.map(d => d.hhid));
-            dbDuplicateDetails.push(...chunkDuplicates);
+            
+            chunkDuplicates.forEach(d => {
+              const key = getDuplicateKey(d);
+              dbDuplicateKeys.push(key);
+              dbDuplicateDetails.push(d);
+            });
             
             // Update progress if there are many chunks
-            if (hhids.length > checkChunkSize) {
-              const progress = Math.min(100, Math.round(((i + chunk.length) / hhids.length) * 100));
+            if (mappedData.length > checkChunkSize) {
+              const progress = Math.min(100, Math.round(((i + chunk.length) / mappedData.length) * 100));
               toast.loading(`Checking for duplicates: ${progress}%`, { id: loadingToast });
             }
           }
 
           toast.dismiss(loadingToast);
 
-          if (internalDuplicates.length > 0 || dbDuplicateHhids.length > 0) {
+          if (internalDuplicates.length > 0 || dbDuplicateKeys.length > 0) {
             setImportPreviewData({
               total: mappedData.length,
               allData: mappedData,
               internalDuplicates,
-              dbDuplicates: dbDuplicateHhids,
-              dbDuplicateDetails: dbDuplicateDetails
+              dbDuplicates: dbDuplicateKeys,
+              dbDuplicateDetails: dbDuplicateDetails,
+              getDuplicateKey
             });
             setIsImportPreviewOpen(true);
           } else {
@@ -1487,10 +1496,11 @@ const BeneficiariesPage = () => {
                 <div className="pt-2 border-t dark:border-slate-700 flex justify-between text-sm font-bold">
                   <span>New records to be added:</span>
                   <span className="text-emerald-600 dark:text-emerald-400">
-                    {importPreviewData.allData.filter(b => 
-                      !importPreviewData.internalDuplicates.includes(b.hhid) && 
-                      !importPreviewData.dbDuplicates.includes(b.hhid)
-                    ).length}
+                    {importPreviewData.allData.filter(b => {
+                      const key = importPreviewData.getDuplicateKey(b);
+                      return !importPreviewData.internalDuplicates.includes(key) && 
+                             !importPreviewData.dbDuplicates.includes(key);
+                    }).length}
                   </span>
                 </div>
               </div>
@@ -1498,7 +1508,7 @@ const BeneficiariesPage = () => {
               {(importPreviewData.dbDuplicates.length > 0 || importPreviewData.internalDuplicates.length > 0) && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Duplicate Details</h3>
+                    <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Duplicate Details (Name + BDay + Address)</h3>
                     {(importPreviewData.internalDuplicates.length + importPreviewData.dbDuplicateDetails.length > 500) && (
                       <span className="text-[10px] text-slate-500">Showing first 500 only</span>
                     )}
@@ -1513,17 +1523,20 @@ const BeneficiariesPage = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {importPreviewData.internalDuplicates.slice(0, 500).map(hhid => (
-                          <TableRow key={`int-${hhid}`}>
-                            <TableCell className="text-xs py-2 font-mono">{hhid}</TableCell>
-                            <TableCell className="text-xs py-2">
-                              <span className="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">File</span>
-                            </TableCell>
-                            <TableCell className="text-xs py-2 text-amber-600">Duplicate in file</TableCell>
-                          </TableRow>
-                        ))}
+                        {importPreviewData.internalDuplicates.slice(0, 500).map(key => {
+                          const sample = importPreviewData.allData.find(b => importPreviewData.getDuplicateKey(b) === key);
+                          return (
+                            <TableRow key={`int-${key}`}>
+                              <TableCell className="text-xs py-2 font-mono">{sample?.hhid || 'N/A'}</TableCell>
+                              <TableCell className="text-xs py-2">
+                                <span className="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">File</span>
+                              </TableCell>
+                              <TableCell className="text-xs py-2 text-amber-600">Duplicate in file: {sample?.first_name} {sample?.last_name}</TableCell>
+                            </TableRow>
+                          );
+                        })}
                         {importPreviewData.dbDuplicateDetails.slice(0, Math.max(0, 500 - importPreviewData.internalDuplicates.length)).map(d => (
-                          <TableRow key={`db-${d.hhid}`}>
+                          <TableRow key={`db-${d._id || d.hhid}`}>
                             <TableCell className="text-xs py-2 font-mono">{d.hhid}</TableCell>
                             <TableCell className="text-xs py-2">
                               <span className="px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400">System</span>
@@ -1555,16 +1568,18 @@ const BeneficiariesPage = () => {
                 <Button 
                   className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
                   onClick={() => {
-                    const uniqueData = importPreviewData.allData.filter(b => 
-                      !importPreviewData.internalDuplicates.includes(b.hhid) && 
-                      !importPreviewData.dbDuplicates.includes(b.hhid)
-                    );
+                    const uniqueData = importPreviewData.allData.filter(b => {
+                      const key = importPreviewData.getDuplicateKey(b);
+                      return !importPreviewData.internalDuplicates.includes(key) && 
+                             !importPreviewData.dbDuplicates.includes(key);
+                    });
                     proceedWithImport(uniqueData);
                   }}
-                  disabled={isImporting || importPreviewData.allData.filter(b => 
-                    !importPreviewData.internalDuplicates.includes(b.hhid) && 
-                    !importPreviewData.dbDuplicates.includes(b.hhid)
-                  ).length === 0}
+                  disabled={isImporting || importPreviewData.allData.filter(b => {
+                    const key = importPreviewData.getDuplicateKey(b);
+                    return !importPreviewData.internalDuplicates.includes(key) && 
+                           !importPreviewData.dbDuplicates.includes(key);
+                  }).length === 0}
                 >
                   Import Unique Only
                 </Button>
