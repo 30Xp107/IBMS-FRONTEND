@@ -5,11 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Save, User, Mail, Lock, ShieldCheck } from "lucide-react";
+import { Save, User, Mail, Lock, ShieldCheck, Eye, EyeOff } from "lucide-react";
 
 const SettingsPage = () => {
   const { user, api, refreshUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -161,13 +163,20 @@ const SettingsPage = () => {
                     <Input
                       id="newPassword"
                       name="newPassword"
-                      type="password"
+                      type={showNewPassword ? "text" : "password"}
                       value={formData.newPassword}
                       onChange={handleChange}
                       placeholder="Enter new password"
-                      className="pl-10 dark:bg-slate-900 dark:border-slate-700"
+                      className="pl-10 pr-10 dark:bg-slate-900 dark:border-slate-700"
                       required
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                    >
+                      {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
                   </div>
                 </div>
 
@@ -178,13 +187,20 @@ const SettingsPage = () => {
                     <Input
                       id="confirmPassword"
                       name="confirmPassword"
-                      type="password"
+                      type={showConfirmPassword ? "text" : "password"}
                       value={formData.confirmPassword}
                       onChange={handleChange}
                       placeholder="Confirm new password"
-                      className="pl-10 dark:bg-slate-900 dark:border-slate-700"
+                      className="pl-10 pr-10 dark:bg-slate-900 dark:border-slate-700"
                       required
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                    >
+                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
                   </div>
                 </div>
 

@@ -28,7 +28,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Search, UserCheck, UserX, Trash2, Users, Clock, CheckCircle, XCircle, Pencil, Save, Download, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Search, UserCheck, UserX, Trash2, Users, Clock, CheckCircle, XCircle, Pencil, Save, Download, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, X, Eye, EyeOff } from "lucide-react";
 import * as XLSX from "xlsx";
 
 const UsersPage = () => {
@@ -55,6 +55,8 @@ const UsersPage = () => {
   const [editEmail, setEditEmail] = useState("");
   const [editPassword, setEditPassword] = useState("");
   const [editConfirmPassword, setEditConfirmPassword] = useState("");
+  const [showEditPassword, setShowEditPassword] = useState(false);
+  const [showEditConfirmPassword, setShowEditConfirmPassword] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -656,23 +658,41 @@ const UsersPage = () => {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs dark:text-slate-400 font-medium">New Password</Label>
-                <Input 
-                  value={editPassword}
-                  onChange={(e) => setEditPassword(e.target.value)}
-                  placeholder="Leave blank to keep"
-                  type="password"
-                  className="h-9 dark:bg-slate-900 dark:border-slate-700"
-                />
+                <div className="relative">
+                  <Input 
+                    value={editPassword}
+                    onChange={(e) => setEditPassword(e.target.value)}
+                    placeholder="Leave blank to keep"
+                    type={showEditPassword ? "text" : "password"}
+                    className="h-9 pr-8 dark:bg-slate-900 dark:border-slate-700"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowEditPassword(!showEditPassword)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                  >
+                    {showEditPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs dark:text-slate-400 font-medium">Confirm Password</Label>
-                <Input 
-                  value={editConfirmPassword}
-                  onChange={(e) => setEditConfirmPassword(e.target.value)}
-                  placeholder="Confirm password"
-                  type="password"
-                  className="h-9 dark:bg-slate-900 dark:border-slate-700"
-                />
+                <div className="relative">
+                  <Input 
+                    value={editConfirmPassword}
+                    onChange={(e) => setEditConfirmPassword(e.target.value)}
+                    placeholder="Confirm password"
+                    type={showEditConfirmPassword ? "text" : "password"}
+                    className="h-9 pr-8 dark:bg-slate-900 dark:border-slate-700"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowEditConfirmPassword(!showEditConfirmPassword)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                  >
+                    {showEditConfirmPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
               </div>
             </div>
             
