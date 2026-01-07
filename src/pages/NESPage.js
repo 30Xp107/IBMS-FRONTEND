@@ -37,11 +37,6 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December"
 ];
 
-const getCurrentFrmPeriod = () => {
-  const now = new Date();
-  return `${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
-};
-
 const NESPage = () => {
   const { api, isAdmin } = useAuth();
   const [nesRecords, setNesRecords] = useState([]);
@@ -53,7 +48,11 @@ const NESPage = () => {
   const [provinceFilter, setProvinceFilter] = useState("all");
   const [municipalityFilter, setMunicipalityFilter] = useState("all");
   const [barangayFilter, setBarangayFilter] = useState("all");
-  const [frmFilter, setFrmFilter] = useState(getCurrentFrmPeriod());
+  
+  const now = new Date();
+  const [monthFilter, setMonthFilter] = useState(MONTHS[now.getMonth()]);
+  const [yearFilter, setYearFilter] = useState(String(now.getFullYear()));
+  
   const [attendanceFilter, setAttendanceFilter] = useState("all");
   const [sortConfig, setSortConfig] = useState({ key: "last_name", direction: "asc" });
   
@@ -65,7 +64,7 @@ const NESPage = () => {
 
   useEffect(() => {
     fetchData();
-  }, [currentPage, search, frmFilter, attendanceFilter, regionFilter, provinceFilter, municipalityFilter, barangayFilter]);
+  }, [currentPage, search, monthFilter, yearFilter, attendanceFilter, regionFilter, provinceFilter, municipalityFilter, barangayFilter]);
 
   useEffect(() => {
     fetchAreas("region");
@@ -143,7 +142,7 @@ const NESPage = () => {
       
       // Now fetch NES records only for these beneficiaries
       if (benIds.length > 0) {
-        const nesResponse = await api.get(`/nes?frm_period=${encodeURIComponent(frmFilter)}&beneficiary_ids=${benIds.join(",")}`);
+        const nesResponse = await api.get(`/nes?frm_period=${encodeURIComponent(`${monthFilter} ${yearFilter}`)}&beneficiary_ids=${benIds.join(",")}`);
         const nesData = Array.isArray(nesResponse.data) ? nesResponse.data : (nesResponse.data.nesRecords || []);
         setNesRecords(nesData.map(r => ({
           ...r,
@@ -187,7 +186,7 @@ const NESPage = () => {
           return [...prev, {
             beneficiary_id: beneficiary.id,
             hhid: beneficiary.hhid,
-            frm_period: frmFilter,
+            frm_period: `${monthFilter} ${yearFilter}`,
             attendance: value,
             reason: "",
             date_recorded: new Date().toISOString().split("T")[0]
@@ -200,7 +199,7 @@ const NESPage = () => {
       const updateData = {
         beneficiary_id: beneficiary.id,
         hhid: beneficiary.hhid,
-        frm_period: frmFilter,
+        frm_period: `${monthFilter} ${yearFilter}`,
         attendance: field === "attendance" ? value : (currentNes?.attendance || "none"),
         reason: field === "reason" ? value : (currentNes?.reason || ""),
         date_recorded: new Date().toISOString().split("T")[0],
@@ -268,7 +267,7 @@ const NESPage = () => {
       }
 
       // Fetch all NES records for the current FRM period
-      const nesResponse = await api.get(`/nes?limit=all&frm_period=${encodeURIComponent(frmFilter)}`);
+      const nesResponse = await api.get(`/nes?limit=all&frm_period=${encodeURIComponent(`${monthFilter} ${yearFilter}`)}`);
       const allNesRecords = (Array.isArray(nesResponse.data) ? nesResponse.data : (nesResponse.data.nesRecords || [])).map(r => ({
         ...r,
         beneficiary_id: r.beneficiary_id ? (typeof r.beneficiary_id === "object" ? String(r.beneficiary_id?._id || r.beneficiary_id?.id) : String(r.beneficiary_id)) : ""
@@ -280,10 +279,11 @@ const NESPage = () => {
           "HHID": b.hhid,
           "Last Name": b.last_name,
           "First Name": b.first_name,
-          "Barangay": b.barangay,
-          "Municipality": b.municipality,
+          "Region": b.region,
           "Province": b.province,
-          "FRM Period": frmFilter,
+          "Municipality": b.municipality,
+          "Barangay": b.barangay,
+          "FRM Period": `${monthFilter} ${yearFilter}`,
           "Attendance": nes?.attendance || "none",
           "Reason": nes?.reason || "",
           "Date Recorded": nes?.date_recorded || ""
@@ -292,15 +292,16 @@ const NESPage = () => {
 
       const worksheet = XLSX.utils.json_to_sheet(exportData);
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "NES_Records");
+      XLSX.utils.book_append_sheet(workbook, worksheet, "NES Records");
       
       const wscols = [
         { wch: 15 }, // HHID
         { wch: 20 }, // Last Name
         { wch: 20 }, // First Name
-        { wch: 20 }, // Barangay
-        { wch: 20 }, // Municipality
+        { wch: 20 }, // Region
         { wch: 20 }, // Province
+        { wch: 20 }, // Municipality
+        { wch: 20 }, // Barangay
         { wch: 15 }, // FRM Period
         { wch: 15 }, // Attendance
         { wch: 30 }, // Reason
@@ -308,7 +309,7 @@ const NESPage = () => {
       ];
       worksheet["!cols"] = wscols;
 
-      XLSX.writeFile(workbook, `nes_records_${frmFilter.replace(" ", "_")}_${new Date().toISOString().split('T')[0]}.xlsx`);
+      XLSX.writeFile(workbook, `nes_records_${monthFilter}_${yearFilter}_${new Date().toISOString().split('T')[0]}.xlsx`);
       toast.dismiss(toastId);
       toast.success(`Exported ${allBeneficiaries.length} records`);
     } catch (error) {
@@ -351,16 +352,6 @@ const NESPage = () => {
 
   const currentYear = new Date().getFullYear();
   const years = [currentYear + 1, currentYear, currentYear, currentYear - 1, currentYear - 2, currentYear - 3];
-  
-  const allPeriods = [];
-  // Use a Set to ensure unique periods if currentYear + 1 is added twice or something
-  const uniquePeriods = new Set();
-  [currentYear + 1, currentYear, currentYear - 1, currentYear - 2, currentYear - 3].forEach(year => {
-    MONTHS.forEach(month => {
-      uniquePeriods.add(`${month} ${year}`);
-    });
-  });
-  const allPeriodsArray = Array.from(uniquePeriods);
 
   return (
     <div className="space-y-6">
@@ -400,18 +391,35 @@ const NESPage = () => {
                 />
               </div>
               <div className="flex items-center gap-2">
-                <Label className="whitespace-nowrap dark:text-slate-300">FRM Period:</Label>
-                <Select value={frmFilter} onValueChange={(v) => {
-                  setFrmFilter(v);
+                <Label className="whitespace-nowrap dark:text-slate-300">Month:</Label>
+                <Select value={monthFilter} onValueChange={(v) => {
+                  setMonthFilter(v);
                   setCurrentPage(1);
                 }}>
-                  <SelectTrigger className="w-full sm:w-48 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
-                    <SelectValue placeholder="Select Period" />
+                  <SelectTrigger className="w-full sm:w-32 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                    <SelectValue placeholder="Month" />
                   </SelectTrigger>
                   <SelectContent className="dark:bg-slate-900 dark:border-slate-800 max-h-[300px]">
-                    {allPeriodsArray.map((period) => (
-                      <SelectItem key={period} value={period}>
-                        {period}
+                    {MONTHS.map((month) => (
+                      <SelectItem key={month} value={month}>
+                        {month}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Label className="whitespace-nowrap dark:text-slate-300 ml-2">Year:</Label>
+                <Select value={yearFilter} onValueChange={(v) => {
+                  setYearFilter(v);
+                  setCurrentPage(1);
+                }}>
+                  <SelectTrigger className="w-full sm:w-28 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
+                    {years.map((year) => (
+                      <SelectItem key={year} value={String(year)}>
+                        {year}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -664,7 +672,7 @@ const NESPage = () => {
                                       return [...prev, { 
                                         beneficiary_id: b.id, 
                                         hhid: b.hhid,
-                                        frm_period: frmFilter,
+                                        frm_period: `${monthFilter} ${yearFilter}`,
                                         attendance: "none",
                                         reason: newVal,
                                         date_recorded: new Date().toISOString().split("T")[0]
@@ -673,9 +681,9 @@ const NESPage = () => {
                                   });
                                 }}
                                 onBlur={(e) => handleUpdate(b, "reason", e.target.value)}
-                                disabled={nes?.attendance === "none"}
-                                className="h-8 text-xs dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
-                              />
+                                 disabled={nes?.attendance !== "missed"}
+                                 className="h-8 text-xs dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
+                               />
                             </TableCell>
                         <TableCell>
                           {nes ? (

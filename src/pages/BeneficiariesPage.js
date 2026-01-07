@@ -709,8 +709,8 @@ const BeneficiariesPage = () => {
       let errorCount = 0;
       let sampleErrors = [];
       
-      // Send data in chunks of 5000 to the backend
-      const chunkSize = 5000;
+      // Send data in chunks of 1000 to the backend for better stability
+      const chunkSize = 1000;
       for (let i = 0; i < dataToImport.length; i += chunkSize) {
         const chunk = dataToImport.slice(i, i + chunkSize);
         try {

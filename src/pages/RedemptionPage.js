@@ -37,18 +37,17 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December"
 ];
 
-const getCurrentFrmPeriod = () => {
-  const now = new Date();
-  return `${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
-};
-
 const RedemptionPage = () => {
   const { api, isAdmin } = useAuth();
   const [redemptions, setRedemptions] = useState([]);
   const [beneficiaries, setBeneficiaries] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [frmFilter, setFrmFilter] = useState(getCurrentFrmPeriod());
+  
+  const now = new Date();
+  const [monthFilter, setMonthFilter] = useState(MONTHS[now.getMonth()]);
+  const [yearFilter, setYearFilter] = useState(String(now.getFullYear()));
+  
   const [attendanceFilter, setAttendanceFilter] = useState("all");
   
   // Area filters
@@ -68,7 +67,7 @@ const RedemptionPage = () => {
 
   useEffect(() => {
     fetchData();
-  }, [currentPage, search, frmFilter, attendanceFilter, regionFilter, provinceFilter, municipalityFilter, barangayFilter]);
+  }, [currentPage, search, monthFilter, yearFilter, attendanceFilter, regionFilter, provinceFilter, municipalityFilter, barangayFilter]);
 
   useEffect(() => {
     fetchAreas("region");
@@ -142,7 +141,7 @@ const RedemptionPage = () => {
       
       // Now fetch redemption records only for these beneficiaries
       if (benIds.length > 0) {
-        const redResponse = await api.get(`/redemptions?frm_period=${encodeURIComponent(frmFilter)}&beneficiary_ids=${benIds.join(",")}`);
+        const redResponse = await api.get(`/redemptions?frm_period=${encodeURIComponent(`${monthFilter} ${yearFilter}`)}&beneficiary_ids=${benIds.join(",")}`);
         const redData = Array.isArray(redResponse.data) ? redResponse.data : (redResponse.data.redemptions || []);
         setRedemptions(redData.map(r => ({
           ...r,
@@ -186,7 +185,7 @@ const RedemptionPage = () => {
           return [...prev, {
             beneficiary_id: beneficiary.id,
             hhid: beneficiary.hhid,
-            frm_period: frmFilter,
+            frm_period: `${monthFilter} ${yearFilter}`,
             attendance: value,
             reason: "",
             date_recorded: new Date().toISOString().split("T")[0]
@@ -199,7 +198,7 @@ const RedemptionPage = () => {
       const updateData = {
         beneficiary_id: beneficiary.id,
         hhid: beneficiary.hhid,
-        frm_period: frmFilter,
+        frm_period: `${monthFilter} ${yearFilter}`,
         attendance: field === "attendance" ? value : (currentRedemption?.attendance || "none"),
         reason: field === "reason" ? value : (currentRedemption?.reason || ""),
         date_recorded: new Date().toISOString().split("T")[0],
@@ -266,12 +265,8 @@ const RedemptionPage = () => {
         return;
       }
 
-      // Fetch all redemptions for these beneficiaries and current FRM period
-      const benIds = allBeneficiaries.map(b => b.id);
-      
-      // Batch fetch redemptions if too many beneficiaries (though limit=all should work if we pass filters)
-      // Actually, it's better to fetch redemptions with the same filters as beneficiaries
-      const redResponse = await api.get(`/redemptions?limit=all&frm_period=${encodeURIComponent(frmFilter)}`);
+      // Fetch all redemptions for the current FRM period
+      const redResponse = await api.get(`/redemptions?limit=all&frm_period=${encodeURIComponent(`${monthFilter} ${yearFilter}`)}`);
       const allRedemptions = (redResponse.data.redemptions || []).map(r => ({
         ...r,
         beneficiary_id: r.beneficiary_id ? (typeof r.beneficiary_id === "object" ? String(r.beneficiary_id?._id || r.beneficiary_id?.id) : String(r.beneficiary_id)) : ""
@@ -287,7 +282,7 @@ const RedemptionPage = () => {
           "Province": b.province,
           "Municipality": b.municipality,
           "Barangay": b.barangay,
-          "FRM Period": frmFilter,
+          "FRM Period": `${monthFilter} ${yearFilter}`,
           "Attendance": redemption?.attendance || "none",
           "Reason": redemption?.reason || "",
           "Date Recorded": redemption?.date_recorded || ""
@@ -313,7 +308,7 @@ const RedemptionPage = () => {
       ];
       worksheet["!cols"] = wscols;
 
-      XLSX.writeFile(workbook, `redemptions_${frmFilter.replace(" ", "_")}_${new Date().toISOString().split('T')[0]}.xlsx`);
+      XLSX.writeFile(workbook, `redemptions_${monthFilter}_${yearFilter}_${new Date().toISOString().split('T')[0]}.xlsx`);
       toast.dismiss(toastId);
       toast.success(`Exported ${allBeneficiaries.length} records`);
     } catch (error) {
@@ -356,7 +351,7 @@ const RedemptionPage = () => {
             const updateData = {
               beneficiary_id: beneficiary.id,
               hhid: beneficiary.hhid,
-              frm_period: frmFilter,
+              frm_period: `${monthFilter} ${yearFilter}`,
               attendance: ["present", "absent", "none"].includes(attendance) ? attendance : "none",
               reason: reason,
               date_recorded: new Date().toISOString().split("T")[0],
@@ -455,13 +450,6 @@ const RedemptionPage = () => {
   const currentYear = new Date().getFullYear();
   const years = [currentYear + 1, currentYear, currentYear - 1, currentYear - 2, currentYear - 3];
   
-  const allPeriods = [];
-  years.forEach(year => {
-    MONTHS.forEach(month => {
-      allPeriods.push(`${month} ${year}`);
-    });
-  });
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -500,18 +488,35 @@ const RedemptionPage = () => {
                 />
               </div>
               <div className="flex items-center gap-2">
-                <Label className="whitespace-nowrap dark:text-slate-300">FRM Period:</Label>
-                <Select value={frmFilter} onValueChange={(v) => {
-                  setFrmFilter(v);
+                <Label className="whitespace-nowrap dark:text-slate-300">Month:</Label>
+                <Select value={monthFilter} onValueChange={(v) => {
+                  setMonthFilter(v);
                   setCurrentPage(1);
                 }}>
-                  <SelectTrigger className="w-full sm:w-48 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
-                    <SelectValue placeholder="Select Period" />
+                  <SelectTrigger className="w-full sm:w-32 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                    <SelectValue placeholder="Month" />
                   </SelectTrigger>
                   <SelectContent className="dark:bg-slate-900 dark:border-slate-800 max-h-[300px]">
-                    {allPeriods.map((period) => (
-                      <SelectItem key={period} value={period}>
-                        {period}
+                    {MONTHS.map((month) => (
+                      <SelectItem key={month} value={month}>
+                        {month}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Label className="whitespace-nowrap dark:text-slate-300 ml-2">Year:</Label>
+                <Select value={yearFilter} onValueChange={(v) => {
+                  setYearFilter(v);
+                  setCurrentPage(1);
+                }}>
+                  <SelectTrigger className="w-full sm:w-28 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
+                    {years.map((year) => (
+                      <SelectItem key={year} value={String(year)}>
+                        {year}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -749,7 +754,7 @@ const RedemptionPage = () => {
                                       return [...prev, { 
                                         beneficiary_id: b.id, 
                                         hhid: b.hhid,
-                                        frm_period: frmFilter,
+                                        frm_period: `${monthFilter} ${yearFilter}`,
                                         attendance: "none",
                                         reason: newVal,
                                         date_recorded: new Date().toISOString().split("T")[0]
@@ -758,9 +763,9 @@ const RedemptionPage = () => {
                                   });
                                 }}
                                 onBlur={(e) => handleUpdate(b, "reason", e.target.value)}
-                                disabled={redemption?.attendance === "none"}
-                                className="h-8 text-xs dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
-                              />
+                                 disabled={redemption?.attendance !== "unredeemed"}
+                                 className="h-8 text-xs dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
+                               />
                             </TableCell>
                         <TableCell>
                           {redemption ? (
