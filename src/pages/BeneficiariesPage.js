@@ -321,7 +321,9 @@ const BeneficiariesPage = () => {
 
   const handleEdit = async (beneficiary) => {
     setEditingBeneficiary(beneficiary);
-    setFormData({
+    
+    // Set initial form data
+    const initialData = {
       hhid: beneficiary.hhid?.trim(),
       pkno: beneficiary.pkno?.trim(),
       first_name: beneficiary.first_name?.trim(),
@@ -335,23 +337,43 @@ const BeneficiariesPage = () => {
       region: beneficiary.region?.trim() || "",
       contact: beneficiary.contact?.trim() || "",
       is4ps: beneficiary.is4ps || "No",
-    });
+    };
+    setFormData(initialData);
 
-    // Proactively fetch sub-areas for the selected branch
+    // Proactively fetch sub-areas for the selected branch and ensure casing matches exactly for Select components
     try {
       if (beneficiary.region) {
         const regions = await fetchAreas("region");
         const regionObj = regions.find(r => r.name?.trim().toLowerCase() === beneficiary.region?.trim().toLowerCase());
+        
         if (regionObj) {
+          // Update region name to match exact casing from areas collection
+          setFormData(prev => ({ ...prev, region: regionObj.name }));
+          
           const provinces = await fetchAreas("province", regionObj.id, regionObj.code);
           if (beneficiary.province) {
             const provinceObj = provinces.find(p => p.name?.trim().toLowerCase() === beneficiary.province?.trim().toLowerCase());
+            
             if (provinceObj) {
+              // Update province name to match exact casing
+              setFormData(prev => ({ ...prev, province: provinceObj.name }));
+              
               const municipalities = await fetchAreas("municipality", provinceObj.id, provinceObj.code);
               if (beneficiary.municipality) {
                 const municipalityObj = municipalities.find(m => m.name?.trim().toLowerCase() === beneficiary.municipality?.trim().toLowerCase());
+                
                 if (municipalityObj) {
-                  await fetchAreas("barangay", municipalityObj.id, municipalityObj.code);
+                  // Update municipality name to match exact casing
+                  setFormData(prev => ({ ...prev, municipality: municipalityObj.name }));
+                  
+                  const barangays = await fetchAreas("barangay", municipalityObj.id, municipalityObj.code);
+                  if (beneficiary.barangay) {
+                    const barangayObj = barangays.find(b => b.name?.trim().toLowerCase() === beneficiary.barangay?.trim().toLowerCase());
+                    if (barangayObj) {
+                      // Update barangay name to match exact casing
+                      setFormData(prev => ({ ...prev, barangay: barangayObj.name }));
+                    }
+                  }
                 }
               }
             }
