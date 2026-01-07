@@ -51,6 +51,11 @@ const UsersPage = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [itemsPerPage] = useState(10);
 
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPassword, setEditPassword] = useState("");
+  const [editConfirmPassword, setEditConfirmPassword] = useState("");
+
   useEffect(() => {
     fetchUsers();
   }, [currentPage, search, statusFilter]);
@@ -129,6 +134,10 @@ const UsersPage = () => {
 
   const handleApprove = (user) => {
     setSelectedUser(user);
+    setEditName(user.name || "");
+    setEditEmail(user.email || "");
+    setEditPassword("");
+    setEditConfirmPassword("");
     // Normalize assigned_areas to be an array of string IDs
     const areaIds = (user.assigned_areas || []).map(area => 
       typeof area === 'object' ? (area._id || area.id) : String(area)
@@ -140,20 +149,37 @@ const UsersPage = () => {
   };
 
   const confirmApproval = async (status) => {
+    if (editPassword && editPassword !== editConfirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
     setIsUpdating(true);
     try {
-      await api.put(`/users/${selectedUser.id}/approve`, {
+      const updateData = {
         status,
         assigned_areas: selectedAreas,
         role: selectedUser.role,
-      });
-      toast.success(`User ${status === "approved" ? "approved" : "rejected"} successfully`);
+        name: editName,
+        email: editEmail,
+      };
+
+      if (editPassword) {
+        updateData.password = editPassword;
+      }
+
+      await api.put(`/users/${selectedUser.id}/approve`, updateData);
+      toast.success(`User updated successfully`);
       fetchUsers();
       setIsDialogOpen(false);
       setSelectedUser(null);
       setSelectedAreas([]);
+      setEditName("");
+      setEditEmail("");
+      setEditPassword("");
+      setEditConfirmPassword("");
     } catch (error) {
-      toast.error("Failed to update user status");
+      toast.error(error.response?.data?.message || "Failed to update user");
     } finally {
       setIsUpdating(false);
     }
@@ -606,13 +632,47 @@ const UsersPage = () => {
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 bg-stone-50 dark:bg-slate-800/50 rounded-lg border dark:border-slate-800">
-                <p className="text-sm text-slate-500 dark:text-slate-400">User</p>
-                <p className="font-medium truncate dark:text-slate-200">{selectedUser?.name}</p>
+              <div className="space-y-1">
+                <Label className="text-xs dark:text-slate-400 font-medium">Full Name</Label>
+                <Input 
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Enter full name"
+                  className="h-9 dark:bg-slate-900 dark:border-slate-700"
+                />
               </div>
-              <div className="p-3 bg-stone-50 dark:bg-slate-800/50 rounded-lg border dark:border-slate-800">
-                <p className="text-sm text-slate-500 dark:text-slate-400">Email</p>
-                <p className="font-medium truncate text-xs dark:text-slate-200">{selectedUser?.email}</p>
+              <div className="space-y-1">
+                <Label className="text-xs dark:text-slate-400 font-medium">Email Address</Label>
+                <Input 
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  placeholder="Enter email"
+                  type="email"
+                  className="h-9 dark:bg-slate-900 dark:border-slate-700"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs dark:text-slate-400 font-medium">New Password</Label>
+                <Input 
+                  value={editPassword}
+                  onChange={(e) => setEditPassword(e.target.value)}
+                  placeholder="Leave blank to keep"
+                  type="password"
+                  className="h-9 dark:bg-slate-900 dark:border-slate-700"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs dark:text-slate-400 font-medium">Confirm Password</Label>
+                <Input 
+                  value={editConfirmPassword}
+                  onChange={(e) => setEditConfirmPassword(e.target.value)}
+                  placeholder="Confirm password"
+                  type="password"
+                  className="h-9 dark:bg-slate-900 dark:border-slate-700"
+                />
               </div>
             </div>
             

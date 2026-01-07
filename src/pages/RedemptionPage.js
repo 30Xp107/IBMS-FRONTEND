@@ -26,10 +26,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Search, Edit, Trash2, Calendar, CheckCircle, XCircle, Download, ArrowUpDown, ArrowUp, ArrowDown, RotateCcw, FileText, Upload } from "lucide-react";
+import { Search, Edit, CheckCircle, XCircle, Download, ArrowUpDown, ArrowUp, ArrowDown, FileText } from "lucide-react";
 import * as XLSX from "xlsx";
 
 const MONTHS = [
@@ -67,10 +65,12 @@ const RedemptionPage = () => {
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, search, monthFilter, yearFilter, attendanceFilter, regionFilter, provinceFilter, municipalityFilter, barangayFilter]);
 
   useEffect(() => {
     fetchAreas("region");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchAreas = async (type = null, parentId = null, parentCode = null) => {
@@ -86,17 +86,17 @@ const RedemptionPage = () => {
       const response = await api.get(`/areas${query}`);
       const data = Array.isArray(response.data) ? response.data : (response.data.areas || []);
       
-      const normalizedData = data.map((area) => ({
+      const normalizedData = data.filter(area => area).map((area) => ({
         ...area,
-        id: String(area._id || area.id),
-        type: area.type?.toLowerCase(),
-        parent_id: area.parent_id ? (typeof area.parent_id === "object" ? String(area.parent_id?._id || area.parent_id?.id) : String(area.parent_id)) : ""
+        id: String(area._id || area.id || ""),
+        type: (area.type || "").toLowerCase(),
+        parent_id: area.parent_id ? (typeof area.parent_id === "object" ? String(area.parent_id?._id || area.parent_id?.id || "") : String(area.parent_id)) : ""
       }));
       
       setAreas(prev => {
-        const existingIds = new Set(prev.map(a => a.id));
-        const newData = normalizedData.filter(a => !existingIds.has(a.id));
-        return [...prev, ...newData];
+        const existingIds = new Set((prev || []).filter(a => a).map(a => a.id));
+        const newData = normalizedData.filter(a => a && !existingIds.has(a.id));
+        return [...(prev || []), ...newData];
       });
     } catch (error) {
       console.error("Failed to load areas");
@@ -128,26 +128,25 @@ const RedemptionPage = () => {
 
       const response = await api.get(`/beneficiaries${benQuery}`);
       const data = response.data;
-      const benList = data.beneficiaries || [];
-      const benIds = benList.map(b => String(b._id || b.id));
+      const benList = (data.beneficiaries || []).filter(b => b);
+      const benIds = benList.map(b => String(b._id || b.id || ""));
 
       setBeneficiaries(benList.map(b => ({
-        ...b,
-        id: String(b._id || b.id)
-      })));
-      
-      setTotalBeneficiaries(data.total || 0);
-      setTotalPages(data.totalPages || 1);
-      
-      // Now fetch redemption records only for these beneficiaries
-      if (benIds.length > 0) {
-        const redResponse = await api.get(`/redemptions?frm_period=${encodeURIComponent(`${monthFilter} ${yearFilter}`)}&beneficiary_ids=${benIds.join(",")}`);
-        const redData = Array.isArray(redResponse.data) ? redResponse.data : (redResponse.data.redemptions || []);
-        setRedemptions(redData.map(r => ({
-          ...r,
-          id: String(r._id || r.id),
-          beneficiary_id: r.beneficiary_id ? (typeof r.beneficiary_id === "object" ? String(r.beneficiary_id?._id || r.beneficiary_id?.id) : String(r.beneficiary_id)) : ""
-        })));
+              ...b,
+              id: String(b._id || b.id || "")
+            })));
+            
+            setTotalBeneficiaries(data.total || 0);
+            setTotalPages(data.totalPages || 1);
+            
+            if (benIds.length > 0) {
+              const redResponse = await api.get(`/redemptions?frm_period=${encodeURIComponent(`${monthFilter} ${yearFilter}`)}&beneficiary_ids=${benIds.join(",")}`);
+              const redData = Array.isArray(redResponse.data) ? redResponse.data : (redResponse.data.redemptions || []);
+              setRedemptions(redData.filter(r => r).map(r => ({
+                ...r,
+                id: String(r._id || r.id || ""),
+                beneficiary_id: r.beneficiary_id ? (typeof r.beneficiary_id === "object" ? String(r.beneficiary_id?._id || r.beneficiary_id?.id || "") : String(r.beneficiary_id)) : ""
+              })));
       } else {
         setRedemptions([]);
       }
@@ -159,8 +158,10 @@ const RedemptionPage = () => {
   };
 
   const handleUpdate = async (beneficiary, field, value) => {
+    if (!beneficiary || !beneficiary.id) return;
+    
     // Optimistic update for local state
-    const currentRedemption = redemptions.find(r => r.beneficiary_id === beneficiary.id);
+    const currentRedemption = redemptions.find(r => r && r.beneficiary_id === beneficiary.id);
     
     if (field === "attendance" && value === "none") {
       if (currentRedemption && currentRedemption.id) {
@@ -284,7 +285,7 @@ const RedemptionPage = () => {
       }));
 
       const exportData = allBeneficiaries.map(b => {
-        const redemption = allRedemptions.find(r => r.beneficiary_id === b.id);
+        const redemption = allRedemptions.find(r => r && r.beneficiary_id === b.id);
         return {
           "HHID": b.hhid,
           "Last Name": b.last_name,
@@ -330,113 +331,39 @@ const RedemptionPage = () => {
     }
   };
 
-  const handleImport = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const data = new Uint8Array(event.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
-
-        if (jsonData.length === 0) {
-          toast.error("The imported file is empty");
-          return;
-        }
-
-        const toastId = toast.loading("Importing records...");
-        let successCount = 0;
-        let errorCount = 0;
-
-        for (const row of jsonData) {
-          try {
-            // Find beneficiary by HHID
-            const hhid = row["HHID"];
-            if (!hhid) continue;
-
-            const benResponse = await api.get(`/beneficiaries?search=${hhid}`);
-            const beneficiary = benResponse.data.beneficiaries?.find(b => b.hhid === hhid);
-
-            if (!beneficiary) {
-              console.error(`Beneficiary with HHID ${hhid} not found`);
-              errorCount++;
-              continue;
-            }
-
-            const frm_period = row["FRM Period"] || `${monthFilter} ${yearFilter}`;
-            const attendance = (row["Attendance"] || "none").toLowerCase();
-            const reason = row["Reason"] || "";
-            const action = row["Remarks"] || "";
-
-            await api.post("/redemptions/upsert", {
-              beneficiary_id: beneficiary._id || beneficiary.id,
-              hhid: beneficiary.hhid,
-              frm_period,
-              attendance,
-              reason,
-              action,
-              date_recorded: new Date().toISOString().split("T")[0]
-            });
-            successCount++;
-          } catch (err) {
-            console.error("Error importing row:", err);
-            errorCount++;
-          }
-        }
-
-        toast.dismiss(toastId);
-        if (successCount > 0) {
-          toast.success(`Successfully imported ${successCount} records`);
-          fetchData();
-        }
-        if (errorCount > 0) {
-          toast.error(`Failed to import ${errorCount} records`);
-        }
-      } catch (error) {
-        console.error("Import error:", error);
-        toast.error("Failed to process the imported file");
-      }
-    };
-    reader.readAsArrayBuffer(file);
-    e.target.value = ""; // Reset input
-  };
-
   useEffect(() => {
     setCurrentPage(1);
   }, [search, attendanceFilter, sortConfig, regionFilter, provinceFilter, municipalityFilter, barangayFilter]);
 
-  const getRegions = () => areas.filter(a => a.type === "region");
+  const getRegions = () => (areas || []).filter(a => a && a.type === "region");
   const getProvinces = () => {
     if (regionFilter === "all") return [];
-    const region = areas.find(a => a.name === regionFilter && a.type === "region");
+    const region = (areas || []).find(a => a && a.name === regionFilter && a.type === "region");
     if (!region) return [];
-    return areas.filter(a => a.type === "province" && (a.parent_id === region.id || a.parent_code === region.code));
+    return (areas || []).filter(a => a && a.type === "province" && (a.parent_id === region.id || a.parent_code === region.code));
   };
   
   const getMunicipalities = () => {
     if (provinceFilter === "all") return [];
-    const region = areas.find(a => a.name === regionFilter && a.type === "region");
-    const province = areas.find(a => a.name === provinceFilter && a.type === "province" &&
+    const region = (areas || []).find(a => a && a.name === regionFilter && a.type === "region");
+    const province = (areas || []).find(a => a && a.name === provinceFilter && a.type === "province" &&
       (region ? (a.parent_id === region.id || a.parent_code === region.code) : true)
     );
     if (!province) return [];
-    return areas.filter(a => a.type === "municipality" && (a.parent_id === province.id || a.parent_code === province.code));
+    return (areas || []).filter(a => a && a.type === "municipality" && (a.parent_id === province.id || a.parent_code === province.code));
   };
 
   const getBarangays = () => {
     if (municipalityFilter === "all") return [];
-    const region = areas.find(a => a.name === regionFilter && a.type === "region");
-    const province = areas.find(a => a.name === provinceFilter && a.type === "province" &&
+    const region = (areas || []).find(a => a && a.name === regionFilter && a.type === "region");
+    const province = (areas || []).find(a => a && a.name === provinceFilter && a.type === "province" &&
       (region ? (a.parent_id === region.id || a.parent_code === region.code) : true)
     );
-    const municipality = areas.find(a => a.name === municipalityFilter && a.type === "municipality" && 
+    const municipality = (areas || []).find(a => a && a.name === municipalityFilter && a.type === "municipality" && 
       (province ? (a.parent_id === province.id || a.parent_code === province.code) : true)
     );
     if (!municipality) return [];
-    return areas.filter(a => a.type === "barangay" && (a.parent_id === municipality.id || a.parent_code === municipality.code));
+    return (areas || []).filter(a => a && a.type === "barangay" && (a.parent_id === municipality.id || a.parent_code === municipality.code));
   };
 
   // Client-side sorting for the current page
@@ -447,24 +374,21 @@ const RedemptionPage = () => {
     let aValue, bValue;
     
     if (sortConfig.key === "attendance") {
-      const redA = redemptions.find(r => r.beneficiary_id === a.id);
-      const redB = redemptions.find(r => r.beneficiary_id === b.id);
+      const redA = redemptions.find(r => r && r.beneficiary_id === a.id);
+      const redB = redemptions.find(r => r && r.beneficiary_id === b.id);
       aValue = redA?.attendance || "none";
       bValue = redB?.attendance || "none";
     } else {
       aValue = a[sortConfig.key];
       bValue = b[sortConfig.key];
-      
-      // Handle null/undefined
-      if (aValue === null || aValue === undefined) aValue = "";
-      if (bValue === null || bValue === undefined) bValue = "";
-      
-      // String comparison
-      if (typeof aValue === "string" && typeof bValue === "string") {
-        aValue = aValue.toLowerCase();
-        bValue = bValue.toLowerCase();
-      }
     }
+
+    // Safety check and normalization
+    if (aValue === null || aValue === undefined) aValue = "";
+    if (bValue === null || bValue === undefined) bValue = "";
+
+    if (typeof aValue === "string") aValue = aValue.toLowerCase();
+    if (typeof bValue === "string") bValue = bValue.toLowerCase();
     
     if (aValue < bValue) return -1 * direction;
     if (aValue > bValue) return 1 * direction;
@@ -474,7 +398,7 @@ const RedemptionPage = () => {
   const filteredBeneficiaries = sortedBeneficiaries.filter(b => {
     if (attendanceFilter === "all") return true;
     
-    const redemption = redemptions.find(r => r.beneficiary_id === b.id);
+    const redemption = redemptions.find(r => r && r.beneficiary_id === b.id);
     const status = redemption?.attendance || "none";
     
     return status === attendanceFilter;
@@ -741,7 +665,7 @@ const RedemptionPage = () => {
                 </TableHeader>
                 <TableBody>
                   {currentItems.map((b) => {
-                    const redemption = redemptions.find(r => r.beneficiary_id === b.id);
+                    const redemption = redemptions.find(r => r && r.beneficiary_id === b.id);
                     return (
                       <TableRow key={b.id} className="border-b dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
                         <TableCell className="font-medium text-slate-700 dark:text-slate-300">{b.hhid}</TableCell>
@@ -941,25 +865,6 @@ const RedemptionPage = () => {
         </div>
       )}
 
-      {/* Import Controls */}
-      <div className="flex items-center justify-end gap-2 pt-2">
-        <input
-          type="file"
-          id="import-excel"
-          className="hidden"
-          accept=".xlsx, .xls"
-          onChange={handleImport}
-        />
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => document.getElementById("import-excel").click()}
-          className="border-emerald-600 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 dark:border-emerald-500 dark:text-emerald-400"
-        >
-          <Upload className="w-3.5 h-3.5 mr-1.5" />
-          Import from Excel
-        </Button>
-      </div>
     </div>
   );
 };

@@ -16,6 +16,7 @@ import {
   Utensils,
   Sun,
   Moon,
+  Settings,
 } from "lucide-react";
 
 const Layout = () => {
@@ -68,6 +69,7 @@ const Layout = () => {
     { to: "/beneficiaries", icon: Users, label: "Beneficiaries" },
     { to: "/redemption", icon: Calendar, label: "Redemption" },
     { to: "/nes", icon: FileText, label: "NES" },
+    { to: "/settings", icon: Settings, label: "Settings" },
     ...(isAdmin
       ? [
           { to: "/users", icon: Users, label: "User Management" },

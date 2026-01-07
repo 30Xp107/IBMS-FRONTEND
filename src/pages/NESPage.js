@@ -362,7 +362,7 @@ const NESPage = () => {
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
   const currentYear = new Date().getFullYear();
-  const years = [currentYear + 1, currentYear, currentYear, currentYear - 1, currentYear - 2, currentYear - 3];
+  const years = [currentYear + 1, currentYear, currentYear - 1, currentYear - 2, currentYear - 3];
 
   return (
     <div className="space-y-6">

@@ -11,6 +11,7 @@ import NESPage from "@/pages/NESPage";
 import UsersPage from "@/pages/UsersPage";
 import AreasPage from "@/pages/AreasPage";
 import AuditLogPage from "@/pages/AuditLogPage";
+import SettingsPage from "@/pages/SettingsPage";
 import Layout from "@/components/Layout";
 
 const ProtectedRoute = ({ children, adminOnly = false }) => {
@@ -64,6 +65,7 @@ function AppRoutes() {
         <Route path="beneficiaries" element={<BeneficiariesPage />} />
         <Route path="redemption" element={<RedemptionPage />} />
         <Route path="nes" element={<NESPage />} />
+        <Route path="settings" element={<SettingsPage />} />
         <Route path="users" element={<ProtectedRoute adminOnly><UsersPage /></ProtectedRoute>} />
         <Route path="areas" element={<ProtectedRoute adminOnly><AreasPage /></ProtectedRoute>} />
         <Route path="audit-log" element={<ProtectedRoute adminOnly><AuditLogPage /></ProtectedRoute>} />
