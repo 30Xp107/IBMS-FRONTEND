@@ -29,7 +29,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Search, Edit, Trash2, Calendar, CheckCircle, XCircle, Download, Upload, ArrowUpDown, ArrowUp, ArrowDown, RotateCcw, FileText } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Calendar, CheckCircle, XCircle, Download, ArrowUpDown, ArrowUp, ArrowDown, RotateCcw, FileText } from "lucide-react";
 import * as XLSX from "xlsx";
 
 const MONTHS = [
@@ -328,70 +328,6 @@ const RedemptionPage = () => {
       console.error("Export error:", error);
       toast.error("Failed to export data");
     }
-  };
-
-  const handleImport = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const data = new Uint8Array(event.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(worksheet);
-
-        if (rows.length === 0) {
-          toast.error("File is empty");
-          return;
-        }
-
-        const loadingToast = toast.loading(`Importing ${rows.length} records...`);
-        let successCount = 0;
-
-        for (const row of rows) {
-          try {
-            const hhid = String(row["HHID"] || "").trim();
-            const attendance = String(row["Attendance"] || "").toLowerCase().trim();
-            const reason = String(row["Reason"] || "").trim();
-            const remarks = String(row["Remarks"] || row["Action"] || "").trim();
-
-            if (!hhid) continue;
-
-            const beneficiary = beneficiaries.find(b => b.hhid === hhid);
-            if (!beneficiary) continue;
-
-            let finalAttendance = "none";
-            if (attendance === "present" || attendance === "redeemed") finalAttendance = "present";
-            else if (attendance === "absent" || attendance === "unredeemed") finalAttendance = "absent";
-
-            const updateData = {
-              beneficiary_id: beneficiary.id,
-              hhid: beneficiary.hhid,
-              frm_period: `${monthFilter} ${yearFilter}`,
-              attendance: finalAttendance,
-              reason: reason,
-              action: remarks,
-              date_recorded: new Date().toISOString().split("T")[0],
-            };
-
-            await api.post("/redemptions/upsert", updateData);
-            successCount++;
-          } catch (err) {
-            console.error("Import error for row:", row, err);
-          }
-        }
-
-        toast.dismiss(loadingToast);
-        toast.success(`Successfully imported ${successCount} records`);
-        fetchData();
-      } catch (error) {
-        toast.error("Failed to parse file");
-      }
-    };
-    reader.readAsArrayBuffer(file);
-    e.target.value = null;
   };
 
   useEffect(() => {

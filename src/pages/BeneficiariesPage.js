@@ -30,8 +30,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Plus, Search, Edit, Trash2, Users, Download, Upload, ArrowUpDown, ArrowUp, ArrowDown, Trash, Settings } from "lucide-react";
-import * as XLSX from "xlsx";
+import { Plus, Search, Edit, Trash2, Users, Download, ArrowUpDown, ArrowUp, ArrowDown, Trash } from "lucide-react";
 
 const BeneficiariesPage = () => {
   const { api, isAdmin, user } = useAuth();
@@ -47,31 +46,9 @@ const BeneficiariesPage = () => {
   const [totalBeneficiaries, setTotalBeneficiaries] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const itemsPerPage = 10;
-  const MAX_IMPORT_LIMIT = 30000;
   const [sortConfig, setSortConfig] = useState({ key: "last_name", direction: "asc" });
   const [selectedIds, setSelectedIds] = useState([]);
   const [isAllSelectedGlobally, setIsAllSelectedGlobally] = useState(false);
-
-  // Import Preview State
-  const [importPreviewData, setImportPreviewData] = useState(null);
-  const [isImportPreviewOpen, setIsImportPreviewOpen] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
-
-  // Import Requirements State
-  const [importRequirements, setImportRequirements] = useState({
-    hhid: true,
-    pkno: true,
-    first_name: true,
-    last_name: true,
-    birthdate: true,
-    gender: true,
-    barangay: true,
-    municipality: true,
-    province: true,
-    region: true,
-  });
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   const handleSort = (key) => {
     let direction = "asc";
@@ -165,34 +142,7 @@ const BeneficiariesPage = () => {
 
   useEffect(() => {
     fetchAreas("region");
-    fetchImportRequirements();
   }, []);
-
-  const fetchImportRequirements = async () => {
-    try {
-      const response = await api.get("/system-configs/beneficiary_import_requirements");
-      if (response.data && response.data.value) {
-        setImportRequirements(response.data.value);
-      }
-    } catch (error) {
-      console.error("Failed to fetch import requirements:", error);
-    }
-  };
-
-  const saveImportRequirements = async () => {
-    setIsSavingSettings(true);
-    try {
-      await api.put("/system-configs/beneficiary_import_requirements", {
-        value: importRequirements
-      });
-      toast.success("Import requirements updated successfully");
-      setIsSettingsOpen(false);
-    } catch (error) {
-      toast.error("Failed to update import requirements");
-    } finally {
-      setIsSavingSettings(false);
-    }
-  };
 
   const fetchAreas = async (type = null, parentId = null, parentCode = null) => {
     try {
@@ -495,269 +445,6 @@ const BeneficiariesPage = () => {
     }
   };
 
-  const handleImport = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const data = new Uint8Array(event.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
-        
-        let rows = [];
-        let sheetName = "";
-        
-        // Try to find the first sheet that has data
-        for (const name of workbook.SheetNames) {
-          const worksheet = workbook.Sheets[name];
-          const sheetRows = XLSX.utils.sheet_to_json(worksheet, { 
-            header: 1,
-            defval: "", 
-            raw: false
-          });
-          
-          if (sheetRows && sheetRows.length >= 2) {
-            // Check if this sheet has an HHID header
-            const hasHhid = sheetRows.some(row => 
-              Array.isArray(row) && row.some(cell => {
-                const val = String(cell || "").toLowerCase().replace(/[^a-z0-9]/g, '');
-                return val.includes('hhid') || val.includes('householdid');
-              })
-            );
-            
-            if (hasHhid) {
-              rows = sheetRows;
-              sheetName = name;
-              break;
-            }
-          }
-        }
-
-        if (rows.length === 0) {
-          toast.error("Could not find a sheet with beneficiary data and 'HHID' header.");
-          return;
-        }
-
-        // Filter out completely empty rows
-        const nonEmptyRows = rows.filter(row => 
-          Array.isArray(row) && row.some(cell => cell !== null && cell !== undefined && String(cell).trim() !== "")
-        );
-
-        if (nonEmptyRows.length < 2) {
-          toast.error("The file is empty or missing beneficiary data rows");
-          return;
-        }
-
-        if (nonEmptyRows.length > MAX_IMPORT_LIMIT) {
-          toast.error(`Import limit exceeded. Maximum ${MAX_IMPORT_LIMIT.toLocaleString()} records allowed per file.`);
-          return;
-        }
-
-        // Find the header row (usually the first row, but we'll look for HHID just in case)
-        const headerRowIndex = nonEmptyRows.findIndex(row => 
-          row.some(cell => {
-            const val = String(cell || "").toLowerCase().replace(/[^a-z0-9]/g, '');
-            return val.includes('hhid') || val.includes('householdid');
-          })
-        );
-
-        if (headerRowIndex === -1) {
-          toast.error("Could not find the header row. Please ensure your file has an 'HHID' column.");
-          return;
-        }
-
-        const headers = nonEmptyRows[headerRowIndex].map(h => String(h || "").toLowerCase().replace(/[^a-z0-9]/g, ''));
-        const dataRows = nonEmptyRows.slice(headerRowIndex + 1);
-
-        const mappedData = dataRows
-          .map(row => {
-            const getColVal = (keys) => {
-              const colIndex = headers.findIndex(h => 
-                keys.some(key => h === key.toLowerCase().replace(/[^a-z0-9]/g, ''))
-              );
-              if (colIndex === -1) return "";
-              const val = row[colIndex];
-              return (val === undefined || val === null) ? "" : String(val).trim();
-            };
-
-            const hhid = getColVal(["HHID", "HouseholdID"]);
-            const pkno = getColVal(["PKNO", "PKN", "PantawidID"]);
-            const first_name = getColVal(["First Name", "FirstName", "First_Name"]);
-            const last_name = getColVal(["Last Name", "LastName", "Last_Name"]);
-
-            // Skip empty rows
-            if (!hhid && !pkno && !first_name && !last_name) return null;
-
-            return {
-              hhid,
-              pkno,
-              first_name,
-              last_name,
-              middle_name: getColVal(["Middle Name", "MiddleName", "Middle_Name"]),
-              birthdate: getColVal(["Birthdate", "Birth Date"]),
-              gender: normalizeGender(getColVal(["Gender", "Sex"])),
-              barangay: getColVal(["Barangay"]),
-              municipality: getColVal(["Municipality"]),
-              province: getColVal(["Province"]),
-              region: getColVal(["Region"]),
-              contact: getColVal(["Contact", "Phone"])
-            };
-          })
-          .filter(b => b !== null);
-
-        // Basic validation using dynamic requirements
-        const invalidRows = mappedData.filter(b => {
-          for (const [field, isRequired] of Object.entries(importRequirements)) {
-            if (isRequired && !b[field]) return true;
-          }
-          return false;
-        });
-        
-        if (invalidRows.length > 0) {
-          // Find out which specific field is missing to help the user
-          const sample = invalidRows[0];
-          let missing = [];
-          for (const [field, isRequired] of Object.entries(importRequirements)) {
-            if (isRequired && !sample[field]) {
-              // Format field name for display
-              const label = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-              missing.push(label);
-            }
-          }
-          
-          toast.error(`Invalid data in ${invalidRows.length} rows. Missing required fields: ${missing.join(", ")}`);
-          return;
-        }
-
-        const getDuplicateKey = (b) => {
-          return `${b.first_name}|${b.middle_name || ""}|${b.last_name}|${b.birthdate}|${b.barangay}|${b.municipality}|${b.province}`.toLowerCase().replace(/\s+/g, ' ').trim();
-        };
-
-        const loadingToast = toast.loading("Checking for duplicates...");
-        
-        try {
-          // 1. Check for internal duplicates in the file
-          const keyCounts = {};
-          const internalDuplicates = [];
-          mappedData.forEach(b => {
-            const key = getDuplicateKey(b);
-            keyCounts[key] = (keyCounts[key] || 0) + 1;
-            if (keyCounts[key] === 2) {
-              internalDuplicates.push(key);
-            }
-          });
-
-          // 2. Check for existing duplicates in the database in chunks
-          const dbDuplicateKeys = [];
-          const dbDuplicateDetails = [];
-          const checkChunkSize = 50; // Reduced from 1000 to avoid connection timeouts during duplicate checks
-          
-          for (let i = 0; i < mappedData.length; i += checkChunkSize) {
-            const chunk = mappedData.slice(i, i + checkChunkSize);
-            const response = await api.post("/beneficiaries/check-duplicates", { beneficiaries: chunk });
-            const chunkDuplicates = response.data.duplicates || [];
-            
-            chunkDuplicates.forEach(d => {
-              const key = getDuplicateKey(d);
-              dbDuplicateKeys.push(key);
-              dbDuplicateDetails.push(d);
-            });
-            
-            // Update progress if there are many chunks
-            if (mappedData.length > checkChunkSize) {
-              const progress = Math.min(100, Math.round(((i + chunk.length) / mappedData.length) * 100));
-              toast.loading(`Checking for duplicates: ${progress}%`, { id: loadingToast });
-            }
-          }
-
-          toast.dismiss(loadingToast);
-
-          if (internalDuplicates.length > 0 || dbDuplicateKeys.length > 0) {
-            setImportPreviewData({
-              total: mappedData.length,
-              allData: mappedData,
-              internalDuplicates,
-              dbDuplicates: dbDuplicateKeys,
-              dbDuplicateDetails: dbDuplicateDetails,
-              getDuplicateKey
-            });
-            setIsImportPreviewOpen(true);
-          } else {
-            // No duplicates, proceed with import
-            await proceedWithImport(mappedData);
-          }
-        } catch (error) {
-          toast.dismiss(loadingToast);
-          toast.error("Failed to check for duplicates");
-        }
-      } catch (error) {
-        console.error("Error parsing file:", error);
-        toast.error("Error parsing file. Please ensure it's a valid Excel or CSV file.");
-      }
-    };
-    reader.readAsArrayBuffer(file);
-    e.target.value = null;
-  };
-
-  const proceedWithImport = async (dataToImport) => {
-    setIsImporting(true);
-    const loadingToast = toast.loading(`Importing ${dataToImport.length} beneficiaries...`);
-    
-    try {
-      let successCount = 0;
-      let errorCount = 0;
-      let sampleErrors = [];
-      
-      // Send data in chunks of 1000 to the backend for better stability
-      const chunkSize = 1000;
-      for (let i = 0; i < dataToImport.length; i += chunkSize) {
-        const chunk = dataToImport.slice(i, i + chunkSize);
-        try {
-          const response = await api.post("/beneficiaries/bulk", { beneficiaries: chunk });
-          successCount += response.data.success;
-          errorCount += response.data.failed;
-          
-          if (response.data.errors && response.data.errors.length > 0) {
-            sampleErrors = [...sampleErrors, ...response.data.errors.slice(0, 5)];
-          }
-
-          // Update toast with progress if there are multiple chunks
-          if (dataToImport.length > chunkSize) {
-            toast.loading(`Imported ${successCount} of ${dataToImport.length}...`, { id: loadingToast });
-          }
-        } catch (err) {
-          console.error(`Failed to import chunk starting at ${i}:`, err);
-          errorCount += chunk.length;
-        }
-      }
-
-      toast.dismiss(loadingToast);
-      if (errorCount === 0) {
-        toast.success(`Successfully imported all ${successCount} beneficiaries`);
-      } else {
-        const errorDetail = sampleErrors.length > 0 
-          ? ` Example: ${sampleErrors[0]}` 
-          : " Check console for details.";
-          
-        toast.error(`Import failed for ${errorCount} records.${errorDetail}`, { duration: 10000 });
-        
-        if (successCount > 0) {
-          toast.success(`Successfully imported ${successCount} beneficiaries.`);
-        }
-      }
-      setIsImportPreviewOpen(false);
-      setImportPreviewData(null);
-      fetchBeneficiaries();
-    } catch (error) {
-      toast.dismiss(loadingToast);
-      toast.error("Failed to import beneficiaries");
-    } finally {
-      setIsImporting(false);
-    }
-  };
-
-  // Sort beneficiaries on the client side for the current page
   const sortedBeneficiaries = [...beneficiaries].sort((a, b) => {
     const key = sortConfig.key;
     const direction = sortConfig.direction === "asc" ? 1 : -1;
@@ -780,28 +467,8 @@ const BeneficiariesPage = () => {
           <h1 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-slate-100">Beneficiaries</h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Manage program beneficiaries</p>
         </div>
-        {isAdmin && (
-          <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2">
-            <div className="relative group">
-              <Button
-                variant="outline"
-                onClick={() => document.getElementById("excel-import").click()}
-                className="w-full border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:border-blue-500 dark:text-blue-400 text-xs sm:text-sm h-9 sm:h-10"
-              >
-                <Upload className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
-                Import
-              </Button>
-              <div className="absolute hidden group-hover:block bg-slate-800 text-white text-[10px] p-1 rounded -bottom-8 left-0 z-50 whitespace-nowrap">
-                Max {MAX_IMPORT_LIMIT.toLocaleString()} records
-              </div>
-            </div>
-            <input
-              id="excel-import"
-              type="file"
-              accept=".xlsx, .xls, .csv"
-              onChange={handleImport}
-              className="hidden"
-            />
+        <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2">
+          {isAdmin && (
             <Button
               variant="outline"
               onClick={handleExport}
@@ -810,69 +477,17 @@ const BeneficiariesPage = () => {
               <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
               Export
             </Button>
+          )}
 
-            {user?.role === "admin" && (
-              <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-                <DialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="border-slate-300 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 text-xs sm:text-sm h-9 sm:h-10"
-                  >
-                    <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
-                    Import Settings
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="w-[95vw] sm:max-w-md dark:bg-slate-900 dark:border-slate-800 p-4 sm:p-6">
-                  <DialogHeader>
-            <DialogTitle className="dark:text-slate-100 text-lg sm:text-xl">Import Requirements</DialogTitle>
-            <DialogDescription className="dark:text-slate-400">
-              Toggle which fields are required during beneficiary import. 
-              <br />
-              <span className="text-amber-600 dark:text-amber-500 font-medium">Note: Maximum {MAX_IMPORT_LIMIT.toLocaleString()} records per import file.</span>
-            </DialogDescription>
-          </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="grid gap-4">
-                      {Object.keys(importRequirements).map((field) => (
-                        <div key={field} className="flex items-center justify-between space-x-2">
-                          <Label htmlFor={`req-${field}`} className="capitalize">
-                            {field.replace(/_/g, ' ')}
-                          </Label>
-                          <Checkbox
-                            id={`req-${field}`}
-                            checked={importRequirements[field]}
-                            onCheckedChange={(checked) => {
-                              setImportRequirements(prev => ({
-                                ...prev,
-                                [field]: !!checked
-                              }));
-                            }}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsSettingsOpen(false)}>Cancel</Button>
-                    <Button 
-                      className="bg-emerald-600 hover:bg-emerald-700" 
-                      onClick={saveImportRequirements}
-                      disabled={isSavingSettings}
-                    >
-                      {isSavingSettings ? "Saving..." : "Save Changes"}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            )}
-
-            <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
+            {isAdmin && (
               <DialogTrigger asChild>
                 <Button className="col-span-2 sm:col-auto bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-700 text-white text-xs sm:text-sm h-9 sm:h-10">
                   <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
                   Add Beneficiary
                 </Button>
               </DialogTrigger>
+            )}
             <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-slate-900 dark:border-slate-800 p-4 sm:p-6">
               <DialogHeader>
                 <DialogTitle className="dark:text-slate-100 text-lg sm:text-xl">
@@ -1069,8 +684,7 @@ const BeneficiariesPage = () => {
             </DialogContent>
             </Dialog>
           </div>
-        )}
-      </div>
+        </div>
 
       {/* Search and Filters */}
       <Card className="border-stone-200 dark:border-slate-800 shadow-sm overflow-hidden">
@@ -1363,7 +977,7 @@ const BeneficiariesPage = () => {
                         </div>
                       </TableHead>
                       <TableHead className="font-semibold text-slate-600 dark:text-slate-300">Contact</TableHead>
-                      {isAdmin && <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-right">Actions</TableHead>}
+                      <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1388,17 +1002,17 @@ const BeneficiariesPage = () => {
                         <TableCell className="dark:text-slate-300">{b.region}</TableCell>
                         <TableCell className="dark:text-slate-300">{b.province}</TableCell>
                         <TableCell className="dark:text-slate-300">{b.contact || "-"}</TableCell>
-                        {isAdmin && (
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleEdit(b)}
-                                className="h-8 w-8 text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-500"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEdit(b)}
+                              className="h-8 w-8 text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-500"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            {isAdmin && (
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -1407,9 +1021,9 @@ const BeneficiariesPage = () => {
                               >
                                 <Trash2 className="w-4 h-4" />
                               </Button>
-                            </div>
-                          </TableCell>
-                        )}
+                            )}
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -1463,138 +1077,6 @@ const BeneficiariesPage = () => {
           )}
         </CardContent>
       </Card>
-
-      {/* Import Preview Dialog */}
-      <Dialog open={isImportPreviewOpen} onOpenChange={(open) => { if (!isImporting) setIsImportPreviewOpen(open); }}>
-        <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-slate-900 dark:border-slate-800 p-4 sm:p-6">
-          <DialogHeader>
-            <DialogTitle className="dark:text-slate-100 text-lg sm:text-xl flex items-center gap-2">
-              <Upload className="w-5 h-5 text-blue-600" />
-              Import Preview & Duplicate Check
-            </DialogTitle>
-          </DialogHeader>
-
-          {importPreviewData && (
-            <div className="space-y-6 mt-4">
-              <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg border dark:border-slate-700 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Total records in file:</span>
-                  <span className="font-semibold">{importPreviewData.total}</span>
-                </div>
-                {importPreviewData.internalDuplicates.length > 0 && (
-                  <div className="flex justify-between text-sm text-amber-600 dark:text-amber-400">
-                    <span>Duplicates within file (HHID):</span>
-                    <span className="font-semibold">{importPreviewData.internalDuplicates.length}</span>
-                  </div>
-                )}
-                {importPreviewData.dbDuplicates.length > 0 && (
-                  <div className="flex justify-between text-sm text-rose-600 dark:text-rose-400">
-                    <span>Already exists in database:</span>
-                    <span className="font-semibold">{importPreviewData.dbDuplicates.length}</span>
-                  </div>
-                )}
-                <div className="pt-2 border-t dark:border-slate-700 flex justify-between text-sm font-bold">
-                  <span>New records to be added:</span>
-                  <span className="text-emerald-600 dark:text-emerald-400">
-                    {importPreviewData.allData.filter(b => {
-                      const key = importPreviewData.getDuplicateKey(b);
-                      return !importPreviewData.internalDuplicates.includes(key) && 
-                             !importPreviewData.dbDuplicates.includes(key);
-                    }).length}
-                  </span>
-                </div>
-              </div>
-
-              {(importPreviewData.dbDuplicates.length > 0 || importPreviewData.internalDuplicates.length > 0) && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Duplicate Details (Name + BDay + Address)</h3>
-                    {(importPreviewData.internalDuplicates.length + importPreviewData.dbDuplicateDetails.length > 500) && (
-                      <span className="text-[10px] text-slate-500">Showing first 500 only</span>
-                    )}
-                  </div>
-                  <div className="max-h-40 overflow-y-auto border dark:border-slate-700 rounded-md">
-                    <Table>
-                      <TableHeader className="sticky top-0 bg-slate-100 dark:bg-slate-800">
-                        <TableRow>
-                          <TableHead className="text-xs">HHID</TableHead>
-                          <TableHead className="text-xs">Type</TableHead>
-                          <TableHead className="text-xs">Issue</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {importPreviewData.internalDuplicates.slice(0, 500).map(key => {
-                          const sample = importPreviewData.allData.find(b => importPreviewData.getDuplicateKey(b) === key);
-                          return (
-                            <TableRow key={`int-${key}`}>
-                              <TableCell className="text-xs py-2 font-mono">{sample?.hhid || 'N/A'}</TableCell>
-                              <TableCell className="text-xs py-2">
-                                <span className="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">File</span>
-                              </TableCell>
-                              <TableCell className="text-xs py-2 text-amber-600">Duplicate in file: {sample?.first_name} {sample?.last_name}</TableCell>
-                            </TableRow>
-                          );
-                        })}
-                        {importPreviewData.dbDuplicateDetails.slice(0, Math.max(0, 500 - importPreviewData.internalDuplicates.length)).map(d => (
-                          <TableRow key={`db-${d._id || d.hhid}`}>
-                            <TableCell className="text-xs py-2 font-mono">{d.hhid}</TableCell>
-                            <TableCell className="text-xs py-2">
-                              <span className="px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400">System</span>
-                            </TableCell>
-                            <TableCell className="text-xs py-2 text-rose-600">Already exists: {d.first_name} {d.last_name}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
-              )}
-
-              <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md border border-blue-100 dark:border-blue-800/50">
-                <p className="text-xs text-blue-700 dark:text-blue-400">
-                  <strong>Recommendation:</strong> Only unique records that don't already exist in the system will be imported if you choose "Import Unique Only".
-                </p>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t dark:border-slate-800">
-                <Button 
-                  variant="outline" 
-                  className="flex-1 dark:border-slate-700" 
-                  onClick={() => { setIsImportPreviewOpen(false); setImportPreviewData(null); }}
-                  disabled={isImporting}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-                  onClick={() => {
-                    const uniqueData = importPreviewData.allData.filter(b => {
-                      const key = importPreviewData.getDuplicateKey(b);
-                      return !importPreviewData.internalDuplicates.includes(key) && 
-                             !importPreviewData.dbDuplicates.includes(key);
-                    });
-                    proceedWithImport(uniqueData);
-                  }}
-                  disabled={isImporting || importPreviewData.allData.filter(b => {
-                    const key = importPreviewData.getDuplicateKey(b);
-                    return !importPreviewData.internalDuplicates.includes(key) && 
-                           !importPreviewData.dbDuplicates.includes(key);
-                  }).length === 0}
-                >
-                  Import Unique Only
-                </Button>
-                <Button 
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                  onClick={() => proceedWithImport(importPreviewData.allData)}
-                  disabled={isImporting}
-                >
-                  Import All Anyway
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
