@@ -180,7 +180,16 @@ const RedemptionPage = () => {
       setRedemptions(prev => {
         const exists = prev.some(r => r.beneficiary_id === beneficiary.id);
         if (exists) {
-          return prev.map(r => r.beneficiary_id === beneficiary.id ? { ...r, [field]: value } : r);
+          return prev.map(r => {
+            if (r.beneficiary_id === beneficiary.id) {
+              // Clear action if attendance changes
+              if (field === "attendance") {
+                return { ...r, attendance: value, action: "" };
+              }
+              return { ...r, [field]: value };
+            }
+            return r;
+          });
         } else {
           return [...prev, {
             beneficiary_id: beneficiary.id,
@@ -202,7 +211,7 @@ const RedemptionPage = () => {
         frm_period: `${monthFilter} ${yearFilter}`,
         attendance: field === "attendance" ? value : (currentRedemption?.attendance || "none"),
         reason: field === "reason" ? value : (currentRedemption?.reason || ""),
-        action: field === "action" ? value : (currentRedemption?.action || ""),
+        action: field === "attendance" ? "" : (field === "action" ? value : (currentRedemption?.action || "")),
         date_recorded: new Date().toISOString().split("T")[0],
       };
 
@@ -353,11 +362,15 @@ const RedemptionPage = () => {
             const beneficiary = beneficiaries.find(b => b.hhid === hhid);
             if (!beneficiary) continue;
 
+            let finalAttendance = "none";
+            if (attendance === "present" || attendance === "redeemed") finalAttendance = "present";
+            else if (attendance === "absent" || attendance === "unredeemed") finalAttendance = "absent";
+
             const updateData = {
               beneficiary_id: beneficiary.id,
               hhid: beneficiary.hhid,
               frm_period: `${monthFilter} ${yearFilter}`,
-              attendance: ["present", "absent", "none", "redeemed", "unredeemed"].includes(attendance) ? attendance : "none",
+              attendance: finalAttendance,
               reason: reason,
               action: actionTaken,
               date_recorded: new Date().toISOString().split("T")[0],
@@ -788,6 +801,7 @@ const RedemptionPage = () => {
                                   <Button 
                                     variant="outline" 
                                     size="sm" 
+                                    disabled={!redemption?.attendance || redemption?.attendance === "none"}
                                     className={`h-8 px-3 text-xs flex items-center gap-1.5 transition-all duration-200 ${
                                       redemption?.action 
                                         ? "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 hover:text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-400 dark:border-indigo-800" 
@@ -809,11 +823,15 @@ const RedemptionPage = () => {
                                   </DialogHeader>
                                   <div className="grid gap-4 py-6">
                                     <div className="grid grid-cols-1 gap-3">
-                                      {[
+                                      {(redemption?.attendance === "present" ? [
                                         { label: "Paid", color: "emerald", description: "Beneficiary has received payment" },
                                         { label: "Zero Balance", color: "amber", description: "No balance remaining for this period" },
                                         { label: "Beneficiary Not Found", color: "rose", description: "Record could not be located in database" }
-                                      ].map((opt) => (
+                                      ] : [
+                                        { label: "Unlocated", color: "orange", description: "Beneficiary could not be found in the area" },
+                                        { label: "Active 4Ps", color: "blue", description: "Currently active in the 4Ps program" },
+                                        { label: "Ineligible", color: "red", description: "Does not meet the criteria for redemption" }
+                                      ]).map((opt) => (
                                         <Button
                                           key={opt.label}
                                           variant="outline"
