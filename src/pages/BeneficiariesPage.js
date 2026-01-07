@@ -322,6 +322,20 @@ const BeneficiariesPage = () => {
   const handleEdit = async (beneficiary) => {
     setEditingBeneficiary(beneficiary);
     
+    // Format birthdate to YYYY-MM-DD for the date input if it's an ISO string or similar
+    let formattedBirthdate = beneficiary.birthdate || "";
+    if (formattedBirthdate && formattedBirthdate.includes('T')) {
+      formattedBirthdate = formattedBirthdate.split('T')[0];
+    } else if (formattedBirthdate && formattedBirthdate.includes('/')) {
+      // Handle MM/DD/YYYY if necessary
+      const parts = formattedBirthdate.split('/');
+      if (parts.length === 3) {
+        if (parts[2].length === 4) { // YYYY at end
+          formattedBirthdate = `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+        }
+      }
+    }
+
     // Set initial form data
     const initialData = {
       hhid: beneficiary.hhid?.trim(),
@@ -329,7 +343,7 @@ const BeneficiariesPage = () => {
       first_name: beneficiary.first_name?.trim(),
       last_name: beneficiary.last_name?.trim(),
       middle_name: beneficiary.middle_name?.trim() || "",
-      birthdate: beneficiary.birthdate,
+      birthdate: formattedBirthdate,
       gender: normalizeGender(beneficiary.gender),
       barangay: beneficiary.barangay?.trim(),
       municipality: beneficiary.municipality?.trim(),
@@ -990,6 +1004,14 @@ const BeneficiariesPage = () => {
                       </TableHead>
                       <TableHead 
                         className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                        onClick={() => handleSort("birthdate")}
+                      >
+                        <div className="flex items-center">
+                          Birthdate {getSortIcon("birthdate")}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
                         onClick={() => handleSort("barangay")}
                       >
                         <div className="flex items-center">
@@ -1041,6 +1063,9 @@ const BeneficiariesPage = () => {
                         <TableCell className="font-mono text-sm dark:text-slate-300">{b.pkno}</TableCell>
                         <TableCell className="dark:text-slate-300">
                           {b.last_name}, {b.first_name} {b.middle_name}
+                        </TableCell>
+                        <TableCell className="dark:text-slate-300">
+                          {b.birthdate ? (b.birthdate.includes('T') ? b.birthdate.split('T')[0] : b.birthdate) : "-"}
                         </TableCell>
                         <TableCell className="dark:text-slate-300">{b.barangay}</TableCell>
                         <TableCell className="dark:text-slate-300">{b.municipality}</TableCell>
