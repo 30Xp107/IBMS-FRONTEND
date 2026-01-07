@@ -175,19 +175,20 @@ const RedemptionPage = () => {
       return;
     }
 
-    // Optimistically update the status if it's an attendance change
-    if (field === "attendance") {
+    // Optimistically update the status if it's an attendance or action change
+    if (field === "attendance" || field === "action") {
       setRedemptions(prev => {
         const exists = prev.some(r => r.beneficiary_id === beneficiary.id);
         if (exists) {
-          return prev.map(r => r.beneficiary_id === beneficiary.id ? { ...r, attendance: value } : r);
+          return prev.map(r => r.beneficiary_id === beneficiary.id ? { ...r, [field]: value } : r);
         } else {
           return [...prev, {
             beneficiary_id: beneficiary.id,
             hhid: beneficiary.hhid,
             frm_period: `${monthFilter} ${yearFilter}`,
-            attendance: value,
+            attendance: field === "attendance" ? value : "none",
             reason: "",
+            action: field === "action" ? value : "",
             date_recorded: new Date().toISOString().split("T")[0]
           }];
         }
@@ -201,6 +202,7 @@ const RedemptionPage = () => {
         frm_period: `${monthFilter} ${yearFilter}`,
         attendance: field === "attendance" ? value : (currentRedemption?.attendance || "none"),
         reason: field === "reason" ? value : (currentRedemption?.reason || ""),
+        action: field === "action" ? value : (currentRedemption?.action || ""),
         date_recorded: new Date().toISOString().split("T")[0],
       };
 
@@ -285,6 +287,7 @@ const RedemptionPage = () => {
           "FRM Period": `${monthFilter} ${yearFilter}`,
           "Attendance": redemption?.attendance || "none",
           "Reason": redemption?.reason || "",
+          "Action": redemption?.action || "",
           "Date Recorded": redemption?.date_recorded || ""
         };
       });
@@ -304,6 +307,7 @@ const RedemptionPage = () => {
         { wch: 15 }, // FRM Period
         { wch: 15 }, // Attendance
         { wch: 30 }, // Reason
+        { wch: 25 }, // Action
         { wch: 15 }, // Date Recorded
       ];
       worksheet["!cols"] = wscols;
@@ -342,6 +346,7 @@ const RedemptionPage = () => {
             const hhid = String(row["HHID"] || "").trim();
             const attendance = String(row["Attendance"] || "").toLowerCase().trim();
             const reason = String(row["Reason"] || "").trim();
+            const actionTaken = String(row["Action"] || "").trim();
 
             if (!hhid) continue;
 
@@ -352,8 +357,9 @@ const RedemptionPage = () => {
               beneficiary_id: beneficiary.id,
               hhid: beneficiary.hhid,
               frm_period: `${monthFilter} ${yearFilter}`,
-              attendance: ["present", "absent", "none"].includes(attendance) ? attendance : "none",
+              attendance: ["present", "absent", "none", "redeemed", "unredeemed"].includes(attendance) ? attendance : "none",
               reason: reason,
+              action: actionTaken,
               date_recorded: new Date().toISOString().split("T")[0],
             };
 
@@ -698,6 +704,7 @@ const RedemptionPage = () => {
                       </div>
                     </TableHead>
                     <TableHead className="font-semibold text-slate-600 dark:text-slate-300">Reason</TableHead>
+                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center">Action</TableHead>
                     <TableHead className="font-semibold text-slate-600 dark:text-slate-300">Record Status</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -766,6 +773,70 @@ const RedemptionPage = () => {
                                  disabled={redemption?.attendance !== "unredeemed"}
                                  className="h-8 text-xs dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
                                />
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className={`h-8 px-3 text-xs flex items-center gap-1.5 transition-all duration-200 ${
+                                      redemption?.action 
+                                        ? "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 hover:text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-400 dark:border-indigo-800" 
+                                        : "hover:bg-slate-100 dark:hover:bg-slate-800"
+                                    }`}
+                                  >
+                                    <Edit className="w-3.5 h-3.5" />
+                                    {redemption?.action || "Select Action"}
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-[425px] dark:bg-slate-900 dark:border-slate-800">
+                                  <DialogHeader>
+                                    <DialogTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100">
+                                      Redemption Action
+                                    </DialogTitle>
+                                    <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                                      Select the appropriate action for <span className="font-semibold text-slate-700 dark:text-slate-200">{b.last_name}, {b.first_name}</span>
+                                    </div>
+                                  </DialogHeader>
+                                  <div className="grid gap-4 py-6">
+                                    <div className="grid grid-cols-1 gap-3">
+                                      {[
+                                        { label: "Paid", color: "emerald", description: "Beneficiary has received payment" },
+                                        { label: "Zero Balance", color: "amber", description: "No balance remaining for this period" },
+                                        { label: "Beneficiary Not Found", color: "rose", description: "Record could not be located in database" }
+                                      ].map((opt) => (
+                                        <Button
+                                          key={opt.label}
+                                          variant="outline"
+                                          className={`flex flex-col items-start gap-1 h-auto p-4 text-left transition-all duration-200 hover:border-${opt.color}-500 hover:bg-${opt.color}-50/50 dark:hover:bg-${opt.color}-900/10 ${
+                                            redemption?.action === opt.label 
+                                              ? `border-${opt.color}-500 bg-${opt.color}-50/50 dark:bg-${opt.color}-900/20 ring-1 ring-${opt.color}-500` 
+                                              : "border-slate-200 dark:border-slate-800"
+                                          }`}
+                                          onClick={() => handleUpdate(b, "action", opt.label)}
+                                        >
+                                          <div className="flex items-center gap-2">
+                                            <div className={`w-2 h-2 rounded-full bg-${opt.color}-500`} />
+                                            <span className="font-semibold text-slate-900 dark:text-slate-100">{opt.label}</span>
+                                          </div>
+                                          <span className="text-xs text-slate-500 dark:text-slate-400 pl-4">{opt.description}</span>
+                                        </Button>
+                                      ))}
+                                    </div>
+                                    {redemption?.action && (
+                                      <Button 
+                                        variant="ghost" 
+                                        size="sm" 
+                                        onClick={() => handleUpdate(b, "action", "")}
+                                        className="text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20"
+                                      >
+                                        Clear Selection
+                                      </Button>
+                                    )}
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
                             </TableCell>
                         <TableCell>
                           {redemption ? (
