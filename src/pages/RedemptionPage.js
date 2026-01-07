@@ -29,7 +29,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Search, Edit, Trash2, Calendar, CheckCircle, XCircle, Download, ArrowUpDown, ArrowUp, ArrowDown, RotateCcw, FileText } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Calendar, CheckCircle, XCircle, Download, ArrowUpDown, ArrowUp, ArrowDown, RotateCcw, FileText, Upload } from "lucide-react";
 import * as XLSX from "xlsx";
 
 const MONTHS = [
@@ -328,6 +328,80 @@ const RedemptionPage = () => {
       console.error("Export error:", error);
       toast.error("Failed to export data");
     }
+  };
+
+  const handleImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+        if (jsonData.length === 0) {
+          toast.error("The imported file is empty");
+          return;
+        }
+
+        const toastId = toast.loading("Importing records...");
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const row of jsonData) {
+          try {
+            // Find beneficiary by HHID
+            const hhid = row["HHID"];
+            if (!hhid) continue;
+
+            const benResponse = await api.get(`/beneficiaries?search=${hhid}`);
+            const beneficiary = benResponse.data.beneficiaries?.find(b => b.hhid === hhid);
+
+            if (!beneficiary) {
+              console.error(`Beneficiary with HHID ${hhid} not found`);
+              errorCount++;
+              continue;
+            }
+
+            const frm_period = row["FRM Period"] || `${monthFilter} ${yearFilter}`;
+            const attendance = (row["Attendance"] || "none").toLowerCase();
+            const reason = row["Reason"] || "";
+            const action = row["Remarks"] || "";
+
+            await api.post("/redemptions/upsert", {
+              beneficiary_id: beneficiary._id || beneficiary.id,
+              hhid: beneficiary.hhid,
+              frm_period,
+              attendance,
+              reason,
+              action,
+              date_recorded: new Date().toISOString().split("T")[0]
+            });
+            successCount++;
+          } catch (err) {
+            console.error("Error importing row:", err);
+            errorCount++;
+          }
+        }
+
+        toast.dismiss(toastId);
+        if (successCount > 0) {
+          toast.success(`Successfully imported ${successCount} records`);
+          fetchData();
+        }
+        if (errorCount > 0) {
+          toast.error(`Failed to import ${errorCount} records`);
+        }
+      } catch (error) {
+        console.error("Import error:", error);
+        toast.error("Failed to process the imported file");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = ""; // Reset input
   };
 
   useEffect(() => {
