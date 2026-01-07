@@ -161,19 +161,42 @@ const NESPage = () => {
   };
 
   const handleUpdate = async (beneficiary, field, value) => {
-    try {
-      const currentNes = nesRecords.find(r => r.beneficiary_id === beneficiary.id);
-      
-      // If setting to "none", delete the record if it exists
-      if (field === "attendance" && value === "none") {
-        if (currentNes && currentNes.id) {
+    // Optimistic update for local state
+    const currentNes = nesRecords.find(r => r.beneficiary_id === beneficiary.id);
+    
+    if (field === "attendance" && value === "none") {
+      if (currentNes && currentNes.id) {
+        try {
           await api.delete(`/nes/${currentNes.id}`);
           setNesRecords(prev => prev.filter(r => r.beneficiary_id !== beneficiary.id));
           toast.success("Record cleared");
+        } catch (error) {
+          toast.error("Failed to clear record");
         }
-        return;
       }
+      return;
+    }
 
+    // Optimistically update the status if it's an attendance change
+    if (field === "attendance") {
+      setNesRecords(prev => {
+        const exists = prev.some(r => r.beneficiary_id === beneficiary.id);
+        if (exists) {
+          return prev.map(r => r.beneficiary_id === beneficiary.id ? { ...r, attendance: value } : r);
+        } else {
+          return [...prev, {
+            beneficiary_id: beneficiary.id,
+            hhid: beneficiary.hhid,
+            frm_period: frmFilter,
+            attendance: value,
+            reason: "",
+            date_recorded: new Date().toISOString().split("T")[0]
+          }];
+        }
+      });
+    }
+
+    try {
       const updateData = {
         beneficiary_id: beneficiary.id,
         hhid: beneficiary.hhid,
@@ -196,7 +219,7 @@ const NESPage = () => {
           : ""
       };
       
-      // Update local state
+      // Update local state with the actual data from server
       setNesRecords(prev => {
         const index = prev.findIndex(r => r.beneficiary_id === beneficiary.id);
         if (index > -1) {
@@ -207,10 +230,16 @@ const NESPage = () => {
         return [...prev, updatedNes];
       });
 
-      toast.success("Record updated");
+      if (field === "attendance") {
+        toast.success("Status updated");
+      } else {
+        toast.success("Record updated");
+      }
     } catch (error) {
       console.error("Update error:", error);
       toast.error("Failed to update record");
+      // On error, refresh data to revert optimistic changes
+      fetchData();
     }
   };
 
@@ -320,6 +349,19 @@ const NESPage = () => {
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
+  const currentYear = new Date().getFullYear();
+  const years = [currentYear + 1, currentYear, currentYear, currentYear - 1, currentYear - 2, currentYear - 3];
+  
+  const allPeriods = [];
+  // Use a Set to ensure unique periods if currentYear + 1 is added twice or something
+  const uniquePeriods = new Set();
+  [currentYear + 1, currentYear, currentYear - 1, currentYear - 2, currentYear - 3].forEach(year => {
+    MONTHS.forEach(month => {
+      uniquePeriods.add(`${month} ${year}`);
+    });
+  });
+  const allPeriodsArray = Array.from(uniquePeriods);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -366,15 +408,12 @@ const NESPage = () => {
                   <SelectTrigger className="w-full sm:w-48 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
                     <SelectValue placeholder="Select Period" />
                   </SelectTrigger>
-                  <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
-                    {MONTHS.map((month) => {
-                      const year = new Date().getFullYear();
-                      return (
-                        <SelectItem key={month} value={`${month} ${year}`}>
-                          {month} {year}
-                        </SelectItem>
-                      );
-                    })}
+                  <SelectContent className="dark:bg-slate-900 dark:border-slate-800 max-h-[300px]">
+                    {allPeriodsArray.map((period) => (
+                      <SelectItem key={period} value={period}>
+                        {period}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -390,9 +429,9 @@ const NESPage = () => {
                 </SelectTrigger>
                 <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
                   <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="present">Present</SelectItem>
-                  <SelectItem value="absent">Absent</SelectItem>
-                  <SelectItem value="none">No Record</SelectItem>
+                  <SelectItem value="present">Attended</SelectItem>
+                  <SelectItem value="absent">Missed</SelectItem>
+                  <SelectItem value="none">Not Recorded</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -612,15 +651,32 @@ const NESPage = () => {
                           </Select>
                         </TableCell>
                         <TableCell>
-                          {nes?.attendance === "absent" ? (
-                            <Input
-                              placeholder="Reason..."
-                              value={nes.reason || ""}
-                              onBlur={(e) => handleUpdate(b, "reason", e.target.value)}
-                              className="h-8 text-xs dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
-                            />
-                          ) : "-"}
-                        </TableCell>
+                              <Input
+                                placeholder="Reason..."
+                                value={nes?.reason || ""}
+                                onChange={(e) => {
+                                  const newVal = e.target.value;
+                                  setNesRecords(prev => {
+                                    const exists = prev.some(r => r.beneficiary_id === b.id);
+                                    if (exists) {
+                                      return prev.map(r => r.beneficiary_id === b.id ? { ...r, reason: newVal } : r);
+                                    } else {
+                                      return [...prev, { 
+                                        beneficiary_id: b.id, 
+                                        hhid: b.hhid,
+                                        frm_period: frmFilter,
+                                        attendance: "none",
+                                        reason: newVal,
+                                        date_recorded: new Date().toISOString().split("T")[0]
+                                      }];
+                                    }
+                                  });
+                                }}
+                                onBlur={(e) => handleUpdate(b, "reason", e.target.value)}
+                                disabled={nes?.attendance === "none"}
+                                className="h-8 text-xs dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
+                              />
+                            </TableCell>
                         <TableCell>
                           {nes ? (
                             <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-500">

@@ -160,19 +160,42 @@ const RedemptionPage = () => {
   };
 
   const handleUpdate = async (beneficiary, field, value) => {
-    try {
-      const currentRedemption = redemptions.find(r => r.beneficiary_id === beneficiary.id);
-      
-      // If setting to "none", delete the record if it exists
-      if (field === "attendance" && value === "none") {
-        if (currentRedemption && currentRedemption.id) {
+    // Optimistic update for local state
+    const currentRedemption = redemptions.find(r => r.beneficiary_id === beneficiary.id);
+    
+    if (field === "attendance" && value === "none") {
+      if (currentRedemption && currentRedemption.id) {
+        try {
           await api.delete(`/redemptions/${currentRedemption.id}`);
           setRedemptions(prev => prev.filter(r => r.beneficiary_id !== beneficiary.id));
           toast.success("Record cleared");
+        } catch (error) {
+          toast.error("Failed to clear record");
         }
-        return;
       }
+      return;
+    }
 
+    // Optimistically update the status if it's an attendance change
+    if (field === "attendance") {
+      setRedemptions(prev => {
+        const exists = prev.some(r => r.beneficiary_id === beneficiary.id);
+        if (exists) {
+          return prev.map(r => r.beneficiary_id === beneficiary.id ? { ...r, attendance: value } : r);
+        } else {
+          return [...prev, {
+            beneficiary_id: beneficiary.id,
+            hhid: beneficiary.hhid,
+            frm_period: frmFilter,
+            attendance: value,
+            reason: "",
+            date_recorded: new Date().toISOString().split("T")[0]
+          }];
+        }
+      });
+    }
+
+    try {
       const updateData = {
         beneficiary_id: beneficiary.id,
         hhid: beneficiary.hhid,
@@ -195,7 +218,7 @@ const RedemptionPage = () => {
           : ""
       };
       
-      // Update local state
+      // Update local state with the actual data from server
       setRedemptions(prev => {
         const index = prev.findIndex(r => r.beneficiary_id === beneficiary.id);
         if (index > -1) {
@@ -206,10 +229,16 @@ const RedemptionPage = () => {
         return [...prev, updatedRed];
       });
 
-      toast.success("Record updated");
+      if (field === "attendance") {
+        toast.success("Status updated");
+      } else {
+        toast.success("Record updated");
+      }
     } catch (error) {
       console.error("Update error:", error);
       toast.error("Failed to update record");
+      // On error, refresh data to revert optimistic changes
+      fetchData();
     }
   };
 
@@ -423,6 +452,16 @@ const RedemptionPage = () => {
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
+  const currentYear = new Date().getFullYear();
+  const years = [currentYear + 1, currentYear, currentYear - 1, currentYear - 2, currentYear - 3];
+  
+  const allPeriods = [];
+  years.forEach(year => {
+    MONTHS.forEach(month => {
+      allPeriods.push(`${month} ${year}`);
+    });
+  });
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -469,15 +508,12 @@ const RedemptionPage = () => {
                   <SelectTrigger className="w-full sm:w-48 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
                     <SelectValue placeholder="Select Period" />
                   </SelectTrigger>
-                  <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
-                    {MONTHS.map((month) => {
-                      const year = new Date().getFullYear();
-                      return (
-                        <SelectItem key={month} value={`${month} ${year}`}>
-                          {month} {year}
-                        </SelectItem>
-                      );
-                    })}
+                  <SelectContent className="dark:bg-slate-900 dark:border-slate-800 max-h-[300px]">
+                    {allPeriods.map((period) => (
+                      <SelectItem key={period} value={period}>
+                        {period}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -493,9 +529,9 @@ const RedemptionPage = () => {
                 </SelectTrigger>
                 <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
                   <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="present">Present</SelectItem>
-                  <SelectItem value="absent">Absent</SelectItem>
-                  <SelectItem value="none">No Record</SelectItem>
+                  <SelectItem value="present">Redeemed</SelectItem>
+                  <SelectItem value="absent">UnRedeemed</SelectItem>
+                  <SelectItem value="none">Not Recorded</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -694,21 +730,38 @@ const RedemptionPage = () => {
                             </SelectTrigger>
                             <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
                               <SelectItem value="none">Not Recorded</SelectItem>
-                              <SelectItem value="present">Attended</SelectItem>
-                              <SelectItem value="absent">Missed</SelectItem>
+                              <SelectItem value="present">Redeemed</SelectItem>
+                              <SelectItem value="absent">UnRedeemed</SelectItem>
                             </SelectContent>
                           </Select>
                         </TableCell>
                         <TableCell>
-                          {redemption?.attendance === "absent" ? (
-                            <Input
-                              placeholder="Reason..."
-                              value={redemption.reason || ""}
-                              onBlur={(e) => handleUpdate(b, "reason", e.target.value)}
-                              className="h-8 text-xs dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
-                            />
-                          ) : "-"}
-                        </TableCell>
+                              <Input
+                                placeholder="Reason..."
+                                value={redemption?.reason || ""}
+                                onChange={(e) => {
+                                  const newVal = e.target.value;
+                                  setRedemptions(prev => {
+                                    const exists = prev.some(r => r.beneficiary_id === b.id);
+                                    if (exists) {
+                                      return prev.map(r => r.beneficiary_id === b.id ? { ...r, reason: newVal } : r);
+                                    } else {
+                                      return [...prev, { 
+                                        beneficiary_id: b.id, 
+                                        hhid: b.hhid,
+                                        frm_period: frmFilter,
+                                        attendance: "none",
+                                        reason: newVal,
+                                        date_recorded: new Date().toISOString().split("T")[0]
+                                      }];
+                                    }
+                                  });
+                                }}
+                                onBlur={(e) => handleUpdate(b, "reason", e.target.value)}
+                                disabled={redemption?.attendance === "none"}
+                                className="h-8 text-xs dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
+                              />
+                            </TableCell>
                         <TableCell>
                           {redemption ? (
                             <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-500">
