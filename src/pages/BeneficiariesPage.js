@@ -320,33 +320,33 @@ const BeneficiariesPage = () => {
   const handleEdit = async (beneficiary) => {
     setEditingBeneficiary(beneficiary);
     setFormData({
-      hhid: beneficiary.hhid,
-      pkno: beneficiary.pkno,
-      first_name: beneficiary.first_name,
-      last_name: beneficiary.last_name,
-      middle_name: beneficiary.middle_name || "",
+      hhid: beneficiary.hhid?.trim(),
+      pkno: beneficiary.pkno?.trim(),
+      first_name: beneficiary.first_name?.trim(),
+      last_name: beneficiary.last_name?.trim(),
+      middle_name: beneficiary.middle_name?.trim() || "",
       birthdate: beneficiary.birthdate,
       gender: normalizeGender(beneficiary.gender),
-      barangay: beneficiary.barangay,
-      municipality: beneficiary.municipality,
-      province: beneficiary.province,
-      region: beneficiary.region || "",
-      contact: beneficiary.contact || "",
+      barangay: beneficiary.barangay?.trim(),
+      municipality: beneficiary.municipality?.trim(),
+      province: beneficiary.province?.trim(),
+      region: beneficiary.region?.trim() || "",
+      contact: beneficiary.contact?.trim() || "",
     });
 
     // Proactively fetch sub-areas for the selected branch
     try {
       if (beneficiary.region) {
         const regions = await fetchAreas("region");
-        const regionObj = regions.find(r => r.name === beneficiary.region);
+        const regionObj = regions.find(r => r.name?.trim().toLowerCase() === beneficiary.region?.trim().toLowerCase());
         if (regionObj) {
           const provinces = await fetchAreas("province", regionObj.id, regionObj.code);
           if (beneficiary.province) {
-            const provinceObj = provinces.find(p => p.name === beneficiary.province);
+            const provinceObj = provinces.find(p => p.name?.trim().toLowerCase() === beneficiary.province?.trim().toLowerCase());
             if (provinceObj) {
               const municipalities = await fetchAreas("municipality", provinceObj.id, provinceObj.code);
               if (beneficiary.municipality) {
-                const municipalityObj = municipalities.find(m => m.name === beneficiary.municipality);
+                const municipalityObj = municipalities.find(m => m.name?.trim().toLowerCase() === beneficiary.municipality?.trim().toLowerCase());
                 if (municipalityObj) {
                   await fetchAreas("barangay", municipalityObj.id, municipalityObj.code);
                 }
