@@ -296,7 +296,7 @@ const RedemptionPage = () => {
           "FRM Period": `${monthFilter} ${yearFilter}`,
           "Attendance": redemption?.attendance || "none",
           "Reason": redemption?.reason || "",
-          "Action": redemption?.action || "",
+          "Remarks": redemption?.action || "",
           "Date Recorded": redemption?.date_recorded || ""
         };
       });
@@ -316,7 +316,7 @@ const RedemptionPage = () => {
         { wch: 15 }, // FRM Period
         { wch: 15 }, // Attendance
         { wch: 30 }, // Reason
-        { wch: 25 }, // Action
+        { wch: 25 }, // Remarks
         { wch: 15 }, // Date Recorded
       ];
       worksheet["!cols"] = wscols;
@@ -355,7 +355,7 @@ const RedemptionPage = () => {
             const hhid = String(row["HHID"] || "").trim();
             const attendance = String(row["Attendance"] || "").toLowerCase().trim();
             const reason = String(row["Reason"] || "").trim();
-            const actionTaken = String(row["Action"] || "").trim();
+            const remarks = String(row["Remarks"] || row["Action"] || "").trim();
 
             if (!hhid) continue;
 
@@ -372,7 +372,7 @@ const RedemptionPage = () => {
               frm_period: `${monthFilter} ${yearFilter}`,
               attendance: finalAttendance,
               reason: reason,
-              action: actionTaken,
+              action: remarks,
               date_recorded: new Date().toISOString().split("T")[0],
             };
 
@@ -725,7 +725,7 @@ const RedemptionPage = () => {
                       </div>
                     </TableHead>
                     <TableHead className="font-semibold text-slate-600 dark:text-slate-300">Reason</TableHead>
-                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center">Action</TableHead>
+                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center">Remarks</TableHead>
                     <TableHead className="font-semibold text-slate-600 dark:text-slate-300">Record Status</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -809,16 +809,16 @@ const RedemptionPage = () => {
                                     }`}
                                   >
                                     <Edit className="w-3.5 h-3.5" />
-                                    {redemption?.action || "Select Action"}
+                                    {redemption?.action || "Select Remarks"}
                                   </Button>
                                 </DialogTrigger>
                                 <DialogContent className="sm:max-w-[425px] dark:bg-slate-900 dark:border-slate-800">
                                   <DialogHeader>
                                     <DialogTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100">
-                                      Redemption Action
+                                      Redemption Remarks
                                     </DialogTitle>
                                     <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                                      Select the appropriate action for <span className="font-semibold text-slate-700 dark:text-slate-200">{b.last_name}, {b.first_name}</span>
+                                      Select the appropriate remarks for <span className="font-semibold text-slate-700 dark:text-slate-200">{b.last_name}, {b.first_name}</span>
                                     </div>
                                   </DialogHeader>
                                   <div className="grid gap-4 py-6">
