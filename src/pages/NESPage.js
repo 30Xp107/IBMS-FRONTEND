@@ -448,8 +448,8 @@ const NESPage = () => {
                 </SelectTrigger>
                 <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
                   <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="present">Attended</SelectItem>
-                  <SelectItem value="absent">Missed</SelectItem>
+                  <SelectItem value="present">Present</SelectItem>
+                  <SelectItem value="absent">Absent</SelectItem>
                   <SelectItem value="none">Not Recorded</SelectItem>
                 </SelectContent>
               </Select>
@@ -664,8 +664,8 @@ const NESPage = () => {
                             </SelectTrigger>
                             <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
                               <SelectItem value="none">Not Recorded</SelectItem>
-                              <SelectItem value="present">Attended</SelectItem>
-                              <SelectItem value="absent">Missed</SelectItem>
+                              <SelectItem value="present">Present</SelectItem>
+                              <SelectItem value="absent">Absent</SelectItem>
                             </SelectContent>
                           </Select>
                         </TableCell>
