@@ -134,6 +134,7 @@ const BeneficiariesPage = () => {
     province: "",
     region: "",
     contact: "",
+    is4ps: "No",
   });
 
   useEffect(() => {
@@ -295,6 +296,7 @@ const BeneficiariesPage = () => {
       province: "",
       region: "",
       contact: "",
+      is4ps: "No",
     });
     setEditingBeneficiary(null);
   };
@@ -332,6 +334,7 @@ const BeneficiariesPage = () => {
       province: beneficiary.province?.trim(),
       region: beneficiary.region?.trim() || "",
       contact: beneficiary.contact?.trim() || "",
+      is4ps: beneficiary.is4ps || "No",
     });
 
     // Proactively fetch sub-areas for the selected branch
@@ -406,7 +409,8 @@ const BeneficiariesPage = () => {
         "Municipality",
         "Province",
         "Region",
-        "Contact"
+        "Contact",
+        "is4ps"
       ];
 
       const csvContent = [
@@ -423,7 +427,8 @@ const BeneficiariesPage = () => {
           `"${b.municipality}"`,
           `"${b.province}"`,
           `"${b.region || ""}"`,
-          `"${b.contact || ""}"`
+          `"${b.contact || ""}"`,
+          `"${b.is4ps || "No"}"`
         ].join(","))
       ].join("\n");
 
@@ -662,15 +667,32 @@ const BeneficiariesPage = () => {
                     </Select>
                   </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="contact" className="text-xs sm:text-sm">Contact Number</Label>
-                  <Input
-                    id="contact"
-                    name="contact"
-                    value={formData.contact}
-                    onChange={handleInputChange}
-                    className="h-9 sm:h-10 text-sm"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="contact" className="text-xs sm:text-sm">Contact Number</Label>
+                    <Input
+                      id="contact"
+                      name="contact"
+                      value={formData.contact}
+                      onChange={handleInputChange}
+                      className="h-9 sm:h-10 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="is4ps" className="text-xs sm:text-sm">Is 4Ps? *</Label>
+                    <Select
+                      value={formData.is4ps}
+                      onValueChange={(value) => handleSelectChange("is4ps", value)}
+                    >
+                      <SelectTrigger className="h-9 sm:h-10 text-sm">
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Yes">Yes</SelectItem>
+                        <SelectItem value="No">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 pt-4">
                   <Button type="button" variant="outline" onClick={() => { setIsDialogOpen(false); resetForm(); }} className="h-9 sm:h-10">
@@ -977,6 +999,7 @@ const BeneficiariesPage = () => {
                         </div>
                       </TableHead>
                       <TableHead className="font-semibold text-slate-600 dark:text-slate-300">Contact</TableHead>
+                      <TableHead className="font-semibold text-slate-600 dark:text-slate-300">Is 4Ps</TableHead>
                       <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1002,6 +1025,15 @@ const BeneficiariesPage = () => {
                         <TableCell className="dark:text-slate-300">{b.region}</TableCell>
                         <TableCell className="dark:text-slate-300">{b.province}</TableCell>
                         <TableCell className="dark:text-slate-300">{b.contact || "-"}</TableCell>
+                        <TableCell className="dark:text-slate-300">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            b.is4ps === "Yes" 
+                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" 
+                              : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400"
+                          }`}>
+                            {b.is4ps || "No"}
+                          </span>
+                        </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             <Button
