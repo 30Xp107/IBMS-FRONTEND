@@ -17,7 +17,16 @@ import {
   Sun,
   Moon,
   Settings,
+  ChevronDown,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const Layout = () => {
   const { user, logout, isAdmin } = useAuth();
@@ -69,7 +78,6 @@ const Layout = () => {
     { to: "/beneficiaries", icon: Users, label: "Beneficiaries" },
     { to: "/redemption", icon: Calendar, label: "Redemption" },
     { to: "/nes", icon: FileText, label: "NES" },
-    { to: "/settings", icon: Settings, label: "Settings" },
     ...(isAdmin
       ? [
           { to: "/users", icon: Users, label: "User Management" },
@@ -155,26 +163,43 @@ const Layout = () => {
 
           {/* User info */}
           <div className="p-4 border-t border-slate-800">
-            <div className="flex items-center gap-3 mb-4 p-2 rounded-lg bg-slate-800/50">
-              <div className="w-10 h-10 bg-emerald-600 rounded-full flex items-center justify-center text-white ring-2 ring-slate-800">
-                <span className="text-sm font-bold">
-                  {user?.name?.charAt(0).toUpperCase()}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{user?.name}</p>
-                <p className="text-xs text-slate-400 capitalize">{user?.role}</p>
-              </div>
-            </div>
-            <Button
-              data-testid="logout-btn"
-              variant="outline"
-              className="w-full justify-center gap-2 bg-transparent border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white hover:border-slate-600 transition-all"
-              onClick={handleLogout}
-            >
-              <LogOut size={18} />
-              Logout
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-3 w-full p-2 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors text-left group">
+                  <div className="w-10 h-10 bg-emerald-600 rounded-full flex items-center justify-center text-white ring-2 ring-slate-800 shadow-lg shadow-emerald-900/20 group-hover:scale-105 transition-transform">
+                    <span className="text-sm font-bold uppercase">
+                      {user?.name?.charAt(0)}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate text-slate-100">{user?.name}</p>
+                    <p className="text-xs text-slate-400 capitalize flex items-center gap-1">
+                      {user?.role}
+                      <ChevronDown size={12} className="opacity-50" />
+                    </p>
+                  </div>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-64 bg-slate-900 border-slate-800 text-slate-200" align="end" side="top">
+                <DropdownMenuLabel className="text-slate-400 font-normal">My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator className="bg-slate-800" />
+                <DropdownMenuItem 
+                  className="hover:bg-slate-800 focus:bg-slate-800 cursor-pointer py-2.5"
+                  onClick={() => navigate("/settings")}
+                >
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Profile & Settings</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-slate-800" />
+                <DropdownMenuItem 
+                  className="text-rose-400 hover:bg-rose-900/20 focus:bg-rose-900/20 hover:text-rose-300 focus:text-rose-300 cursor-pointer py-2.5"
+                  onClick={handleLogout}
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Logout</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </aside>
@@ -208,15 +233,33 @@ const Layout = () => {
               {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
             </Button>
             <div className="h-5 sm:h-6 w-[1px] bg-stone-200 dark:bg-slate-800 mx-0.5 sm:mx-1" />
-            <div className="flex items-center gap-2 sm:gap-3 pl-1">
-              <div className="text-right hidden xs:block">
-                <p className="text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300 truncate max-w-[80px] sm:max-w-[120px]">{user?.name}</p>
-                <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-500 capitalize">{user?.role}</p>
-              </div>
-              <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-white text-xs font-bold sm:hidden">
-                {user?.name?.charAt(0).toUpperCase()}
-              </div>
-            </div>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-2 sm:gap-3 pl-1 hover:bg-stone-50 dark:hover:bg-slate-800 p-1.5 rounded-full transition-colors group">
+                  <div className="text-right hidden xs:block">
+                    <p className="text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300 truncate max-w-[80px] sm:max-w-[120px] group-hover:text-emerald-600 transition-colors">{user?.name}</p>
+                    <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-500 capitalize">{user?.role}</p>
+                  </div>
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-600 flex items-center justify-center text-white text-xs sm:text-sm font-bold ring-2 ring-white dark:ring-slate-900 shadow-md">
+                    {user?.name?.charAt(0).toUpperCase()}
+                  </div>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56 mt-2 dark:bg-slate-900 dark:border-slate-800" align="end">
+                <DropdownMenuLabel className="dark:text-slate-400">My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator className="dark:bg-slate-800" />
+                <DropdownMenuItem onClick={() => navigate("/settings")} className="cursor-pointer dark:text-slate-200 dark:hover:bg-slate-800 focus:dark:bg-slate-800">
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Profile & Settings</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="dark:bg-slate-800" />
+                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-rose-600 dark:text-rose-400 dark:hover:bg-rose-900/20 focus:dark:bg-rose-900/20">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Logout</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 
