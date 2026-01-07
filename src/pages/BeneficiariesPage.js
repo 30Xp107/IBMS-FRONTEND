@@ -651,7 +651,7 @@ const BeneficiariesPage = () => {
           // 2. Check for existing duplicates in the database in chunks
           const dbDuplicateKeys = [];
           const dbDuplicateDetails = [];
-          const checkChunkSize = 1000;
+          const checkChunkSize = 50; // Reduced from 1000 to avoid connection timeouts during duplicate checks
           
           for (let i = 0; i < mappedData.length; i += checkChunkSize) {
             const chunk = mappedData.slice(i, i + checkChunkSize);

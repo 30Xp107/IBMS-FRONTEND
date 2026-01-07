@@ -448,8 +448,16 @@ const RedemptionPage = () => {
     return 0;
   });
 
-  const filteredBeneficiaries = sortedBeneficiaries;
-  const currentItems = sortedBeneficiaries;
+  const filteredBeneficiaries = sortedBeneficiaries.filter(b => {
+    if (attendanceFilter === "all") return true;
+    
+    const redemption = redemptions.find(r => r.beneficiary_id === b.id);
+    const status = redemption?.attendance || "none";
+    
+    return status === attendanceFilter;
+  });
+
+  const currentItems = filteredBeneficiaries;
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 

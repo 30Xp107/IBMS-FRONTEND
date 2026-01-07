@@ -202,6 +202,7 @@ const NESPage = () => {
         frm_period: `${monthFilter} ${yearFilter}`,
         attendance: field === "attendance" ? value : (currentNes?.attendance || "none"),
         reason: field === "reason" ? value : (currentNes?.reason || ""),
+        action: field === "action" ? value : (currentNes?.action || ""),
         date_recorded: new Date().toISOString().split("T")[0],
       };
 
@@ -230,7 +231,9 @@ const NESPage = () => {
       });
 
       if (field === "attendance") {
-        toast.success("Status updated");
+        toast.success(`Status updated for ${beneficiary.last_name}`);
+      } else if (field === "action") {
+        toast.success(`Action updated for ${beneficiary.last_name}`);
       } else {
         toast.success("Record updated");
       }
@@ -240,6 +243,71 @@ const NESPage = () => {
       // On error, refresh data to revert optimistic changes
       fetchData();
     }
+  };
+
+  const ActionPopup = ({ beneficiary, currentAction, onUpdate }) => {
+    const [open, setOpen] = useState(false);
+    
+    const actions = [
+      { label: "Redeemed", value: "Redeemed", color: "text-emerald-600" },
+      { label: "Unredeemed", value: "Unredeemed", color: "text-rose-600" },
+    ];
+
+    return (
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className={`h-8 text-xs font-medium px-3 border-dashed hover:border-solid transition-all ${
+              currentAction ? "border-emerald-500 text-emerald-700 bg-emerald-50" : "border-slate-300 text-slate-500"
+            }`}
+          >
+            {currentAction || "Select Action"}
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-[425px] dark:bg-slate-900 dark:border-slate-800">
+          <DialogHeader>
+            <DialogTitle className="text-slate-800 dark:text-slate-100">Select Action Taken</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="flex flex-col gap-2">
+              {actions.map((action) => (
+                <Button
+                  key={action.value}
+                  variant="outline"
+                  className={`justify-start h-12 text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800 dark:border-slate-700 ${
+                    currentAction === action.value ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20" : ""
+                  }`}
+                  onClick={() => {
+                    onUpdate(beneficiary, "action", action.value);
+                    setOpen(false);
+                  }}
+                >
+                  <div className={`w-2 h-2 rounded-full mr-3 ${action.color.replace('text', 'bg')}`} />
+                  <span className={action.color}>{action.label}</span>
+                  {currentAction === action.value && (
+                    <CheckCircle className="w-4 h-4 ml-auto text-emerald-600" />
+                  )}
+                </Button>
+              ))}
+              {currentAction && (
+                <Button
+                  variant="ghost"
+                  className="mt-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-900/20"
+                  onClick={() => {
+                    onUpdate(beneficiary, "action", "");
+                    setOpen(false);
+                  }}
+                >
+                  Clear Selection
+                </Button>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
   };
 
   const handleExport = async () => {
@@ -286,6 +354,7 @@ const NESPage = () => {
           "FRM Period": `${monthFilter} ${yearFilter}`,
           "Attendance": nes?.attendance || "none",
           "Reason": nes?.reason || "",
+          "Action": nes?.action || "",
           "Date Recorded": nes?.date_recorded || ""
         };
       });
@@ -305,6 +374,7 @@ const NESPage = () => {
         { wch: 15 }, // FRM Period
         { wch: 15 }, // Attendance
         { wch: 30 }, // Reason
+        { wch: 25 }, // Action
         { wch: 15 }, // Date Recorded
       ];
       worksheet["!cols"] = wscols;
@@ -345,8 +415,16 @@ const NESPage = () => {
     return 0;
   });
 
-  const filteredBeneficiaries = sortedBeneficiaries;
-  const currentItems = sortedBeneficiaries;
+  const filteredBeneficiaries = sortedBeneficiaries.filter(b => {
+    if (attendanceFilter === "all") return true;
+    
+    const nes = nesRecords.find(r => r.beneficiary_id === b.id);
+    const status = nes?.attendance || "none";
+    
+    return status === attendanceFilter;
+  });
+
+  const currentItems = filteredBeneficiaries;
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
@@ -439,6 +517,8 @@ const NESPage = () => {
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="present">Attended</SelectItem>
                   <SelectItem value="absent">Missed</SelectItem>
+                  <SelectItem value="redeemed">Redeemed</SelectItem>
+                  <SelectItem value="unredeemed">Unredeemed</SelectItem>
                   <SelectItem value="none">Not Recorded</SelectItem>
                 </SelectContent>
               </Select>
@@ -624,6 +704,7 @@ const NESPage = () => {
                       </div>
                     </TableHead>
                     <TableHead className="font-semibold text-slate-600 dark:text-slate-300">Reason for Absence</TableHead>
+                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300">Action</TableHead>
                     <TableHead className="font-semibold text-slate-600 dark:text-slate-300">Status</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -647,6 +728,10 @@ const NESPage = () => {
                                 ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800" 
                                 : nes?.attendance === "absent"
                                 ? "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800"
+                                : nes?.attendance === "redeemed"
+                                ? "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800"
+                                : nes?.attendance === "unredeemed"
+                                ? "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800"
                                 : "dark:bg-slate-900 dark:border-slate-700"
                             }`}>
                               <SelectValue placeholder="Select status" />
@@ -655,36 +740,27 @@ const NESPage = () => {
                               <SelectItem value="none">Not Recorded</SelectItem>
                               <SelectItem value="present">Attended</SelectItem>
                               <SelectItem value="absent">Missed</SelectItem>
+                              <SelectItem value="redeemed">Redeemed</SelectItem>
+                              <SelectItem value="unredeemed">Unredeemed</SelectItem>
                             </SelectContent>
                           </Select>
                         </TableCell>
                         <TableCell>
-                              <Input
-                                placeholder="Reason..."
-                                value={nes?.reason || ""}
-                                onChange={(e) => {
-                                  const newVal = e.target.value;
-                                  setNesRecords(prev => {
-                                    const exists = prev.some(r => r.beneficiary_id === b.id);
-                                    if (exists) {
-                                      return prev.map(r => r.beneficiary_id === b.id ? { ...r, reason: newVal } : r);
-                                    } else {
-                                      return [...prev, { 
-                                        beneficiary_id: b.id, 
-                                        hhid: b.hhid,
-                                        frm_period: `${monthFilter} ${yearFilter}`,
-                                        attendance: "none",
-                                        reason: newVal,
-                                        date_recorded: new Date().toISOString().split("T")[0]
-                                      }];
-                                    }
-                                  });
-                                }}
-                                onBlur={(e) => handleUpdate(b, "reason", e.target.value)}
-                                 disabled={nes?.attendance !== "missed"}
-                                 className="h-8 text-xs dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
-                               />
-                            </TableCell>
+                          <Input
+                            placeholder="Reason..."
+                            value={nes?.reason || ""}
+                            onBlur={(e) => handleUpdate(b, "reason", e.target.value)}
+                            disabled={nes?.attendance !== "absent" && nes?.attendance !== "unredeemed"}
+                            className="h-8 text-xs dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <ActionPopup 
+                            beneficiary={b} 
+                            currentAction={nes?.action} 
+                            onUpdate={handleUpdate} 
+                          />
+                        </TableCell>
                         <TableCell>
                           {nes ? (
                             <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-500">
