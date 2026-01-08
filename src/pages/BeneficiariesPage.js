@@ -450,8 +450,8 @@ const BeneficiariesPage = () => {
     if (!file) return;
 
     const extension = file.name.split('.').pop().toLowerCase();
-    if (!['csv', 'xlsx', 'xls'].includes(extension)) {
-      toast.error("Please upload a CSV or Excel file");
+    if (!['xlsx', 'xls'].includes(extension)) {
+      toast.error("Please upload an Excel file (.xlsx or .xls)");
       event.target.value = '';
       return;
     }
@@ -563,53 +563,51 @@ const BeneficiariesPage = () => {
         return;
       }
 
-      const headers = [
-        "HHID",
-        "PKNO",
-        "First Name",
-        "Last Name",
-        "Middle Name",
-        "Birthdate",
-        "Gender",
-        "Barangay",
-        "Municipality",
-        "Province",
-        "Region",
-        "Contact",
-        "is4ps"
+      // Map data for Excel
+      const exportData = allBeneficiaries.map(b => ({
+        "HHID": b.hhid,
+        "PKNO": b.pkno,
+        "First Name": b.first_name,
+        "Last Name": b.last_name,
+        "Middle Name": b.middle_name || "",
+        "Birthdate": b.birthdate,
+        "Gender": b.gender,
+        "Barangay": b.barangay,
+        "Municipality": b.municipality,
+        "Province": b.province,
+        "Region": b.region || "",
+        "Contact": b.contact || "",
+        "is4ps": b.is4ps ? "Yes" : "No"
+      }));
+
+      // Create workbook and worksheet
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Beneficiaries");
+
+      // Set column widths for better readability
+      const wscols = [
+        { wch: 15 }, // HHID
+        { wch: 15 }, // PKNO
+        { wch: 15 }, // First Name
+        { wch: 15 }, // Last Name
+        { wch: 15 }, // Middle Name
+        { wch: 12 }, // Birthdate
+        { wch: 10 }, // Gender
+        { wch: 15 }, // Barangay
+        { wch: 15 }, // Municipality
+        { wch: 15 }, // Province
+        { wch: 15 }, // Region
+        { wch: 15 }, // Contact
+        { wch: 10 }, // is4ps
       ];
+      worksheet['!cols'] = wscols;
 
-      const csvContent = [
-        headers.join(","),
-        ...allBeneficiaries.map(b => [
-          `"${b.hhid}"`,
-          `"${b.pkno}"`,
-          `"${b.first_name}"`,
-          `"${b.last_name}"`,
-          `"${b.middle_name || ""}"`,
-          `"${b.birthdate}"`,
-          `"${b.gender}"`,
-          `"${b.barangay}"`,
-          `"${b.municipality}"`,
-          `"${b.province}"`,
-          `"${b.region || ""}"`,
-          `"${b.contact || ""}"`,
-          `"${b.is4ps || "No"}"`
-        ].join(","))
-      ].join("\n");
-
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", `beneficiaries_${new Date().toISOString().split('T')[0]}.csv`);
-      link.style.visibility = "hidden";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Generate Excel file
+      XLSX.writeFile(workbook, `beneficiaries_${new Date().toISOString().split('T')[0]}.xlsx`);
       
       toast.dismiss(toastId);
-      toast.success(`Exported ${allBeneficiaries.length} records`);
+      toast.success(`Exported ${allBeneficiaries.length} records to Excel`);
     } catch (error) {
       console.error("Export error:", error);
       toast.error("Failed to export data");
@@ -645,7 +643,7 @@ const BeneficiariesPage = () => {
                 type="file"
                 ref={fileInputRef}
                 onChange={handleFileChange}
-                accept=".csv"
+                accept=".xlsx, .xls"
                 className="hidden"
               />
               <Button
