@@ -228,7 +228,10 @@ const BeneficiariesPage = () => {
         newData.municipality = "";
         newData.barangay = "";
         const regionObj = areas.find(a => a.name?.trim().toLowerCase() === value?.trim().toLowerCase() && a.type === "region");
-        if (regionObj) fetchAreas("province", regionObj.id, regionObj.code);
+        if (regionObj) {
+          fetchAreas("province", regionObj.id, regionObj.code);
+          fetchAreas("municipality", regionObj.id, regionObj.code); // Fetch HUCs directly under region
+        }
       } else if (name === "province") {
         newData.municipality = "";
         newData.barangay = "";
@@ -242,7 +245,8 @@ const BeneficiariesPage = () => {
         const provinceObj = areas.find(a => a.name?.trim().toLowerCase() === prev.province?.trim().toLowerCase() && a.type === "province" &&
           (regionObj ? (a.parent_id === regionObj.id || a.parent_code === regionObj.code) : true));
         const municipalityObj = areas.find(a => a.name?.trim().toLowerCase() === value?.trim().toLowerCase() && a.type === "municipality" && 
-          (provinceObj ? (a.parent_id === provinceObj.id || a.parent_code === provinceObj.code) : true));
+          (provinceObj ? (a.parent_id === provinceObj.id || a.parent_code === provinceObj.code) : 
+           regionObj ? (a.parent_id === regionObj.id || a.parent_code === regionObj.code) : true));
         if (municipalityObj) fetchAreas("barangay", municipalityObj.id, municipalityObj.code);
       }
       
@@ -260,13 +264,21 @@ const BeneficiariesPage = () => {
   };
   
   const getMunicipalities = () => {
-    if (!formData.province) return [];
+    if (!formData.region) return [];
     const region = areas.find(a => a.name?.trim().toLowerCase() === formData.region?.trim().toLowerCase() && a.type === "region");
-    const province = areas.find(a => a.name?.trim().toLowerCase() === formData.province?.trim().toLowerCase() && a.type === "province" &&
-      (region ? (a.parent_id === region.id || a.parent_code === region.code) : true)
-    );
-    if (!province) return [];
-    return areas.filter(a => a.type === "municipality" && (a.parent_id === province.id || a.parent_code === province.code));
+    if (!region) return [];
+    
+    if (formData.province) {
+      const province = areas.find(a => a.name?.trim().toLowerCase() === formData.province?.trim().toLowerCase() && a.type === "province" &&
+        (a.parent_id === region.id || a.parent_code === region.code)
+      );
+      if (province) {
+        return areas.filter(a => a.type === "municipality" && (a.parent_id === province.id || a.parent_code === province.code));
+      }
+    }
+    
+    // If no province selected or province not found, return municipalities directly under the region (HUCs)
+    return areas.filter(a => a.type === "municipality" && (a.parent_id === region.id || a.parent_code === region.code));
   };
 
   const getBarangays = () => {
@@ -669,10 +681,10 @@ const BeneficiariesPage = () => {
                     <Select
                       value={formData.municipality}
                       onValueChange={(value) => handleSelectChange("municipality", value)}
-                      disabled={!formData.province}
+                      disabled={!formData.region}
                     >
                       <SelectTrigger className="h-9 sm:h-10 text-sm">
-                        <SelectValue placeholder={formData.province ? "Select municipality" : "Select province first"} />
+                        <SelectValue placeholder={formData.region ? "Select municipality" : "Select region first"} />
                       </SelectTrigger>
                       <SelectContent>
                         {getMunicipalities().map((municipality) => (
@@ -820,10 +832,11 @@ const BeneficiariesPage = () => {
                   const provinceObj = areas.find(a => a.name?.trim().toLowerCase() === provinceFilter?.trim().toLowerCase() && a.type === "province" &&
                     (regionObj ? (a.parent_id === regionObj.id || a.parent_code === regionObj.code) : true));
                   const municipalityObj = areas.find(a => a.name?.trim().toLowerCase() === val?.trim().toLowerCase() && a.type === "municipality" && 
-                    (provinceObj ? (a.parent_id === provinceObj.id || a.parent_code === provinceObj.code) : true));
+                    (provinceObj ? (a.parent_id === provinceObj.id || a.parent_code === provinceObj.code) : 
+                     regionObj ? (a.parent_id === regionObj.id || a.parent_code === regionObj.code) : true));
                   if (municipalityObj) fetchAreas("barangay", municipalityObj.id, municipalityObj.code);
                 }}
-                disabled={provinceFilter === "all"}
+                disabled={regionFilter === "all"}
               >
                 <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
                   <SelectValue placeholder="Municipality" />
@@ -831,12 +844,19 @@ const BeneficiariesPage = () => {
                 <SelectContent>
                   <SelectItem value="all">All Municipalities</SelectItem>
                   {areas
-                    .filter(a => a.type === "municipality" && (provinceFilter !== "all" ? 
+                    .filter(a => a.type === "municipality" && (regionFilter !== "all" ? 
                       (() => {
                         const r = areas.find(area => area.name?.trim().toLowerCase() === regionFilter?.trim().toLowerCase() && area.type === "region");
-                        const p = areas.find(area => area.name?.trim().toLowerCase() === provinceFilter?.trim().toLowerCase() && area.type === "province" &&
-                          (r ? (area.parent_id === r.id || area.parent_code === r.code) : true));
-                        return p ? (a.parent_id === p.id || a.parent_code === p.code) : true;
+                        if (!r) return true;
+                        
+                        if (provinceFilter !== "all") {
+                          const p = areas.find(area => area.name?.trim().toLowerCase() === provinceFilter?.trim().toLowerCase() && area.type === "province" &&
+                            (a.parent_id === r.id || a.parent_code === r.code));
+                          return p ? (a.parent_id === p.id || a.parent_code === p.code) : true;
+                        }
+                        
+                        // If no province filter, show municipalities directly under the region (HUCs)
+                        return (a.parent_id === r.id || a.parent_code === r.code);
                       })() : true))
                     .map(m => (
                       <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>
