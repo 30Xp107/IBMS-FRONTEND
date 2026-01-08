@@ -1307,13 +1307,13 @@ const BeneficiariesPage = () => {
       <Dialog open={isDuplicateDialogOpen} onOpenChange={setIsDuplicateDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center text-amber-600">
-              <AlertTriangle className="w-5 h-5 mr-2" />
-              Potential Duplicates Found
+            <DialogTitle className="flex items-center text-blue-600">
+              <Users className="w-5 h-5 mr-2" />
+              Existing Beneficiaries Found
             </DialogTitle>
             <DialogDescription>
-              We found {duplicates.length} beneficiaries in your file that might already exist in the system. 
-              Please review them below.
+              We found {duplicates.length} beneficiaries in your file that already exist in the system. 
+              Importing will update their information (including is4ps status) instead of creating new records.
             </DialogDescription>
           </DialogHeader>
 
@@ -1357,17 +1357,16 @@ const BeneficiariesPage = () => {
             </Button>
             <div className="flex gap-2">
               <Button
-                variant="destructive"
+                variant="default"
+                className="bg-blue-600 hover:bg-blue-700 text-white"
                 onClick={async () => {
                   setIsDuplicateDialogOpen(false);
-                  // Filter out exact duplicates if we had IDs, but here we just proceed with all
-                  // The backend bulkCreate also has its own database-level duplicate check (E11000)
                   await processBulkImport(pendingImportData);
                   setPendingImportData(null);
                   setDuplicates([]);
                 }}
               >
-                Proceed Anyway
+                Update & Import
               </Button>
             </div>
           </DialogFooter>
