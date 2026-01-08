@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,10 +30,12 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Plus, Search, Edit, Trash2, Users, Download, ArrowUpDown, ArrowUp, ArrowDown, Trash } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Users, Download, Upload, ArrowUpDown, ArrowUp, ArrowDown, Trash, AlertTriangle } from "lucide-react";
+import * as XLSX from "xlsx";
 
 const BeneficiariesPage = () => {
   const { api, isAdmin, user } = useAuth();
+  const fileInputRef = useRef(null);
   const [beneficiaries, setBeneficiaries] = useState([]);
   const [areas, setAreas] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -49,6 +51,9 @@ const BeneficiariesPage = () => {
   const [sortConfig, setSortConfig] = useState({ key: "last_name", direction: "asc" });
   const [selectedIds, setSelectedIds] = useState([]);
   const [isAllSelectedGlobally, setIsAllSelectedGlobally] = useState(false);
+  const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
+  const [duplicates, setDuplicates] = useState([]);
+  const [pendingImportData, setPendingImportData] = useState(null);
 
   const handleSort = (key) => {
     let direction = "asc";
@@ -412,6 +417,131 @@ const BeneficiariesPage = () => {
     }
   };
 
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const processBulkImport = async (data) => {
+    const toastId = toast.loading(`Importing ${data.length} beneficiaries...`);
+    try {
+      const response = await api.post("/beneficiaries/bulk", { beneficiaries: data });
+      toast.dismiss(toastId);
+      
+      if (response.data.success > 0) {
+        toast.success(`Successfully imported ${response.data.success} beneficiaries`);
+        if (response.data.failed > 0) {
+          toast.warning(`Failed to import ${response.data.failed} records. Check console for details.`);
+          console.error("Import errors:", response.data.errors);
+        }
+        fetchBeneficiaries();
+      } else {
+        toast.error("Failed to import beneficiaries. Check file format.");
+        console.error("Import errors:", response.data.errors);
+      }
+    } catch (error) {
+      toast.dismiss(toastId);
+      console.error("Import error:", error);
+      toast.error(error.response?.data?.message || "Failed to import beneficiaries");
+    }
+  };
+
+  const handleFileChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const extension = file.name.split('.').pop().toLowerCase();
+    if (!['csv', 'xlsx', 'xls'].includes(extension)) {
+      toast.error("Please upload a CSV or Excel file");
+      event.target.value = '';
+      return;
+    }
+
+    const toastId = toast.loading("Reading file...");
+    
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+        if (jsonData.length < 2) {
+          toast.dismiss(toastId);
+          toast.error("File is empty or invalid");
+          return;
+        }
+
+        const headers = jsonData[0].map(h => String(h || '').trim().toLowerCase());
+        const dataRows = jsonData.slice(1);
+
+        const beneficiariesToImport = dataRows.map(row => {
+          const b = {};
+          headers.forEach((header, index) => {
+            const val = String(row[index] || '').trim();
+            if (!val) return;
+
+            if (header.includes('hhid')) b.hhid = val;
+            else if (header.includes('pkno')) b.pkno = val;
+            else if (header.includes('first name') || header === 'first_name') b.first_name = val;
+            else if (header.includes('last name') || header === 'last_name') b.last_name = val;
+            else if (header.includes('middle name') || header === 'middle_name') b.middle_name = val;
+            else if (header.includes('birthdate')) b.birthdate = val;
+            else if (header.includes('gender')) b.gender = val;
+            else if (header.includes('barangay')) b.barangay = val;
+            else if (header.includes('municipality')) b.municipality = val;
+            else if (header.includes('province')) b.province = val;
+            else if (header.includes('region')) b.region = val;
+            else if (header.includes('contact')) b.contact = val;
+            else if (header.includes('is4ps')) b.is4ps = val.toLowerCase() === 'yes' || val === 'true' || val === '1';
+          });
+          return b;
+        }).filter(b => b.first_name && b.last_name);
+
+        if (beneficiariesToImport.length === 0) {
+          toast.dismiss(toastId);
+          toast.error("No valid beneficiary data found in file");
+          return;
+        }
+
+        toast.loading("Checking for duplicates...", { id: toastId });
+        
+        try {
+          const dupResponse = await api.post("/beneficiaries/check-duplicates", { beneficiaries: beneficiariesToImport });
+          toast.dismiss(toastId);
+          
+          if (dupResponse.data.duplicates && dupResponse.data.duplicates.length > 0) {
+            setDuplicates(dupResponse.data.duplicates);
+            setPendingImportData(beneficiariesToImport);
+            setIsDuplicateDialogOpen(true);
+          } else {
+            await processBulkImport(beneficiariesToImport);
+          }
+        } catch (error) {
+          toast.dismiss(toastId);
+          console.error("Duplicate check error:", error);
+          // If duplicate check fails, proceed with caution or ask user
+          if (window.confirm("Duplicate check failed. Proceed with import anyway?")) {
+            await processBulkImport(beneficiariesToImport);
+          }
+        }
+      } catch (error) {
+        toast.dismiss(toastId);
+        console.error("File processing error:", error);
+        toast.error("Failed to process file");
+      } finally {
+        event.target.value = '';
+      }
+    };
+    reader.onerror = () => {
+      toast.dismiss(toastId);
+      toast.error("Failed to read file");
+      event.target.value = '';
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
   const handleExport = async () => {
     try {
       const toastId = toast.loading("Preparing export...");
@@ -510,14 +640,31 @@ const BeneficiariesPage = () => {
         </div>
         <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2">
           {isAdmin && (
-            <Button
-              variant="outline"
-              onClick={handleExport}
-              className="border-emerald-600 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 dark:border-emerald-500 dark:text-emerald-400 text-xs sm:text-sm h-9 sm:h-10"
-            >
-              <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
-              Export
-            </Button>
+            <>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept=".csv"
+                className="hidden"
+              />
+              <Button
+                variant="outline"
+                onClick={handleImportClick}
+                className="border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:border-blue-500 dark:text-blue-400 text-xs sm:text-sm h-9 sm:h-10"
+              >
+                <Upload className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
+                Import
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleExport}
+                className="border-emerald-600 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 dark:border-emerald-500 dark:text-emerald-400 text-xs sm:text-sm h-9 sm:h-10"
+              >
+                <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
+                Export
+              </Button>
+            </>
           )}
 
           <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
@@ -1156,6 +1303,76 @@ const BeneficiariesPage = () => {
           )}
         </CardContent>
       </Card>
+      {/* Duplication Check Dialog */}
+      <Dialog open={isDuplicateDialogOpen} onOpenChange={setIsDuplicateDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center text-amber-600">
+              <AlertTriangle className="w-5 h-5 mr-2" />
+              Potential Duplicates Found
+            </DialogTitle>
+            <DialogDescription>
+              We found {duplicates.length} beneficiaries in your file that might already exist in the system. 
+              Please review them below.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4 border rounded-md overflow-hidden">
+            <Table>
+              <TableHeader className="bg-slate-50 dark:bg-slate-900">
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Birthdate</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>HHID</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {duplicates.map((dup, index) => (
+                  <TableRow key={index}>
+                    <TableCell className="font-medium">
+                      {dup.first_name} {dup.middle_name ? `${dup.middle_name} ` : ''}{dup.last_name}
+                    </TableCell>
+                    <TableCell>{dup.birthdate}</TableCell>
+                    <TableCell>
+                      {dup.barangay}, {dup.municipality}, {dup.province}
+                    </TableCell>
+                    <TableCell className="text-slate-500">{dup.hhid}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          <DialogFooter className="mt-6 flex sm:justify-between gap-4">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsDuplicateDialogOpen(false);
+                setPendingImportData(null);
+                setDuplicates([]);
+              }}
+            >
+              Cancel Import
+            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="destructive"
+                onClick={async () => {
+                  setIsDuplicateDialogOpen(false);
+                  // Filter out exact duplicates if we had IDs, but here we just proceed with all
+                  // The backend bulkCreate also has its own database-level duplicate check (E11000)
+                  await processBulkImport(pendingImportData);
+                  setPendingImportData(null);
+                  setDuplicates([]);
+                }}
+              >
+                Proceed Anyway
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
