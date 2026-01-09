@@ -422,21 +422,38 @@ const BeneficiariesPage = () => {
   };
 
   const processBulkImport = async (data) => {
-    const toastId = toast.loading(`Importing ${data.length} beneficiaries...`);
+    const toastId = toast.loading(`Importing ${data.length} beneficiaries (0%)...`);
     try {
-      const response = await api.post("/beneficiaries/bulk", { beneficiaries: data });
+      let totalSuccess = 0;
+      let totalFailed = 0;
+      let allErrors = [];
+      const chunkSize = 100;
+
+      for (let i = 0; i < data.length; i += chunkSize) {
+        const chunk = data.slice(i, i + chunkSize);
+        const progress = Math.round((i / data.length) * 100);
+        toast.loading(`Importing ${data.length} beneficiaries (${progress}%)...`, { id: toastId });
+        
+        const response = await api.post("/beneficiaries/bulk", { beneficiaries: chunk });
+        totalSuccess += response.data.success || 0;
+        totalFailed += response.data.failed || 0;
+        if (response.data.errors) {
+          allErrors.push(...response.data.errors);
+        }
+      }
+
       toast.dismiss(toastId);
       
-      if (response.data.success > 0) {
-        toast.success(`Successfully imported ${response.data.success} beneficiaries`);
-        if (response.data.failed > 0) {
-          toast.warning(`Failed to import ${response.data.failed} records. Check console for details.`);
-          console.error("Import errors:", response.data.errors);
+      if (totalSuccess > 0) {
+        toast.success(`Successfully processed ${totalSuccess} beneficiaries`);
+        if (totalFailed > 0) {
+          toast.warning(`Failed to process ${totalFailed} records. Check console for details.`);
+          console.error("Import errors:", allErrors);
         }
         fetchBeneficiaries();
       } else {
         toast.error("Failed to import beneficiaries. Check file format.");
-        console.error("Import errors:", response.data.errors);
+        console.error("Import errors:", allErrors);
       }
     } catch (error) {
       toast.dismiss(toastId);
@@ -505,14 +522,27 @@ const BeneficiariesPage = () => {
           return;
         }
 
-        toast.loading("Checking for duplicates...", { id: toastId });
+        toast.loading("Checking for duplicates (0%)...", { id: toastId });
         
         try {
-          const dupResponse = await api.post("/beneficiaries/check-duplicates", { beneficiaries: beneficiariesToImport });
+          const allDuplicates = [];
+          const chunkSize = 100; // Check in chunks of 100
+          
+          for (let i = 0; i < beneficiariesToImport.length; i += chunkSize) {
+            const chunk = beneficiariesToImport.slice(i, i + chunkSize);
+            const progress = Math.round((i / beneficiariesToImport.length) * 100);
+            toast.loading(`Checking for duplicates (${progress}%)...`, { id: toastId });
+            
+            const dupResponse = await api.post("/beneficiaries/check-duplicates", { beneficiaries: chunk });
+            if (dupResponse.data.duplicates) {
+              allDuplicates.push(...dupResponse.data.duplicates);
+            }
+          }
+          
           toast.dismiss(toastId);
           
-          if (dupResponse.data.duplicates && dupResponse.data.duplicates.length > 0) {
-            setDuplicates(dupResponse.data.duplicates);
+          if (allDuplicates.length > 0) {
+            setDuplicates(allDuplicates);
             setPendingImportData(beneficiariesToImport);
             setIsDuplicateDialogOpen(true);
           } else {
