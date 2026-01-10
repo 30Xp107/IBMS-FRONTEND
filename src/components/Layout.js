@@ -75,6 +75,8 @@ const Layout = () => {
 
   const navItems = [
     { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+    { to: "/dashboard/redemption", icon: Calendar, label: "Redemption Dashboard", isSubItem: true },
+    { to: "/dashboard/nes", icon: FileText, label: "NES Dashboard", isSubItem: true },
     { to: "/beneficiaries", icon: Users, label: "Beneficiaries" },
     { to: "/redemption", icon: Calendar, label: "Redemption" },
     { to: "/nes", icon: FileText, label: "NES" },
@@ -148,15 +150,19 @@ const Layout = () => {
                 }}
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-4 py-3 rounded-md transition-all duration-200 ${
+                    item.isSubItem ? "ml-6 py-2 text-sm" : ""
+                  } ${
                     isActive
                       ? "bg-emerald-600 text-white shadow-md shadow-emerald-900/20"
                       : "text-slate-400 hover:bg-slate-800 hover:text-white"
                   }`
                 }
               >
-                <item.icon size={20} />
+                <item.icon size={item.isSubItem ? 18 : 20} />
                 <span className="font-medium">{item.label}</span>
-                <ChevronRight size={16} className={`ml-auto opacity-50 transition-transform ${sidebarOpen ? 'rotate-90' : ''}`} />
+                {!item.isSubItem && (
+                  <ChevronRight size={16} className={`ml-auto opacity-50 transition-transform ${sidebarOpen ? 'rotate-90' : ''}`} />
+                )}
               </NavLink>
             ))}
           </nav>

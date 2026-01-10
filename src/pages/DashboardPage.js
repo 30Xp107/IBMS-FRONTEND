@@ -77,6 +77,7 @@ const DashboardPage = () => {
       icon: Users,
       color: "text-emerald-600",
       bgColor: "bg-emerald-100",
+      link: "/beneficiaries"
     },
     {
       title: "Total Redemptions",
@@ -84,6 +85,7 @@ const DashboardPage = () => {
       icon: Calendar,
       color: "text-sky-600",
       bgColor: "bg-sky-100",
+      link: "/dashboard/redemption"
     },
     {
       title: "Total NES Records",
@@ -91,6 +93,7 @@ const DashboardPage = () => {
       icon: FileText,
       color: "text-violet-600",
       bgColor: "bg-violet-100",
+      link: "/dashboard/nes"
     },
     ...(isAdmin
       ? [
@@ -100,6 +103,7 @@ const DashboardPage = () => {
             icon: UserCheck,
             color: "text-amber-600",
             bgColor: "bg-amber-100",
+            link: "/users"
           },
         ]
       : []),
@@ -118,22 +122,23 @@ const DashboardPage = () => {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {statCards.map((card, index) => (
-          <Card
-            key={card.title}
-            className="border-stone-200 dark:border-slate-800 shadow-sm transition-all hover:shadow-md"
-          >
-            <CardContent className="p-4 sm:p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400">{card.title}</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-slate-800 dark:text-slate-100 mt-1">{card.value}</p>
+          <Link key={card.title} to={card.link}>
+            <Card
+              className="border-stone-200 dark:border-slate-800 shadow-sm transition-all hover:shadow-md cursor-pointer hover:border-emerald-200 dark:hover:border-emerald-800 group"
+            >
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 group-hover:text-emerald-600 transition-colors">{card.title}</p>
+                    <p className="text-2xl sm:text-3xl font-bold text-slate-800 dark:text-slate-100 mt-1">{card.value}</p>
+                  </div>
+                  <div className={`w-10 h-10 sm:w-12 sm:h-12 ${card.bgColor} dark:bg-slate-800/80 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform`}>
+                    <card.icon className={`w-5 h-5 sm:w-6 sm:h-6 ${card.color}`} />
+                  </div>
                 </div>
-                <div className={`w-10 h-10 sm:w-12 sm:h-12 ${card.bgColor} dark:bg-slate-800/80 rounded-xl flex items-center justify-center flex-shrink-0`}>
-                  <card.icon className={`w-5 h-5 sm:w-6 sm:h-6 ${card.color}`} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Link>
         ))}
       </div>
 

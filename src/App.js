@@ -5,6 +5,8 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
 import DashboardPage from "@/pages/DashboardPage";
+import RedemptionDashboardPage from "@/pages/RedemptionDashboardPage";
+import NesDashboardPage from "@/pages/NesDashboardPage";
 import BeneficiariesPage from "@/pages/BeneficiariesPage";
 import RedemptionPage from "@/pages/RedemptionPage";
 import NESPage from "@/pages/NESPage";
@@ -62,6 +64,8 @@ function AppRoutes() {
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="dashboard/redemption" element={<RedemptionDashboardPage />} />
+        <Route path="dashboard/nes" element={<NesDashboardPage />} />
         <Route path="beneficiaries" element={<BeneficiariesPage />} />
         <Route path="redemption" element={<RedemptionPage />} />
         <Route path="nes" element={<NESPage />} />
