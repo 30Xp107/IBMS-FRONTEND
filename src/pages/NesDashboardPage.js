@@ -1,7 +1,16 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { FileText, PieChart as PieChartIcon, TrendingUp, Info } from "lucide-react";
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table";
+import { Progress } from "@/components/ui/progress";
+import { FileText, PieChart as PieChartIcon, TrendingUp, Info, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import {
   BarChart,
@@ -54,8 +63,9 @@ const NesDashboardPage = () => {
   })) || [];
 
   const trendData = stats?.periodStats?.map(item => ({
-    period: item._id,
-    count: item.count
+    period: item.period,
+    validated: item.validated,
+    target: item.target
   })).reverse() || [];
 
   const reasonData = stats?.reasonStats?.map(item => ({
@@ -109,7 +119,7 @@ const NesDashboardPage = () => {
               <TrendingUp className="w-5 h-5 text-violet-600" />
               NES Trends
             </CardTitle>
-            <CardDescription>NES records over the last 12 periods</CardDescription>
+            <CardDescription>Target vs Validated NES records over the last 12 periods</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -118,7 +128,9 @@ const NesDashboardPage = () => {
                 <XAxis dataKey="period" />
                 <YAxis />
                 <RechartsTooltip />
-                <Bar dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                <Legend />
+                <Bar name="Validated" dataKey="validated" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                <Bar name="Target" dataKey="target" fill="#e2e8f0" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -126,6 +138,53 @@ const NesDashboardPage = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* FRM Period Monitoring Table */}
+        <Card className="border-stone-200 dark:border-slate-800 shadow-sm overflow-hidden">
+          <CardHeader className="bg-slate-50/50 dark:bg-slate-800/30 border-b dark:border-slate-800">
+            <CardTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <Clock className="w-5 h-5 text-violet-600" />
+              FRM Period Monitoring
+            </CardTitle>
+            <CardDescription className="text-sm dark:text-slate-400 mt-1">
+              Program performance across different periods
+              </CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-50/50 dark:hover:bg-slate-900/50">
+                    <TableHead className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6">FRM Period</TableHead>
+                    <TableHead className="text-right font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6">Target</TableHead>
+                    <TableHead className="text-right font-bold text-violet-600 dark:text-violet-400 uppercase tracking-wider text-xs py-4 px-6">Validated</TableHead>
+                    <TableHead className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 w-[150px]">Completion</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {stats?.periodStats?.map((item, index) => {
+                    const completion = item.target > 0 ? Math.round((item.validated / item.target) * 100) : 0;
+                    return (
+                      <TableRow key={index} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors border-b dark:border-slate-800">
+                        <TableCell className="font-bold text-slate-800 dark:text-slate-200 py-4 px-6">{item.period}</TableCell>
+                        <TableCell className="text-right font-medium text-slate-600 dark:text-slate-400 py-4 px-6">{item.target.toLocaleString()}</TableCell>
+                        <TableCell className="text-right font-bold text-violet-600 dark:text-violet-400 py-4 px-6">{item.validated.toLocaleString()}</TableCell>
+                        <TableCell className="py-4 px-6">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold w-10">{completion}%</span>
+                            <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                              <div className="h-full bg-violet-500" style={{ width: `${completion}%` }} />
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -142,7 +201,7 @@ const NesDashboardPage = () => {
                     <div className="h-2 flex-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                       <div 
                         className="h-full bg-violet-500" 
-                        style={{ width: `${(item.count / stats.totalNES) * 100}%` }}
+                        style={{ width: `${(item.count / (stats?.totalNES || 1)) * 100}%` }}
                       />
                     </div>
                     <span className="text-sm font-bold w-8 text-right">{item.count}</span>
@@ -170,6 +229,100 @@ const NesDashboardPage = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Municipality Breakdown Table */}
+      <Card className="border-stone-200 dark:border-slate-800 shadow-sm overflow-hidden">
+        <CardHeader className="bg-slate-50/50 dark:bg-slate-800/30 border-b dark:border-slate-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <MapPin className="w-5 h-5 text-violet-600" />
+                Municipality Monitoring
+              </CardTitle>
+              <CardDescription className="text-sm dark:text-slate-400 mt-1">
+                NES progress per municipality for the current period
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-50/50 dark:hover:bg-slate-900/50">
+                  <TableHead className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6">Municipality</TableHead>
+                  <TableHead className="text-right font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6">Target</TableHead>
+                  <TableHead className="text-right font-bold text-violet-600 dark:text-violet-400 uppercase tracking-wider text-xs py-4 px-6">Validated</TableHead>
+                  <TableHead className="text-right font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider text-xs py-4 px-6">Remaining</TableHead>
+                  <TableHead className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 w-[200px]">Completion</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {stats?.municipalityBreakdown?.map((item, index) => {
+                  const remaining = item.target - item.validated;
+                  const completion = item.target > 0 ? Math.round((item.validated / item.target) * 100) : 0;
+                  
+                  return (
+                    <TableRow key={index} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors border-b dark:border-slate-800">
+                      <TableCell className="font-bold text-slate-800 dark:text-slate-200 py-4 px-6 uppercase">{item.municipality}</TableCell>
+                      <TableCell className="text-right font-medium text-slate-600 dark:text-slate-400 py-4 px-6">{item.target.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-bold text-violet-600 dark:text-violet-400 py-4 px-6">{item.validated.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-bold text-amber-600 dark:text-amber-500 py-4 px-6">{remaining.toLocaleString()}</TableCell>
+                      <TableCell className="py-4 px-6">
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs font-bold w-10 text-slate-700 dark:text-slate-300">{completion}%</span>
+                          <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full transition-all duration-500 ${
+                                completion >= 100 ? 'bg-violet-500' : 
+                                completion >= 75 ? 'bg-violet-400' : 
+                                completion >= 50 ? 'bg-amber-400' : 
+                                'bg-amber-500'
+                              }`}
+                              style={{ width: `${completion}%` }}
+                            />
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                {/* Grand Total Row */}
+                <TableRow className="bg-slate-50/80 dark:bg-slate-900/80 font-bold border-t-2 border-slate-200 dark:border-slate-700">
+                  <TableCell className="py-4 px-6 uppercase text-violet-700 dark:text-violet-400">Grand Total</TableCell>
+                  <TableCell className="text-right py-4 px-6">
+                    {stats?.municipalityBreakdown?.reduce((sum, item) => sum + item.target, 0).toLocaleString()}
+                  </TableCell>
+                  <TableCell className="text-right py-4 px-6 text-violet-600 dark:text-violet-400">
+                    {stats?.municipalityBreakdown?.reduce((sum, item) => sum + item.validated, 0).toLocaleString()}
+                  </TableCell>
+                  <TableCell className="text-right py-4 px-6 text-amber-600 dark:text-amber-500">
+                    {stats?.municipalityBreakdown?.reduce((sum, item) => sum + (item.target - item.validated), 0).toLocaleString()}
+                  </TableCell>
+                  <TableCell className="py-4 px-6">
+                    {(() => {
+                      const totalTarget = stats?.municipalityBreakdown?.reduce((sum, item) => sum + item.target, 0) || 0;
+                      const totalValidated = stats?.municipalityBreakdown?.reduce((sum, item) => sum + item.validated, 0) || 0;
+                      const totalCompletion = totalTarget > 0 ? Math.round((totalValidated / totalTarget) * 100) : 0;
+                      return (
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs font-bold w-10 text-violet-700 dark:text-violet-400">{totalCompletion}% Overall</span>
+                          <div className="flex-1 h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-violet-600 transition-all duration-500" 
+                              style={{ width: `${totalCompletion}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

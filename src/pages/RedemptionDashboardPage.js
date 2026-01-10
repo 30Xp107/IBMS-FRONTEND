@@ -1,7 +1,16 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Calendar, CheckCircle2, XCircle, Clock, TrendingUp, PieChart as PieChartIcon } from "lucide-react";
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table";
+import { Progress } from "@/components/ui/progress";
+import { Calendar, PieChart as PieChartIcon, TrendingUp, Info, MapPin, Clock } from "lucide-react";
 import { toast } from "sonner";
 import {
   BarChart,
@@ -54,8 +63,9 @@ const RedemptionDashboardPage = () => {
   })) || [];
 
   const trendData = stats?.periodStats?.map(item => ({
-    period: item._id,
-    count: item.count
+    period: item.period,
+    redeemed: item.redeemed,
+    target: item.target
   })).reverse() || [];
 
   return (
@@ -104,7 +114,7 @@ const RedemptionDashboardPage = () => {
               <TrendingUp className="w-5 h-5 text-emerald-600" />
               Redemption Trends
             </CardTitle>
-            <CardDescription>Redemptions over the last 12 periods</CardDescription>
+            <CardDescription>Target vs Validated redemptions over the last 12 periods</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -113,28 +123,163 @@ const RedemptionDashboardPage = () => {
                 <XAxis dataKey="period" />
                 <YAxis />
                 <RechartsTooltip />
-                <Bar dataKey="count" fill="#10b981" radius={[4, 4, 0, 0]} />
+                <Legend />
+                <Bar name="Redeemed" dataKey="redeemed" fill="#10b981" radius={[4, 4, 0, 0]} />
+                <Bar name="Target" dataKey="target" fill="#e2e8f0" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-emerald-100 rounded-lg">
-                <Calendar className="w-6 h-6 text-emerald-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-slate-500">Total Redemptions</p>
-                <p className="text-2xl font-bold">{stats?.totalRedemptions || 0}</p>
-              </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* FRM Period Monitoring Table */}
+        <Card className="border-stone-200 dark:border-slate-800 shadow-sm overflow-hidden">
+          <CardHeader className="bg-slate-50/50 dark:bg-slate-800/30 border-b dark:border-slate-800">
+            <CardTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <Clock className="w-5 h-5 text-emerald-600" />
+              FRM Period Monitoring
+            </CardTitle>
+            <CardDescription className="text-sm dark:text-slate-400 mt-1">
+              Program performance across different periods
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-50/50 dark:hover:bg-slate-900/50">
+                    <TableHead className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6">FRM Period</TableHead>
+                    <TableHead className="text-right font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6">Target</TableHead>
+                    <TableHead className="text-right font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider text-xs py-4 px-6">Redeemed</TableHead>
+                    <TableHead className="text-right font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider text-xs py-4 px-6">UnRedeemed</TableHead>
+                    <TableHead className="text-right font-bold text-blue-600 dark:text-blue-500 uppercase tracking-wider text-xs py-4 px-6">Remaining</TableHead>
+                    <TableHead className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 w-[150px]">Completion</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {stats?.periodStats?.map((item, index) => {
+                    const completion = item.target > 0 ? Math.round((item.redeemed / item.target) * 100) : 0;
+                    return (
+                      <TableRow key={index} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors border-b dark:border-slate-800">
+                        <TableCell className="font-bold text-slate-800 dark:text-slate-200 py-4 px-6">{item.period}</TableCell>
+                        <TableCell className="text-right font-medium text-slate-600 dark:text-slate-400 py-4 px-6">{item.target.toLocaleString()}</TableCell>
+                        <TableCell className="text-right font-bold text-emerald-600 dark:text-emerald-400 py-4 px-6">{item.redeemed.toLocaleString()}</TableCell>
+                        <TableCell className="text-right font-bold text-amber-600 dark:text-amber-500 py-4 px-6">{item.unredeemed.toLocaleString()}</TableCell>
+                        <TableCell className="text-right font-bold text-blue-600 dark:text-blue-500 py-4 px-6">{item.remaining.toLocaleString()}</TableCell>
+                        <TableCell className="py-4 px-6">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold w-10">{completion}%</span>
+                            <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                              <div className="h-full bg-emerald-500" style={{ width: `${completion}%` }} />
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             </div>
           </CardContent>
         </Card>
-        {/* Add more metric cards if needed */}
+
+        {/* Municipality Breakdown Table */}
+      <Card className="border-stone-200 dark:border-slate-800 shadow-sm overflow-hidden">
+        <CardHeader className="bg-slate-50/50 dark:bg-slate-800/30 border-b dark:border-slate-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <MapPin className="w-5 h-5 text-emerald-600" />
+                Municipality Monitoring
+              </CardTitle>
+              <CardDescription className="text-sm dark:text-slate-400 mt-1">
+                Redemption progress per municipality for the current period
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-50/50 dark:hover:bg-slate-900/50">
+                  <TableHead className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6">Municipality</TableHead>
+                  <TableHead className="text-right font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6">Target</TableHead>
+                  <TableHead className="text-right font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider text-xs py-4 px-6">Redeemed</TableHead>
+                  <TableHead className="text-right font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider text-xs py-4 px-6">UnRedeemed</TableHead>
+                  <TableHead className="text-right font-bold text-blue-600 dark:text-blue-500 uppercase tracking-wider text-xs py-4 px-6">Remaining</TableHead>
+                  <TableHead className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 w-[200px]">Completion</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {stats?.municipalityBreakdown?.map((item, index) => {
+                  const completion = item.target > 0 ? Math.round((item.redeemed / item.target) * 100) : 0;
+                  return (
+                    <TableRow key={index} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors border-b dark:border-slate-800">
+                      <TableCell className="font-bold text-slate-800 dark:text-slate-200 py-4 px-6 uppercase">{item.municipality}</TableCell>
+                      <TableCell className="text-right font-medium text-slate-600 dark:text-slate-400 py-4 px-6">{item.target.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-bold text-emerald-600 dark:text-emerald-400 py-4 px-6">{item.redeemed.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-bold text-amber-600 dark:text-amber-500 py-4 px-6">{item.unredeemed.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-bold text-blue-600 dark:text-blue-500 py-4 px-6">{item.remaining.toLocaleString()}</TableCell>
+                      <TableCell className="py-4 px-6">
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs font-bold w-10 text-slate-700 dark:text-slate-300">{completion}%</span>
+                          <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full transition-all duration-500 ${
+                                completion >= 100 ? 'bg-emerald-500' : 
+                                completion >= 75 ? 'bg-emerald-400' : 
+                                completion >= 50 ? 'bg-amber-400' : 
+                                'bg-amber-500'
+                              }`}
+                              style={{ width: `${completion}%` }}
+                            />
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                {/* Grand Total Row */}
+                <TableRow className="bg-slate-50/80 dark:bg-slate-900/80 font-bold border-t-2 border-slate-200 dark:border-slate-700">
+                  <TableCell className="py-4 px-6 uppercase text-emerald-700 dark:text-emerald-400">Grand Total</TableCell>
+                  <TableCell className="text-right py-4 px-6">
+                    {stats?.municipalityBreakdown?.reduce((sum, item) => sum + item.target, 0).toLocaleString()}
+                  </TableCell>
+                  <TableCell className="text-right py-4 px-6 text-emerald-600 dark:text-emerald-400">
+                    {stats?.municipalityBreakdown?.reduce((sum, item) => sum + item.redeemed, 0).toLocaleString()}
+                  </TableCell>
+                  <TableCell className="text-right py-4 px-6 text-amber-600 dark:text-amber-500">
+                    {stats?.municipalityBreakdown?.reduce((sum, item) => sum + item.unredeemed, 0).toLocaleString()}
+                  </TableCell>
+                  <TableCell className="text-right py-4 px-6 text-blue-600 dark:text-blue-500">
+                    {stats?.municipalityBreakdown?.reduce((sum, item) => sum + item.remaining, 0).toLocaleString()}
+                  </TableCell>
+                  <TableCell className="py-4 px-6">
+                    {(() => {
+                      const totalTarget = stats?.municipalityBreakdown?.reduce((sum, item) => sum + item.target, 0) || 0;
+                      const totalRedeemed = stats?.municipalityBreakdown?.reduce((sum, item) => sum + item.redeemed, 0) || 0;
+                      const totalCompletion = totalTarget > 0 ? Math.round((totalRedeemed / totalTarget) * 100) : 0;
+                      return (
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs font-bold w-10 text-emerald-700 dark:text-emerald-400">{totalCompletion}%</span>
+                          <div className="flex-1 h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-emerald-600 transition-all duration-500" 
+                              style={{ width: `${totalCompletion}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
       </div>
     </div>
   );
