@@ -10,7 +10,7 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
-import { FileText, PieChart as PieChartIcon, TrendingUp, Info, MapPin } from "lucide-react";
+import { FileText, PieChart as PieChartIcon, TrendingUp, Info, MapPin, Clock } from "lucide-react";
 import { toast } from "sonner";
 import {
   BarChart,
@@ -64,7 +64,7 @@ const NesDashboardPage = () => {
 
   const trendData = stats?.periodStats?.map(item => ({
     period: item.period,
-    validated: item.validated,
+    attended: item.attended,
     target: item.target
   })).reverse() || [];
 
@@ -129,7 +129,7 @@ const NesDashboardPage = () => {
                 <YAxis />
                 <RechartsTooltip />
                 <Legend />
-                <Bar name="Validated" dataKey="validated" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                <Bar name="Attended" dataKey="attended" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
                 <Bar name="Target" dataKey="target" fill="#e2e8f0" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -147,7 +147,7 @@ const NesDashboardPage = () => {
             </CardTitle>
             <CardDescription className="text-sm dark:text-slate-400 mt-1">
               Program performance across different periods
-              </CardDescription>
+            </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
@@ -156,18 +156,22 @@ const NesDashboardPage = () => {
                   <TableRow className="bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-50/50 dark:hover:bg-slate-900/50">
                     <TableHead className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6">FRM Period</TableHead>
                     <TableHead className="text-right font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6">Target</TableHead>
-                    <TableHead className="text-right font-bold text-violet-600 dark:text-violet-400 uppercase tracking-wider text-xs py-4 px-6">Validated</TableHead>
+                    <TableHead className="text-right font-bold text-violet-600 dark:text-violet-400 uppercase tracking-wider text-xs py-4 px-6">Attended</TableHead>
+                    <TableHead className="text-right font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider text-xs py-4 px-6">Absent</TableHead>
+                    <TableHead className="text-right font-bold text-blue-600 dark:text-blue-500 uppercase tracking-wider text-xs py-4 px-6">Remaining</TableHead>
                     <TableHead className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 w-[150px]">Completion</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {stats?.periodStats?.map((item, index) => {
-                    const completion = item.target > 0 ? Math.round((item.validated / item.target) * 100) : 0;
+                    const completion = item.target > 0 ? Math.round((item.attended / item.target) * 100) : 0;
                     return (
                       <TableRow key={index} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors border-b dark:border-slate-800">
                         <TableCell className="font-bold text-slate-800 dark:text-slate-200 py-4 px-6">{item.period}</TableCell>
                         <TableCell className="text-right font-medium text-slate-600 dark:text-slate-400 py-4 px-6">{item.target.toLocaleString()}</TableCell>
-                        <TableCell className="text-right font-bold text-violet-600 dark:text-violet-400 py-4 px-6">{item.validated.toLocaleString()}</TableCell>
+                        <TableCell className="text-right font-bold text-violet-600 dark:text-violet-400 py-4 px-6">{item.attended.toLocaleString()}</TableCell>
+                        <TableCell className="text-right font-bold text-amber-600 dark:text-amber-500 py-4 px-6">{item.absent.toLocaleString()}</TableCell>
+                        <TableCell className="text-right font-bold text-blue-600 dark:text-blue-500 py-4 px-6">{item.remaining.toLocaleString()}</TableCell>
                         <TableCell className="py-4 px-6">
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-bold w-10">{completion}%</span>
@@ -252,22 +256,23 @@ const NesDashboardPage = () => {
                 <TableRow className="bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-50/50 dark:hover:bg-slate-900/50">
                   <TableHead className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6">Municipality</TableHead>
                   <TableHead className="text-right font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6">Target</TableHead>
-                  <TableHead className="text-right font-bold text-violet-600 dark:text-violet-400 uppercase tracking-wider text-xs py-4 px-6">Validated</TableHead>
-                  <TableHead className="text-right font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider text-xs py-4 px-6">Remaining</TableHead>
+                  <TableHead className="text-right font-bold text-violet-600 dark:text-violet-400 uppercase tracking-wider text-xs py-4 px-6">Attended</TableHead>
+                  <TableHead className="text-right font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider text-xs py-4 px-6">Absent</TableHead>
+                  <TableHead className="text-right font-bold text-blue-600 dark:text-blue-500 uppercase tracking-wider text-xs py-4 px-6">Remaining</TableHead>
                   <TableHead className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 w-[200px]">Completion</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {stats?.municipalityBreakdown?.map((item, index) => {
-                  const remaining = item.target - item.validated;
-                  const completion = item.target > 0 ? Math.round((item.validated / item.target) * 100) : 0;
+                  const completion = item.target > 0 ? Math.round((item.attended / item.target) * 100) : 0;
                   
                   return (
                     <TableRow key={index} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors border-b dark:border-slate-800">
                       <TableCell className="font-bold text-slate-800 dark:text-slate-200 py-4 px-6 uppercase">{item.municipality}</TableCell>
                       <TableCell className="text-right font-medium text-slate-600 dark:text-slate-400 py-4 px-6">{item.target.toLocaleString()}</TableCell>
-                      <TableCell className="text-right font-bold text-violet-600 dark:text-violet-400 py-4 px-6">{item.validated.toLocaleString()}</TableCell>
-                      <TableCell className="text-right font-bold text-amber-600 dark:text-amber-500 py-4 px-6">{remaining.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-bold text-violet-600 dark:text-violet-400 py-4 px-6">{item.attended.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-bold text-amber-600 dark:text-amber-500 py-4 px-6">{item.absent.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-bold text-blue-600 dark:text-blue-500 py-4 px-6">{item.remaining.toLocaleString()}</TableCell>
                       <TableCell className="py-4 px-6">
                         <div className="flex items-center gap-3">
                           <span className="text-xs font-bold w-10 text-slate-700 dark:text-slate-300">{completion}%</span>
@@ -294,19 +299,22 @@ const NesDashboardPage = () => {
                     {stats?.municipalityBreakdown?.reduce((sum, item) => sum + item.target, 0).toLocaleString()}
                   </TableCell>
                   <TableCell className="text-right py-4 px-6 text-violet-600 dark:text-violet-400">
-                    {stats?.municipalityBreakdown?.reduce((sum, item) => sum + item.validated, 0).toLocaleString()}
+                    {stats?.municipalityBreakdown?.reduce((sum, item) => sum + item.attended, 0).toLocaleString()}
                   </TableCell>
                   <TableCell className="text-right py-4 px-6 text-amber-600 dark:text-amber-500">
-                    {stats?.municipalityBreakdown?.reduce((sum, item) => sum + (item.target - item.validated), 0).toLocaleString()}
+                    {stats?.municipalityBreakdown?.reduce((sum, item) => sum + item.absent, 0).toLocaleString()}
+                  </TableCell>
+                  <TableCell className="text-right py-4 px-6 text-blue-600 dark:text-blue-500">
+                    {stats?.municipalityBreakdown?.reduce((sum, item) => sum + item.remaining, 0).toLocaleString()}
                   </TableCell>
                   <TableCell className="py-4 px-6">
                     {(() => {
                       const totalTarget = stats?.municipalityBreakdown?.reduce((sum, item) => sum + item.target, 0) || 0;
-                      const totalValidated = stats?.municipalityBreakdown?.reduce((sum, item) => sum + item.validated, 0) || 0;
-                      const totalCompletion = totalTarget > 0 ? Math.round((totalValidated / totalTarget) * 100) : 0;
+                      const totalAttended = stats?.municipalityBreakdown?.reduce((sum, item) => sum + item.attended, 0) || 0;
+                      const totalCompletion = totalTarget > 0 ? Math.round((totalAttended / totalTarget) * 100) : 0;
                       return (
                         <div className="flex items-center gap-3">
-                          <span className="text-xs font-bold w-10 text-violet-700 dark:text-violet-400">{totalCompletion}% Overall</span>
+                          <span className="text-xs font-bold w-10 text-violet-700 dark:text-violet-400">{totalCompletion}%</span>
                           <div className="flex-1 h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                             <div 
                               className="h-full bg-violet-600 transition-all duration-500" 
