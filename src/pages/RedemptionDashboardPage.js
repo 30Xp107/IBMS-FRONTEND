@@ -9,8 +9,15 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { Calendar, PieChart as PieChartIcon, TrendingUp, Info, MapPin, Clock } from "lucide-react";
+import { Calendar, PieChart as PieChartIcon, TrendingUp, Info, MapPin, Clock, Filter } from "lucide-react";
 import { toast } from "sonner";
 import {
   BarChart,
@@ -28,19 +35,32 @@ import {
 
 const COLORS = ["#10b981", "#f43f5e", "#6366f1", "#f59e0b"];
 
+const YEARS = ["2024", "2025", "2026"];
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
+
 const RedemptionDashboardPage = () => {
   const { api, user } = useAuth();
   const [stats, setStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toLocaleString("default", { month: "long" }));
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [selectedYear, selectedMonth]);
 
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      const res = await api.get("/dashboard/redemption-stats");
+      const res = await api.get("/dashboard/redemption-stats", {
+        params: {
+          year: selectedYear,
+          month: selectedMonth
+        }
+      });
       setStats(res.data);
     } catch (error) {
       toast.error("Failed to load redemption dashboard data");
@@ -178,24 +198,162 @@ const RedemptionDashboardPage = () => {
                       </TableRow>
                     );
                   })}
+                  {/* Grand Total Row */}
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-900/80 font-bold border-t-2 border-slate-200 dark:border-slate-700">
+                    <TableCell className="py-4 px-6 uppercase text-emerald-700 dark:text-emerald-400">Grand Total</TableCell>
+                    <TableCell className="text-right py-4 px-6">
+                      {stats?.periodStats?.reduce((sum, item) => sum + item.target, 0).toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-right py-4 px-6 text-emerald-600 dark:text-emerald-400">
+                      {stats?.periodStats?.reduce((sum, item) => sum + item.redeemed, 0).toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-right py-4 px-6 text-amber-600 dark:text-amber-500">
+                      {stats?.periodStats?.reduce((sum, item) => sum + item.unredeemed, 0).toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-right py-4 px-6 text-blue-600 dark:text-blue-500">
+                      {stats?.periodStats?.reduce((sum, item) => sum + item.remaining, 0).toLocaleString()}
+                    </TableCell>
+                    <TableCell className="py-4 px-6">
+                      {(() => {
+                        const totalTarget = stats?.periodStats?.reduce((sum, item) => sum + item.target, 0) || 0;
+                        const totalRedeemed = stats?.periodStats?.reduce((sum, item) => sum + item.redeemed, 0) || 0;
+                        const totalCompletion = totalTarget > 0 ? Math.round((totalRedeemed / totalTarget) * 100) : 0;
+                        return (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold w-10 text-emerald-700 dark:text-emerald-400">{totalCompletion}%</span>
+                            <div className="flex-1 h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                              <div className="h-full bg-emerald-600" style={{ width: `${totalCompletion}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </TableCell>
+                  </TableRow>
                 </TableBody>
               </Table>
             </div>
           </CardContent>
         </Card>
 
-        {/* Municipality Breakdown Table */}
+        {/* Province Monitoring Table */}
+        <Card className="border-stone-200 dark:border-slate-800 shadow-sm overflow-hidden">
+          <CardHeader className="bg-slate-50/50 dark:bg-slate-800/30 border-b dark:border-slate-800">
+            <CardTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-emerald-600" />
+              Province Monitoring
+            </CardTitle>
+            <CardDescription className="text-sm dark:text-slate-400 mt-1">
+              Redemption progress per province for {selectedMonth} {selectedYear}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-50/50 dark:hover:bg-slate-900/50">
+                    <TableHead className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6">Province</TableHead>
+                    <TableHead className="text-right font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6">Target</TableHead>
+                    <TableHead className="text-right font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider text-xs py-4 px-6">Redeemed</TableHead>
+                    <TableHead className="text-right font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider text-xs py-4 px-6">UnRedeemed</TableHead>
+                    <TableHead className="text-right font-bold text-blue-600 dark:text-blue-500 uppercase tracking-wider text-xs py-4 px-6">Remaining</TableHead>
+                    <TableHead className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 w-[150px]">Completion</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {stats?.provinceBreakdown?.map((item, index) => {
+                    const completion = item.target > 0 ? Math.round((item.redeemed / item.target) * 100) : 0;
+                    return (
+                      <TableRow key={index} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors border-b dark:border-slate-800">
+                        <TableCell className="font-bold text-slate-800 dark:text-slate-200 py-4 px-6 uppercase">{item.province}</TableCell>
+                        <TableCell className="text-right font-medium text-slate-600 dark:text-slate-400 py-4 px-6">{item.target.toLocaleString()}</TableCell>
+                        <TableCell className="text-right font-bold text-emerald-600 dark:text-emerald-400 py-4 px-6">{item.redeemed.toLocaleString()}</TableCell>
+                        <TableCell className="text-right font-bold text-amber-600 dark:text-amber-500 py-4 px-6">{item.unredeemed.toLocaleString()}</TableCell>
+                        <TableCell className="text-right font-bold text-blue-600 dark:text-blue-500 py-4 px-6">{item.remaining.toLocaleString()}</TableCell>
+                        <TableCell className="py-4 px-6">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold w-10">{completion}%</span>
+                            <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                              <div className="h-full bg-emerald-500" style={{ width: `${completion}%` }} />
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {/* Grand Total Row */}
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-900/80 font-bold border-t-2 border-slate-200 dark:border-slate-700">
+                    <TableCell className="py-4 px-6 uppercase text-emerald-700 dark:text-emerald-400">Grand Total</TableCell>
+                    <TableCell className="text-right py-4 px-6">
+                      {stats?.provinceBreakdown?.reduce((sum, item) => sum + item.target, 0).toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-right py-4 px-6 text-emerald-600 dark:text-emerald-400">
+                      {stats?.provinceBreakdown?.reduce((sum, item) => sum + item.redeemed, 0).toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-right py-4 px-6 text-amber-600 dark:text-amber-500">
+                      {stats?.provinceBreakdown?.reduce((sum, item) => sum + item.unredeemed, 0).toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-right py-4 px-6 text-blue-600 dark:text-blue-500">
+                      {stats?.provinceBreakdown?.reduce((sum, item) => sum + item.remaining, 0).toLocaleString()}
+                    </TableCell>
+                    <TableCell className="py-4 px-6">
+                      {(() => {
+                        const totalTarget = stats?.provinceBreakdown?.reduce((sum, item) => sum + item.target, 0) || 0;
+                        const totalRedeemed = stats?.provinceBreakdown?.reduce((sum, item) => sum + item.redeemed, 0) || 0;
+                        const totalCompletion = totalTarget > 0 ? Math.round((totalRedeemed / totalTarget) * 100) : 0;
+                        return (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold w-10 text-emerald-700 dark:text-emerald-400">{totalCompletion}%</span>
+                            <div className="flex-1 h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                              <div className="h-full bg-emerald-600" style={{ width: `${totalCompletion}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Municipality Breakdown Table */}
       <Card className="border-stone-200 dark:border-slate-800 shadow-sm overflow-hidden">
         <CardHeader className="bg-slate-50/50 dark:bg-slate-800/30 border-b dark:border-slate-800">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <CardTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-emerald-600" />
                 Municipality Monitoring
               </CardTitle>
               <CardDescription className="text-sm dark:text-slate-400 mt-1">
-                Redemption progress per municipality for the current period
+                Redemption progress per municipality for {selectedMonth} {selectedYear}
               </CardDescription>
+            </div>
+
+            <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-md border border-slate-200 dark:border-slate-800 shadow-sm">
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger className="w-[100px] h-8 text-[11px] font-medium border-none shadow-none focus:ring-0">
+                  <SelectValue placeholder="Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {YEARS.map(year => (
+                    <SelectItem key={year} value={year}>{year}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="w-px h-4 bg-slate-200 dark:bg-slate-800" />
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger className="w-[120px] h-8 text-[11px] font-medium border-none shadow-none focus:ring-0">
+                  <SelectValue placeholder="Month" />
+                </SelectTrigger>
+                <SelectContent>
+                  {MONTHS.map(month => (
+                    <SelectItem key={month} value={month}>{month}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardHeader>
@@ -280,7 +438,6 @@ const RedemptionDashboardPage = () => {
           </div>
         </CardContent>
       </Card>
-      </div>
     </div>
   );
 };

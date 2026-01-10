@@ -119,7 +119,7 @@ const RedemptionPage = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      let benQuery = `?page=${currentPage}&limit=${itemsPerPage}&sort=${sortConfig.key}&order=${sortConfig.direction}`;
+      let benQuery = `?page=${currentPage}&limit=${itemsPerPage}&sort=${sortConfig.key}&order=${sortConfig.direction}&status=Active`;
       if (search) benQuery += `&search=${encodeURIComponent(search)}`;
       if (regionFilter !== "all") benQuery += `&region=${encodeURIComponent(regionFilter)}`;
       if (provinceFilter !== "all") benQuery += `&province=${encodeURIComponent(provinceFilter)}`;
@@ -258,7 +258,7 @@ const RedemptionPage = () => {
       const toastId = toast.loading("Preparing export...");
       
       // Fetch all beneficiaries for the current filter
-      let benQuery = `?limit=all`;
+      let benQuery = `?limit=all&status=Active`;
       if (search) benQuery += `&search=${encodeURIComponent(search)}`;
       if (regionFilter !== "all") benQuery += `&region=${encodeURIComponent(regionFilter)}`;
       if (provinceFilter !== "all") benQuery += `&province=${encodeURIComponent(provinceFilter)}`;

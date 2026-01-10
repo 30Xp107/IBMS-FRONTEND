@@ -44,6 +44,7 @@ const BeneficiariesPage = () => {
   const [provinceFilter, setProvinceFilter] = useState("all");
   const [municipalityFilter, setMunicipalityFilter] = useState("all");
   const [barangayFilter, setBarangayFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalBeneficiaries, setTotalBeneficiaries] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -140,11 +141,12 @@ const BeneficiariesPage = () => {
     region: "",
     contact: "",
     is4ps: "No",
+    status: "Active",
   });
 
   useEffect(() => {
     fetchBeneficiaries();
-  }, [currentPage, search, regionFilter, provinceFilter, municipalityFilter, barangayFilter, sortConfig]);
+  }, [currentPage, search, regionFilter, provinceFilter, municipalityFilter, barangayFilter, statusFilter, sortConfig]);
 
   useEffect(() => {
     fetchAreas("region");
@@ -199,6 +201,7 @@ const BeneficiariesPage = () => {
       if (provinceFilter !== "all") query += `&province=${encodeURIComponent(provinceFilter)}`;
       if (municipalityFilter !== "all") query += `&municipality=${encodeURIComponent(municipalityFilter)}`;
       if (barangayFilter !== "all") query += `&barangay=${encodeURIComponent(barangayFilter)}`;
+      if (statusFilter !== "all") query += `&status=${encodeURIComponent(statusFilter)}`;
 
       const response = await api.get(`/beneficiaries${query}`);
       const data = response.data;
@@ -302,6 +305,7 @@ const BeneficiariesPage = () => {
       region: "",
       contact: "",
       is4ps: "No",
+      status: "Active",
     });
     setEditingBeneficiary(null);
   };
@@ -356,6 +360,7 @@ const BeneficiariesPage = () => {
       region: beneficiary.region?.trim() || "",
       contact: beneficiary.contact?.trim() || "",
       is4ps: beneficiary.is4ps || "No",
+      status: beneficiary.status || "Active",
     };
     setFormData(initialData);
 
@@ -868,7 +873,7 @@ const BeneficiariesPage = () => {
                     </Select>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="contact" className="text-xs sm:text-sm">Contact Number</Label>
                     <Input
@@ -891,6 +896,22 @@ const BeneficiariesPage = () => {
                       <SelectContent>
                         <SelectItem value="Yes">Yes</SelectItem>
                         <SelectItem value="No">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="status" className="text-xs sm:text-sm">Status *</Label>
+                    <Select
+                      value={formData.status}
+                      onValueChange={(value) => handleSelectChange("status", value)}
+                    >
+                      <SelectTrigger className="h-9 sm:h-10 text-sm">
+                        <SelectValue placeholder="Select Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Active">Active</SelectItem>
+                        <SelectItem value="Inactive">Inactive</SelectItem>
+                        <SelectItem value="Not for Recording">Not for Recording</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1036,8 +1057,20 @@ const BeneficiariesPage = () => {
                   }
                 </SelectContent>
               </Select>
+
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Inactive">Inactive</SelectItem>
+                  <SelectItem value="Not for Recording">Not for Recording</SelectItem>
+                </SelectContent>
+              </Select>
               
-              {(regionFilter !== "all" || provinceFilter !== "all" || municipalityFilter !== "all" || barangayFilter !== "all") && (
+              {(regionFilter !== "all" || provinceFilter !== "all" || municipalityFilter !== "all" || barangayFilter !== "all" || statusFilter !== "all") && (
                 <Button 
                   variant="ghost" 
                   size="sm" 
@@ -1046,6 +1079,7 @@ const BeneficiariesPage = () => {
                     setProvinceFilter("all");
                     setMunicipalityFilter("all");
                     setBarangayFilter("all");
+                    setStatusFilter("all");
                   }}
                   className="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
                 >
@@ -1209,6 +1243,14 @@ const BeneficiariesPage = () => {
                       </TableHead>
                       <TableHead className="font-semibold text-slate-600 dark:text-slate-300">Contact</TableHead>
                       <TableHead className="font-semibold text-slate-600 dark:text-slate-300">Is 4Ps</TableHead>
+                      <TableHead 
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                        onClick={() => handleSort("status")}
+                      >
+                        <div className="flex items-center">
+                          Status {getSortIcon("status")}
+                        </div>
+                      </TableHead>
                       <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1244,6 +1286,17 @@ const BeneficiariesPage = () => {
                               : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400"
                           }`}>
                             {b.is4ps || "No"}
+                          </span>
+                        </TableCell>
+                        <TableCell className="dark:text-slate-300">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            b.status === "Active" 
+                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" 
+                              : b.status === "Not for Recording"
+                                ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                                : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                          }`}>
+                            {b.status || "Active"}
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
