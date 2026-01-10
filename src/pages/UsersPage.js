@@ -60,7 +60,7 @@ const UsersPage = () => {
 
   useEffect(() => {
     fetchUsers();
-  }, [currentPage, search, statusFilter]);
+  }, [currentPage, search, statusFilter, sortConfig]);
 
   useEffect(() => {
     fetchAreas("region");
@@ -69,7 +69,7 @@ const UsersPage = () => {
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
-      let query = `?page=${currentPage}&limit=${itemsPerPage}`;
+      let query = `?page=${currentPage}&limit=${itemsPerPage}&sort=${sortConfig.key}&order=${sortConfig.direction}`;
       if (search) query += `&search=${encodeURIComponent(search)}`;
       if (statusFilter) query += `&status=${encodeURIComponent(statusFilter)}`;
 
@@ -290,27 +290,8 @@ const UsersPage = () => {
     }
   };
 
-  const filteredUsers = [...users].sort((a, b) => {
-    if (!sortConfig.key) return 0;
-    const direction = sortConfig.direction === "asc" ? 1 : -1;
-    
-    let aValue = a[sortConfig.key];
-    let bValue = b[sortConfig.key];
-    
-    // Handle null/undefined
-    if (aValue === null || aValue === undefined) aValue = "";
-    if (bValue === null || bValue === undefined) bValue = "";
-    
-    // String comparison
-    if (typeof aValue === "string" && typeof bValue === "string") {
-      aValue = aValue.toLowerCase();
-      bValue = bValue.toLowerCase();
-    }
-    
-    if (aValue < bValue) return -1 * direction;
-    if (aValue > bValue) return 1 * direction;
-    return 0;
-  });
+  // Sorting is now handled on the server side
+  const filteredUsers = users;
 
   const currentUsers = filteredUsers;
   const paginate = (pageNumber) => setCurrentPage(pageNumber);

@@ -46,12 +46,12 @@ const AuditLogPage = () => {
 
   useEffect(() => {
     fetchLogs();
-  }, [currentPage, moduleFilter, searchQuery]);
+  }, [currentPage, moduleFilter, searchQuery, sortConfig]);
 
   const fetchLogs = async () => {
     setIsLoading(true);
     try {
-      let query = `?page=${currentPage}&limit=${itemsPerPage}`;
+      let query = `?page=${currentPage}&limit=${itemsPerPage}&sort=${sortConfig.key}&order=${sortConfig.direction}`;
       if (moduleFilter) query += `&module=${moduleFilter}`;
       if (searchQuery) query += `&search=${searchQuery}`;
       
@@ -139,35 +139,8 @@ const AuditLogPage = () => {
     }
   };
 
-  // Client-side sorting for the current page
-  const sortedLogs = [...logs].sort((a, b) => {
-    if (!sortConfig.key) return 0;
-    const direction = sortConfig.direction === "asc" ? 1 : -1;
-    
-    let aValue = a[sortConfig.key];
-    let bValue = b[sortConfig.key];
-    
-    // Handle null/undefined
-    if (aValue === null || aValue === undefined) aValue = "";
-    if (bValue === null || bValue === undefined) bValue = "";
-    
-    // Special case for timestamp/date
-    if (sortConfig.key === "timestamp" || sortConfig.key === "createdAt") {
-      return (new Date(aValue) - new Date(bValue)) * direction;
-    }
-    
-    // String comparison
-    if (typeof aValue === "string" && typeof bValue === "string") {
-      aValue = aValue.toLowerCase();
-      bValue = bValue.toLowerCase();
-    }
-    
-    if (aValue < bValue) return -1 * direction;
-    if (aValue > bValue) return 1 * direction;
-    return 0;
-  });
-
-  const displayLogs = sortedLogs;
+  // Sorting is now handled on the server side
+  const displayLogs = logs;
 
   const getActionBadge = (action) => {
     switch (action) {

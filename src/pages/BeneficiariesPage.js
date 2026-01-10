@@ -144,7 +144,7 @@ const BeneficiariesPage = () => {
 
   useEffect(() => {
     fetchBeneficiaries();
-  }, [currentPage, search, regionFilter, provinceFilter, municipalityFilter, barangayFilter]);
+  }, [currentPage, search, regionFilter, provinceFilter, municipalityFilter, barangayFilter, sortConfig]);
 
   useEffect(() => {
     fetchAreas("region");
@@ -193,7 +193,7 @@ const BeneficiariesPage = () => {
   const fetchBeneficiaries = async () => {
     setIsLoading(true);
     try {
-      let query = `?page=${currentPage}&limit=${itemsPerPage}`;
+      let query = `?page=${currentPage}&limit=${itemsPerPage}&sort=${sortConfig.key}&order=${sortConfig.direction}`;
       if (search) query += `&search=${encodeURIComponent(search)}`;
       if (regionFilter !== "all") query += `&region=${encodeURIComponent(regionFilter)}`;
       if (provinceFilter !== "all") query += `&province=${encodeURIComponent(provinceFilter)}`;
@@ -644,17 +644,7 @@ const BeneficiariesPage = () => {
     }
   };
 
-  const sortedBeneficiaries = [...beneficiaries].sort((a, b) => {
-    const key = sortConfig.key;
-    const direction = sortConfig.direction === "asc" ? 1 : -1;
-    
-    const aValue = String(a[key] || "").toLowerCase();
-    const bValue = String(b[key] || "").toLowerCase();
-
-    if (aValue < bValue) return -1 * direction;
-    if (aValue > bValue) return 1 * direction;
-    return 0;
-  });
+  const sortedBeneficiaries = beneficiaries;
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 

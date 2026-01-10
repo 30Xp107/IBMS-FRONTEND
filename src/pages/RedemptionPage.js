@@ -66,7 +66,7 @@ const RedemptionPage = () => {
   useEffect(() => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, search, monthFilter, yearFilter, attendanceFilter, regionFilter, provinceFilter, municipalityFilter, barangayFilter]);
+  }, [currentPage, search, monthFilter, yearFilter, attendanceFilter, regionFilter, provinceFilter, municipalityFilter, barangayFilter, sortConfig]);
 
   useEffect(() => {
     fetchAreas("region");
@@ -119,7 +119,7 @@ const RedemptionPage = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      let benQuery = `?page=${currentPage}&limit=${itemsPerPage}`;
+      let benQuery = `?page=${currentPage}&limit=${itemsPerPage}&sort=${sortConfig.key}&order=${sortConfig.direction}`;
       if (search) benQuery += `&search=${encodeURIComponent(search)}`;
       if (regionFilter !== "all") benQuery += `&region=${encodeURIComponent(regionFilter)}`;
       if (provinceFilter !== "all") benQuery += `&province=${encodeURIComponent(provinceFilter)}`;
@@ -366,34 +366,8 @@ const RedemptionPage = () => {
     return (areas || []).filter(a => a && a.type === "barangay" && (a.parent_id === municipality.id || a.parent_code === municipality.code));
   };
 
-  // Client-side sorting for the current page
-  const sortedBeneficiaries = [...beneficiaries].sort((a, b) => {
-    if (!sortConfig.key) return 0;
-    const direction = sortConfig.direction === "asc" ? 1 : -1;
-    
-    let aValue, bValue;
-    
-    if (sortConfig.key === "attendance") {
-      const redA = redemptions.find(r => r && r.beneficiary_id === a.id);
-      const redB = redemptions.find(r => r && r.beneficiary_id === b.id);
-      aValue = redA?.attendance || "none";
-      bValue = redB?.attendance || "none";
-    } else {
-      aValue = a[sortConfig.key];
-      bValue = b[sortConfig.key];
-    }
-
-    // Safety check and normalization
-    if (aValue === null || aValue === undefined) aValue = "";
-    if (bValue === null || bValue === undefined) bValue = "";
-
-    if (typeof aValue === "string") aValue = aValue.toLowerCase();
-    if (typeof bValue === "string") bValue = bValue.toLowerCase();
-    
-    if (aValue < bValue) return -1 * direction;
-    if (aValue > bValue) return 1 * direction;
-    return 0;
-  });
+  // Sorting is now handled on the server side
+  const sortedBeneficiaries = beneficiaries;
 
   const filteredBeneficiaries = sortedBeneficiaries.filter(b => {
     if (attendanceFilter === "all") return true;

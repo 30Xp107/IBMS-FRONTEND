@@ -64,7 +64,7 @@ const NESPage = () => {
 
   useEffect(() => {
     fetchData();
-  }, [currentPage, search, monthFilter, yearFilter, attendanceFilter, regionFilter, provinceFilter, municipalityFilter, barangayFilter]);
+  }, [currentPage, search, monthFilter, yearFilter, attendanceFilter, regionFilter, provinceFilter, municipalityFilter, barangayFilter, sortConfig]);
 
   useEffect(() => {
     fetchAreas("region");
@@ -117,7 +117,7 @@ const NESPage = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      let benQuery = `?page=${currentPage}&limit=${itemsPerPage}`;
+      let benQuery = `?page=${currentPage}&limit=${itemsPerPage}&sort=${sortConfig.key}&order=${sortConfig.direction}`;
       if (search) benQuery += `&search=${encodeURIComponent(search)}`;
       if (regionFilter !== "all") benQuery += `&region=${encodeURIComponent(regionFilter)}`;
       if (provinceFilter !== "all") benQuery += `&province=${encodeURIComponent(provinceFilter)}`;
@@ -325,28 +325,8 @@ const NESPage = () => {
     setCurrentPage(1);
   }, [search, attendanceFilter, sortConfig]);
 
-  // Client-side sorting for the current page
-  const sortedBeneficiaries = [...beneficiaries].sort((a, b) => {
-    if (!sortConfig.key) return 0;
-    const direction = sortConfig.direction === "asc" ? 1 : -1;
-    
-    let aValue = a[sortConfig.key];
-    let bValue = b[sortConfig.key];
-    
-    // Handle null/undefined
-    if (aValue === null || aValue === undefined) aValue = "";
-    if (bValue === null || bValue === undefined) bValue = "";
-    
-    // String comparison
-    if (typeof aValue === "string" && typeof bValue === "string") {
-      aValue = aValue.toLowerCase();
-      bValue = bValue.toLowerCase();
-    }
-    
-    if (aValue < bValue) return -1 * direction;
-    if (aValue > bValue) return 1 * direction;
-    return 0;
-  });
+  // No longer using client-side sorting as we now fetch sorted data from server
+  const sortedBeneficiaries = beneficiaries;
 
   const filteredBeneficiaries = sortedBeneficiaries.filter(b => {
     if (attendanceFilter === "all") return true;
