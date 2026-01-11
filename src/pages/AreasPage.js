@@ -210,7 +210,7 @@ const AreasPage = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {isLoading ? (
+          {isLoading && areas.length === 0 ? (
             <div className="flex items-center justify-center h-32">
               <div className="spinner" />
             </div>
@@ -225,72 +225,76 @@ const AreasPage = () => {
                 <TableHeader>
                   <TableRow className="bg-stone-100 dark:bg-slate-800/50 hover:bg-stone-100 dark:hover:bg-slate-800/50 border-b dark:border-slate-800">
                       <TableHead 
-                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-left pl-6"
                         onClick={() => handleSort("code")}
                       >
-                        <div className="flex items-center">
+                        <div className="flex items-center justify-start">
                           PSGC Code {getSortIcon("code")}
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
                         onClick={() => handleSort("name")}
                       >
-                        <div className="flex items-center">
+                        <div className="flex items-center justify-center">
                           Area Name {getSortIcon("name")}
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
                         onClick={() => handleSort("type")}
                       >
-                        <div className="flex items-center">
+                        <div className="flex items-center justify-center">
                           Type {getSortIcon("type")}
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
                         onClick={() => handleSort("parent_id")}
                       >
-                        <div className="flex items-center">
+                        <div className="flex items-center justify-center">
                           Parent Area {getSortIcon("parent_id")}
                         </div>
                       </TableHead>
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
                       onClick={() => handleSort("createdAt")}
                     >
-                      <div className="flex items-center">
+                      <div className="flex items-center justify-center">
                         Created At {getSortIcon("createdAt")}
                       </div>
                     </TableHead>
-                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-right pr-6">Actions</TableHead>
+                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                   {areas.map((area) => (
                     <TableRow key={area.id} className="border-b dark:border-slate-800 hover:bg-stone-50 dark:hover:bg-slate-800/30">
-                      <TableCell className="font-mono text-xs dark:text-slate-400">{area.code}</TableCell>
-                      <TableCell className="font-medium dark:text-slate-200">{area.name}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={getTypeBadgeColor(area.type)}>
-                          {getTypeIcon(area.type)}
-                          <span className="ml-1 capitalize">{area.type}</span>
-                        </Badge>
+                      <TableCell className="font-mono text-xs dark:text-slate-400 text-left pl-6">{area.code}</TableCell>
+                      <TableCell className="font-medium dark:text-slate-200 text-center">{area.name}</TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex justify-center">
+                          <Badge variant="outline" className={getTypeBadgeColor(area.type)}>
+                            {getTypeIcon(area.type)}
+                            <span className="ml-1 capitalize">{area.type}</span>
+                          </Badge>
+                        </div>
                       </TableCell>
-                      <TableCell className="dark:text-slate-300">{getParentName(area)}</TableCell>
-                      <TableCell className="text-slate-500 dark:text-slate-400">
+                      <TableCell className="dark:text-slate-300 text-center">{getParentName(area)}</TableCell>
+                      <TableCell className="text-slate-500 dark:text-slate-400 text-center">
                         {new Date(area.createdAt).toLocaleDateString()}
                       </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-900/20"
-                          onClick={() => handleDelete(area.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                      <TableCell className="text-center">
+                        <div className="flex justify-center">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-900/20"
+                            onClick={() => handleDelete(area.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

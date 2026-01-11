@@ -322,7 +322,7 @@ const AuditLogPage = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {isLoading ? (
+          {isLoading && logs.length === 0 ? (
             <div className="flex items-center justify-center h-32">
               <div className="spinner" />
             </div>
@@ -332,46 +332,46 @@ const AuditLogPage = () => {
                 <TableHeader>
                   <TableRow className="bg-stone-100 dark:bg-slate-800/50 border-b dark:border-slate-800">
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-left pl-6"
                       onClick={() => handleSort("timestamp")}
                     >
-                      <div className="flex items-center">
+                      <div className="flex items-center justify-start">
                         Timestamp {getSortIcon("timestamp")}
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
                       onClick={() => handleSort("user_name")}
                     >
-                      <div className="flex items-center">
+                      <div className="flex items-center justify-center">
                         User {getSortIcon("user_name")}
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
                       onClick={() => handleSort("action")}
                     >
-                      <div className="flex items-center">
+                      <div className="flex items-center justify-center">
                         Action {getSortIcon("action")}
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
                       onClick={() => handleSort("module")}
                     >
-                      <div className="flex items-center">
+                      <div className="flex items-center justify-center">
                         Module {getSortIcon("module")}
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
                       onClick={() => handleSort("record_id")}
                     >
-                      <div className="flex items-center">
+                      <div className="flex items-center justify-center">
                         Record ID {getSortIcon("record_id")}
                       </div>
                     </TableHead>
-                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300">Changes</TableHead>
+                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center">Changes</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -388,8 +388,8 @@ const AuditLogPage = () => {
                         className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors"
                         onClick={() => handleRowClick(log)}
                       >
-                        <TableCell className="py-3">
-                          <div className="flex flex-col">
+                        <TableCell className="py-3 text-left pl-6">
+                          <div className="flex flex-col items-start">
                             <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
                               {formatTimestamp(log.timestamp || log.createdAt).date}
                             </span>
@@ -398,8 +398,8 @@ const AuditLogPage = () => {
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell className="py-3">
-                          <div className="flex flex-col">
+                        <TableCell className="py-3 text-center">
+                          <div className="flex flex-col items-center">
                             <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
                               {log.user_name}
                             </span>
@@ -408,17 +408,21 @@ const AuditLogPage = () => {
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell className="py-3">
-                          {getActionBadge(log.action)}
+                        <TableCell className="py-3 text-center">
+                          <div className="flex justify-center">
+                            {getActionBadge(log.action)}
+                          </div>
                         </TableCell>
-                        <TableCell className="py-3">
-                          {getModuleBadge(log.module)}
+                        <TableCell className="py-3 text-center">
+                          <div className="flex justify-center">
+                            {getModuleBadge(log.module)}
+                          </div>
                         </TableCell>
-                        <TableCell className="py-3 font-mono text-xs text-slate-500 dark:text-slate-400">
+                        <TableCell className="py-3 font-mono text-xs text-slate-500 dark:text-slate-400 text-center">
                           {log.record_id ? `${log.record_id.substring(0, 8)}...` : "-"}
                         </TableCell>
-                        <TableCell className="py-3">
-                          <div className="flex items-center justify-between">
+                        <TableCell className="py-3 text-center">
+                          <div className="flex items-center justify-center gap-2">
                             {renderChanges(log)}
                             <Eye className="w-4 h-4 text-slate-400" />
                           </div>

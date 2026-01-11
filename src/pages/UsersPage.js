@@ -404,7 +404,7 @@ const UsersPage = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {isLoading ? (
+          {isLoading && filteredUsers.length === 0 ? (
             <div className="flex items-center justify-center h-32">
               <div className="spinner" />
             </div>
@@ -419,79 +419,85 @@ const UsersPage = () => {
                 <TableHeader>
                   <TableRow className="bg-stone-100 dark:bg-slate-800/50 hover:bg-stone-100 dark:hover:bg-slate-800/50 border-b dark:border-slate-800">
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-left pl-6"
                       onClick={() => handleSort("name")}
                     >
-                      <div className="flex items-center">
+                      <div className="flex items-center justify-start">
                         Name {getSortIcon("name")}
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
                       onClick={() => handleSort("email")}
                     >
-                      <div className="flex items-center">
+                      <div className="flex items-center justify-center">
                         Email {getSortIcon("email")}
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
                       onClick={() => handleSort("role")}
                     >
-                      <div className="flex items-center">
+                      <div className="flex items-center justify-center">
                         Role {getSortIcon("role")}
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
                       onClick={() => handleSort("status")}
                     >
-                      <div className="flex items-center">
+                      <div className="flex items-center justify-center">
                         Status {getSortIcon("status")}
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
                       onClick={() => handleSort("assigned_areas")}
                     >
-                      <div className="flex items-center">
+                      <div className="flex items-center justify-center">
                         Assigned Areas {getSortIcon("assigned_areas")}
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
                       onClick={() => handleSort("createdAt")}
                     >
-                      <div className="flex items-center">
+                      <div className="flex items-center justify-center">
                         Joined {getSortIcon("createdAt")}
                       </div>
                     </TableHead>
-                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-right pr-6">Actions</TableHead>
+                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredUsers.map((user) => (
                     <TableRow key={user.id} className="border-b dark:border-slate-800 hover:bg-stone-50 dark:hover:bg-slate-800/30">
-                      <TableCell className="font-medium dark:text-slate-200">{user.name}</TableCell>
-                      <TableCell className="dark:text-slate-300">{user.email}</TableCell>
-                      <TableCell className="capitalize dark:text-slate-300">
-                        <Select
-                          value={user.role}
-                          onValueChange={(newRole) => handleRoleChange(user.id, newRole)}
-                        >
-                          <SelectTrigger className="h-8 w-24 dark:bg-slate-900 dark:border-slate-700">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
-                            <SelectItem value="user">User</SelectItem>
-                            <SelectItem value="admin">Admin</SelectItem>
-                          </SelectContent>
-                        </Select>
+                      <TableCell className="font-medium dark:text-slate-200 text-left pl-6">{user.name}</TableCell>
+                      <TableCell className="dark:text-slate-300 text-center">{user.email}</TableCell>
+                      <TableCell className="capitalize dark:text-slate-300 text-center">
+                        <div className="flex justify-center">
+                          <Select
+                            value={user.role}
+                            onValueChange={(newRole) => handleRoleChange(user.id, newRole)}
+                          >
+                            <SelectTrigger className="h-8 w-24 dark:bg-slate-900 dark:border-slate-700">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
+                              <SelectItem value="user">User</SelectItem>
+                              <SelectItem value="admin">Admin</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </TableCell>
-                      <TableCell>{getStatusBadge(user.status)}</TableCell>
-                      <TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex justify-center">
+                          {getStatusBadge(user.status)}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
                         {user.assigned_areas && user.assigned_areas.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
+                          <div className="flex flex-wrap gap-1 justify-center">
                             {user.assigned_areas.map((area) => {
                               const areaName = typeof area === 'object' ? area.name : getAreaName(area);
                               const areaId = typeof area === 'object' ? (area._id || area.id) : area;
@@ -509,11 +515,11 @@ const UsersPage = () => {
                           <span className="text-slate-400 dark:text-slate-600">-</span>
                         )}
                       </TableCell>
-                      <TableCell className="dark:text-slate-300 text-xs whitespace-nowrap">
+                      <TableCell className="dark:text-slate-300 text-xs whitespace-nowrap text-center">
                         {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "-"}
                       </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
+                      <TableCell className="text-center">
+                        <div className="flex justify-center gap-2">
                           <Button
                             size="sm"
                             variant="ghost"

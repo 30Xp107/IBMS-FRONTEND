@@ -138,7 +138,7 @@ const NesDashboardPage = () => {
     }
   };
 
-  if (isLoading) {
+  if (isLoading && !stats) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="spinner" />
@@ -164,11 +164,37 @@ const NesDashboardPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">NES Dashboard</h1>
-        <p className="text-slate-500 dark:text-slate-400">
-          Detailed overview of Walang Gutom Program NES records.
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">NES Dashboard</h1>
+          <p className="text-slate-500 dark:text-slate-400">
+            Overview of Nutritional Education Sessions progress.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-md border border-slate-200 dark:border-slate-800 shadow-sm">
+          <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <SelectTrigger className="w-[100px] h-8 text-[11px] font-medium border-none shadow-none focus:ring-0">
+              <SelectValue placeholder="Year" />
+            </SelectTrigger>
+            <SelectContent>
+              {YEARS.map(year => (
+                <SelectItem key={year} value={year}>{year}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="w-px h-4 bg-slate-200 dark:bg-slate-800" />
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="w-[120px] h-8 text-[11px] font-medium border-none shadow-none focus:ring-0">
+              <SelectValue placeholder="Month" />
+            </SelectTrigger>
+            <SelectContent>
+              {MONTHS.map(month => (
+                <SelectItem key={month} value={month}>{month}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -244,40 +270,40 @@ const NesDashboardPage = () => {
                 <TableHeader>
                   <TableRow className="bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-50/50 dark:hover:bg-slate-900/50">
                     <TableHead 
-                      className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
+                      className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors text-left pl-6"
                       onClick={() => handleSort('period', 'period')}
                     >
-                      <div className="flex items-center">FRM Period <SortIcon table="period" column="period" /></div>
+                      <div className="flex items-center justify-start">FRM Period <SortIcon table="period" column="period" /></div>
                     </TableHead>
                     <TableHead 
-                      className="text-right font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
+                      className="text-center font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
                       onClick={() => handleSort('period', 'target')}
                     >
-                      <div className="flex items-center justify-end">Target <SortIcon table="period" column="target" /></div>
+                      <div className="flex items-center justify-center">Target <SortIcon table="period" column="target" /></div>
                     </TableHead>
                     <TableHead 
-                      className="text-right font-bold text-violet-600 dark:text-violet-400 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
+                      className="text-center font-bold text-violet-600 dark:text-violet-400 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
                       onClick={() => handleSort('period', 'attended')}
                     >
-                      <div className="flex items-center justify-end">Attended <SortIcon table="period" column="attended" /></div>
+                      <div className="flex items-center justify-center">Attended <SortIcon table="period" column="attended" /></div>
                     </TableHead>
                     <TableHead 
-                      className="text-right font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
+                      className="text-center font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
                       onClick={() => handleSort('period', 'absent')}
                     >
-                      <div className="flex items-center justify-end">Absent <SortIcon table="period" column="absent" /></div>
+                      <div className="flex items-center justify-center">Absent <SortIcon table="period" column="absent" /></div>
                     </TableHead>
                     <TableHead 
-                      className="text-right font-bold text-blue-600 dark:text-blue-500 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
+                      className="text-center font-bold text-blue-600 dark:text-blue-500 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
                       onClick={() => handleSort('period', 'remaining')}
                     >
-                      <div className="flex items-center justify-end">Remaining <SortIcon table="period" column="remaining" /></div>
+                      <div className="flex items-center justify-center">Remaining <SortIcon table="period" column="remaining" /></div>
                     </TableHead>
                     <TableHead 
-                      className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 w-[150px] cursor-pointer hover:bg-slate-100/50 transition-colors"
+                      className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 w-[150px] cursor-pointer hover:bg-slate-100/50 transition-colors text-center"
                       onClick={() => handleSort('period', 'completion')}
                     >
-                      <div className="flex items-center">Completion <SortIcon table="period" column="completion" /></div>
+                      <div className="flex items-center justify-center">Completion <SortIcon table="period" column="completion" /></div>
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -286,16 +312,24 @@ const NesDashboardPage = () => {
                     const completion = item.target > 0 ? Math.round((item.attended / item.target) * 100) : 0;
                     return (
                       <TableRow key={index} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors border-b dark:border-slate-800">
-                        <TableCell className="font-bold text-slate-800 dark:text-slate-200 py-4 px-6">{item.period}</TableCell>
-                        <TableCell className="text-right font-medium text-slate-600 dark:text-slate-400 py-4 px-6">{item.target.toLocaleString()}</TableCell>
-                        <TableCell className="text-right font-bold text-violet-600 dark:text-violet-400 py-4 px-6">{item.attended.toLocaleString()}</TableCell>
-                        <TableCell className="text-right font-bold text-amber-600 dark:text-amber-500 py-4 px-6">{item.absent.toLocaleString()}</TableCell>
-                        <TableCell className="text-right font-bold text-blue-600 dark:text-blue-500 py-4 px-6">{item.remaining.toLocaleString()}</TableCell>
+                        <TableCell className="font-bold text-slate-800 dark:text-slate-200 py-4 px-6 text-left pl-6">{item.period}</TableCell>
+                        <TableCell className="text-center font-medium text-slate-600 dark:text-slate-400 py-4 px-6">{item.target.toLocaleString()}</TableCell>
+                        <TableCell className="text-center font-bold text-violet-600 dark:text-violet-400 py-4 px-6">{item.attended.toLocaleString()}</TableCell>
+                        <TableCell className="text-center font-bold text-amber-600 dark:text-amber-500 py-4 px-6">{item.absent.toLocaleString()}</TableCell>
+                        <TableCell className="text-center font-bold text-blue-600 dark:text-blue-500 py-4 px-6">{item.remaining.toLocaleString()}</TableCell>
                         <TableCell className="py-4 px-6">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold w-10">{completion}%</span>
-                            <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                              <div className="h-full bg-violet-500" style={{ width: `${completion}%` }} />
+                          <div className="flex items-center justify-center gap-3">
+                            <span className="text-xs font-bold w-10 text-slate-700 dark:text-slate-300 text-center">{completion}%</span>
+                            <div className="flex-1 max-w-[120px] h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full transition-all duration-500 ${
+                                  completion >= 100 ? 'bg-violet-500' : 
+                                  completion >= 75 ? 'bg-violet-400' : 
+                                  completion >= 50 ? 'bg-amber-400' : 
+                                  'bg-amber-500'
+                                }`}
+                                style={{ width: `${completion}%` }}
+                              />
                             </div>
                           </div>
                         </TableCell>
@@ -304,17 +338,17 @@ const NesDashboardPage = () => {
                   })}
                   {/* Grand Total Row */}
                   <TableRow className="bg-slate-50/80 dark:bg-slate-900/80 font-bold border-t-2 border-slate-200 dark:border-slate-700">
-                    <TableCell className="py-4 px-6 uppercase text-violet-700 dark:text-violet-400">Grand Total</TableCell>
-                    <TableCell className="text-right py-4 px-6">
+                    <TableCell className="py-4 px-6 uppercase text-violet-700 dark:text-violet-400 text-left pl-6">Grand Total</TableCell>
+                    <TableCell className="text-center py-4 px-6">
                       {stats?.periodStats?.reduce((sum, item) => sum + item.target, 0).toLocaleString()}
                     </TableCell>
-                    <TableCell className="text-right py-4 px-6 text-violet-600 dark:text-violet-400">
+                    <TableCell className="text-center py-4 px-6 text-violet-600 dark:text-violet-400">
                       {stats?.periodStats?.reduce((sum, item) => sum + item.attended, 0).toLocaleString()}
                     </TableCell>
-                    <TableCell className="text-right py-4 px-6 text-amber-600 dark:text-amber-500">
+                    <TableCell className="text-center py-4 px-6 text-amber-600 dark:text-amber-500">
                       {stats?.periodStats?.reduce((sum, item) => sum + item.absent, 0).toLocaleString()}
                     </TableCell>
-                    <TableCell className="text-right py-4 px-6 text-blue-600 dark:text-blue-500">
+                    <TableCell className="text-center py-4 px-6 text-blue-600 dark:text-blue-500">
                       {stats?.periodStats?.reduce((sum, item) => sum + item.remaining, 0).toLocaleString()}
                     </TableCell>
                     <TableCell className="py-4 px-6">
@@ -323,10 +357,13 @@ const NesDashboardPage = () => {
                         const totalAttended = stats?.periodStats?.reduce((sum, item) => sum + item.attended, 0) || 0;
                         const totalCompletion = totalTarget > 0 ? Math.round((totalAttended / totalTarget) * 100) : 0;
                         return (
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold w-10 text-violet-700 dark:text-violet-400">{totalCompletion}%</span>
-                            <div className="flex-1 h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                              <div className="h-full bg-violet-600" style={{ width: `${totalCompletion}%` }} />
+                          <div className="flex items-center justify-center gap-3">
+                            <span className="text-xs font-bold w-10 text-violet-700 dark:text-violet-400 text-center">{totalCompletion}%</span>
+                            <div className="flex-1 max-w-[120px] h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-violet-600 transition-all duration-500" 
+                                style={{ width: `${totalCompletion}%` }}
+                              />
                             </div>
                           </div>
                         );
@@ -342,41 +379,41 @@ const NesDashboardPage = () => {
         {/* Province Monitoring Table */}
         <Card className="border-stone-200 dark:border-slate-800 shadow-sm overflow-hidden">
           <CardHeader className="bg-slate-50/50 dark:bg-slate-800/30 border-b dark:border-slate-800">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <CardTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-violet-600" />
-                  Province Monitoring
-                </CardTitle>
-                <CardDescription className="text-sm dark:text-slate-400 mt-1">
-                  NES progress per province for {selectedMonth} {selectedYear}
-                </CardDescription>
-              </div>
-
-              <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-md border border-slate-200 dark:border-slate-800 shadow-sm">
-                <Select value={selectedYear} onValueChange={setSelectedYear}>
-                  <SelectTrigger className="w-[100px] h-8 text-[11px] font-medium border-none shadow-none focus:ring-0">
-                    <SelectValue placeholder="Year" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {YEARS.map(year => (
-                      <SelectItem key={year} value={year}>{year}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <div className="w-px h-4 bg-slate-200 dark:bg-slate-800" />
-                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                  <SelectTrigger className="w-[120px] h-8 text-[11px] font-medium border-none shadow-none focus:ring-0">
-                    <SelectValue placeholder="Month" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MONTHS.map(month => (
-                      <SelectItem key={month} value={month}>{month}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <CardTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <MapPin className="w-5 h-5 text-violet-600" />
+                Province Monitoring
+              </CardTitle>
+              <CardDescription className="text-sm dark:text-slate-400 mt-1">
+                NES progress per province for {selectedMonth} {selectedYear}
+              </CardDescription>
             </div>
+            
+            <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1 rounded-md border border-slate-200 dark:border-slate-800 shadow-sm scale-90 origin-right">
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger className="w-[90px] h-7 text-[10px] font-medium border-none shadow-none focus:ring-0">
+                  <SelectValue placeholder="Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {YEARS.map(year => (
+                    <SelectItem key={year} value={year}>{year}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="w-px h-3 bg-slate-200 dark:bg-slate-800" />
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger className="w-[110px] h-7 text-[10px] font-medium border-none shadow-none focus:ring-0">
+                  <SelectValue placeholder="Month" />
+                </SelectTrigger>
+                <SelectContent>
+                  {MONTHS.map(month => (
+                    <SelectItem key={month} value={month}>{month}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
@@ -384,40 +421,40 @@ const NesDashboardPage = () => {
                 <TableHeader>
                   <TableRow className="bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-50/50 dark:hover:bg-slate-900/50">
                     <TableHead 
-                      className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
+                      className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors text-left pl-6"
                       onClick={() => handleSort('province', 'province')}
                     >
-                      <div className="flex items-center">Province <SortIcon table="province" column="province" /></div>
+                      <div className="flex items-center justify-start">Province <SortIcon table="province" column="province" /></div>
                     </TableHead>
                     <TableHead 
-                      className="text-right font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
+                      className="text-center font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
                       onClick={() => handleSort('province', 'target')}
                     >
-                      <div className="flex items-center justify-end">Target <SortIcon table="province" column="target" /></div>
+                      <div className="flex items-center justify-center">Target <SortIcon table="province" column="target" /></div>
                     </TableHead>
                     <TableHead 
-                      className="text-right font-bold text-violet-600 dark:text-violet-400 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
+                      className="text-center font-bold text-violet-600 dark:text-violet-400 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
                       onClick={() => handleSort('province', 'attended')}
                     >
-                      <div className="flex items-center justify-end">Attended <SortIcon table="province" column="attended" /></div>
+                      <div className="flex items-center justify-center">Attended <SortIcon table="province" column="attended" /></div>
                     </TableHead>
                     <TableHead 
-                      className="text-right font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
+                      className="text-center font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
                       onClick={() => handleSort('province', 'absent')}
                     >
-                      <div className="flex items-center justify-end">Absent <SortIcon table="province" column="absent" /></div>
+                      <div className="flex items-center justify-center">Absent <SortIcon table="province" column="absent" /></div>
                     </TableHead>
                     <TableHead 
-                      className="text-right font-bold text-blue-600 dark:text-blue-500 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
+                      className="text-center font-bold text-blue-600 dark:text-blue-500 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
                       onClick={() => handleSort('province', 'remaining')}
                     >
-                      <div className="flex items-center justify-end">Remaining <SortIcon table="province" column="remaining" /></div>
+                      <div className="flex items-center justify-center">Remaining <SortIcon table="province" column="remaining" /></div>
                     </TableHead>
                     <TableHead 
-                      className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 w-[150px] cursor-pointer hover:bg-slate-100/50 transition-colors"
+                      className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 w-[150px] cursor-pointer hover:bg-slate-100/50 transition-colors text-center"
                       onClick={() => handleSort('province', 'completion')}
                     >
-                      <div className="flex items-center">Completion <SortIcon table="province" column="completion" /></div>
+                      <div className="flex items-center justify-center">Completion <SortIcon table="province" column="completion" /></div>
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -426,15 +463,15 @@ const NesDashboardPage = () => {
                     const completion = item.target > 0 ? Math.round((item.attended / item.target) * 100) : 0;
                     return (
                       <TableRow key={index} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors border-b dark:border-slate-800">
-                        <TableCell className="font-bold text-slate-800 dark:text-slate-200 py-4 px-6 uppercase">{item.province}</TableCell>
-                        <TableCell className="text-right font-medium text-slate-600 dark:text-slate-400 py-4 px-6">{item.target.toLocaleString()}</TableCell>
-                        <TableCell className="text-right font-bold text-violet-600 dark:text-violet-400 py-4 px-6">{item.attended.toLocaleString()}</TableCell>
-                        <TableCell className="text-right font-bold text-amber-600 dark:text-amber-500 py-4 px-6">{item.absent.toLocaleString()}</TableCell>
-                        <TableCell className="text-right font-bold text-blue-600 dark:text-blue-500 py-4 px-6">{item.remaining.toLocaleString()}</TableCell>
+                        <TableCell className="font-bold text-slate-800 dark:text-slate-200 py-4 px-6 uppercase text-left pl-6">{item.province}</TableCell>
+                        <TableCell className="text-center font-medium text-slate-600 dark:text-slate-400 py-4 px-6">{item.target.toLocaleString()}</TableCell>
+                        <TableCell className="text-center font-bold text-violet-600 dark:text-violet-400 py-4 px-6">{item.attended.toLocaleString()}</TableCell>
+                        <TableCell className="text-center font-bold text-amber-600 dark:text-amber-500 py-4 px-6">{item.absent.toLocaleString()}</TableCell>
+                        <TableCell className="text-center font-bold text-blue-600 dark:text-blue-500 py-4 px-6">{item.remaining.toLocaleString()}</TableCell>
                         <TableCell className="py-4 px-6">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold w-10">{completion}%</span>
-                            <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                          <div className="flex items-center justify-center gap-2">
+                            <span className="text-xs font-bold w-10 text-center">{completion}%</span>
+                            <div className="flex-1 max-w-[100px] h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                               <div className="h-full bg-violet-500" style={{ width: `${completion}%` }} />
                             </div>
                           </div>
@@ -442,19 +479,18 @@ const NesDashboardPage = () => {
                       </TableRow>
                     );
                   })}
-                  {/* Grand Total Row */}
                   <TableRow className="bg-slate-50/80 dark:bg-slate-900/80 font-bold border-t-2 border-slate-200 dark:border-slate-700">
-                    <TableCell className="py-4 px-6 uppercase text-violet-700 dark:text-violet-400">Grand Total</TableCell>
-                    <TableCell className="text-right py-4 px-6">
+                    <TableCell className="py-4 px-6 uppercase text-violet-700 dark:text-violet-400 text-left pl-6">Grand Total</TableCell>
+                    <TableCell className="text-center py-4 px-6">
                       {stats?.provinceBreakdown?.reduce((sum, item) => sum + item.target, 0).toLocaleString()}
                     </TableCell>
-                    <TableCell className="text-right py-4 px-6 text-violet-600 dark:text-violet-400">
+                    <TableCell className="text-center py-4 px-6 text-violet-600 dark:text-violet-400">
                       {stats?.provinceBreakdown?.reduce((sum, item) => sum + item.attended, 0).toLocaleString()}
                     </TableCell>
-                    <TableCell className="text-right py-4 px-6 text-amber-600 dark:text-amber-500">
+                    <TableCell className="text-center py-4 px-6 text-amber-600 dark:text-amber-500">
                       {stats?.provinceBreakdown?.reduce((sum, item) => sum + item.absent, 0).toLocaleString()}
                     </TableCell>
-                    <TableCell className="text-right py-4 px-6 text-blue-600 dark:text-blue-500">
+                    <TableCell className="text-center py-4 px-6 text-blue-600 dark:text-blue-500">
                       {stats?.provinceBreakdown?.reduce((sum, item) => sum + item.remaining, 0).toLocaleString()}
                     </TableCell>
                     <TableCell className="py-4 px-6">
@@ -463,9 +499,9 @@ const NesDashboardPage = () => {
                         const totalAttended = stats?.provinceBreakdown?.reduce((sum, item) => sum + item.attended, 0) || 0;
                         const totalCompletion = totalTarget > 0 ? Math.round((totalAttended / totalTarget) * 100) : 0;
                         return (
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold w-10 text-violet-700 dark:text-violet-400">{totalCompletion}%</span>
-                            <div className="flex-1 h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                          <div className="flex items-center justify-center gap-2">
+                            <span className="text-xs font-bold w-10 text-violet-700 dark:text-violet-400 text-center">{totalCompletion}%</span>
+                            <div className="flex-1 max-w-[100px] h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                               <div className="h-full bg-violet-600" style={{ width: `${totalCompletion}%` }} />
                             </div>
                           </div>
@@ -537,30 +573,6 @@ const NesDashboardPage = () => {
                 NES progress per municipality for {selectedMonth} {selectedYear}
               </CardDescription>
             </div>
-
-            <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-md border border-slate-200 dark:border-slate-800 shadow-sm">
-              <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger className="w-[100px] h-8 text-[11px] font-medium border-none shadow-none focus:ring-0">
-                  <SelectValue placeholder="Year" />
-                </SelectTrigger>
-                <SelectContent>
-                  {YEARS.map(year => (
-                    <SelectItem key={year} value={year}>{year}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="w-px h-4 bg-slate-200 dark:bg-slate-800" />
-              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="w-[120px] h-8 text-[11px] font-medium border-none shadow-none focus:ring-0">
-                  <SelectValue placeholder="Month" />
-                </SelectTrigger>
-                <SelectContent>
-                  {MONTHS.map(month => (
-                    <SelectItem key={month} value={month}>{month}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -569,40 +581,40 @@ const NesDashboardPage = () => {
               <TableHeader>
                 <TableRow className="bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-50/50 dark:hover:bg-slate-900/50">
                   <TableHead 
-                    className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
+                    className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors text-left pl-6"
                     onClick={() => handleSort('municipality', 'municipality')}
                   >
-                    <div className="flex items-center">Municipality <SortIcon table="municipality" column="municipality" /></div>
+                    <div className="flex items-center justify-start">Municipality <SortIcon table="municipality" column="municipality" /></div>
                   </TableHead>
                   <TableHead 
-                    className="text-right font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
+                    className="text-center font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
                     onClick={() => handleSort('municipality', 'target')}
                   >
-                    <div className="flex items-center justify-end">Target <SortIcon table="municipality" column="target" /></div>
+                    <div className="flex items-center justify-center">Target <SortIcon table="municipality" column="target" /></div>
                   </TableHead>
                   <TableHead 
-                    className="text-right font-bold text-violet-600 dark:text-violet-400 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
+                    className="text-center font-bold text-violet-600 dark:text-violet-400 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
                     onClick={() => handleSort('municipality', 'attended')}
                   >
-                    <div className="flex items-center justify-end">Attended <SortIcon table="municipality" column="attended" /></div>
+                    <div className="flex items-center justify-center">Attended <SortIcon table="municipality" column="attended" /></div>
                   </TableHead>
                   <TableHead 
-                    className="text-right font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
+                    className="text-center font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
                     onClick={() => handleSort('municipality', 'absent')}
                   >
-                    <div className="flex items-center justify-end">Absent <SortIcon table="municipality" column="absent" /></div>
+                    <div className="flex items-center justify-center">Absent <SortIcon table="municipality" column="absent" /></div>
                   </TableHead>
                   <TableHead 
-                    className="text-right font-bold text-blue-600 dark:text-blue-500 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
+                    className="text-center font-bold text-blue-600 dark:text-blue-500 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
                     onClick={() => handleSort('municipality', 'remaining')}
                   >
-                    <div className="flex items-center justify-end">Remaining <SortIcon table="municipality" column="remaining" /></div>
+                    <div className="flex items-center justify-center">Remaining <SortIcon table="municipality" column="remaining" /></div>
                   </TableHead>
                   <TableHead 
-                    className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 w-[200px] cursor-pointer hover:bg-slate-100/50 transition-colors"
+                    className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 w-[200px] cursor-pointer hover:bg-slate-100/50 transition-colors text-center"
                     onClick={() => handleSort('municipality', 'completion')}
                   >
-                    <div className="flex items-center">Completion <SortIcon table="municipality" column="completion" /></div>
+                    <div className="flex items-center justify-center">Completion <SortIcon table="municipality" column="completion" /></div>
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -612,15 +624,15 @@ const NesDashboardPage = () => {
                   
                   return (
                     <TableRow key={index} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors border-b dark:border-slate-800">
-                      <TableCell className="font-bold text-slate-800 dark:text-slate-200 py-4 px-6 uppercase">{item.municipality}</TableCell>
-                      <TableCell className="text-right font-medium text-slate-600 dark:text-slate-400 py-4 px-6">{item.target.toLocaleString()}</TableCell>
-                      <TableCell className="text-right font-bold text-violet-600 dark:text-violet-400 py-4 px-6">{item.attended.toLocaleString()}</TableCell>
-                      <TableCell className="text-right font-bold text-amber-600 dark:text-amber-500 py-4 px-6">{item.absent.toLocaleString()}</TableCell>
-                      <TableCell className="text-right font-bold text-blue-600 dark:text-blue-500 py-4 px-6">{item.remaining.toLocaleString()}</TableCell>
+                      <TableCell className="font-bold text-slate-800 dark:text-slate-200 py-4 px-6 uppercase text-left pl-6">{item.municipality}</TableCell>
+                      <TableCell className="text-center font-medium text-slate-600 dark:text-slate-400 py-4 px-6">{item.target.toLocaleString()}</TableCell>
+                      <TableCell className="text-center font-bold text-violet-600 dark:text-violet-400 py-4 px-6">{item.attended.toLocaleString()}</TableCell>
+                      <TableCell className="text-center font-bold text-amber-600 dark:text-amber-500 py-4 px-6">{item.absent.toLocaleString()}</TableCell>
+                      <TableCell className="text-center font-bold text-blue-600 dark:text-blue-500 py-4 px-6">{item.remaining.toLocaleString()}</TableCell>
                       <TableCell className="py-4 px-6">
-                        <div className="flex items-center gap-3">
-                          <span className="text-xs font-bold w-10 text-slate-700 dark:text-slate-300">{completion}%</span>
-                          <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div className="flex items-center justify-center gap-3">
+                          <span className="text-xs font-bold w-10 text-slate-700 dark:text-slate-300 text-center">{completion}%</span>
+                          <div className="flex-1 max-w-[120px] h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                             <div 
                               className={`h-full transition-all duration-500 ${
                                 completion >= 100 ? 'bg-violet-500' : 
@@ -636,19 +648,18 @@ const NesDashboardPage = () => {
                     </TableRow>
                   );
                 })}
-                {/* Grand Total Row */}
                 <TableRow className="bg-slate-50/80 dark:bg-slate-900/80 font-bold border-t-2 border-slate-200 dark:border-slate-700">
-                  <TableCell className="py-4 px-6 uppercase text-violet-700 dark:text-violet-400">Grand Total</TableCell>
-                  <TableCell className="text-right py-4 px-6">
+                  <TableCell className="py-4 px-6 uppercase text-violet-700 dark:text-violet-400 text-left pl-6">Grand Total</TableCell>
+                  <TableCell className="text-center py-4 px-6">
                     {stats?.municipalityBreakdown?.reduce((sum, item) => sum + item.target, 0).toLocaleString()}
                   </TableCell>
-                  <TableCell className="text-right py-4 px-6 text-violet-600 dark:text-violet-400">
+                  <TableCell className="text-center py-4 px-6 text-violet-600 dark:text-violet-400">
                     {stats?.municipalityBreakdown?.reduce((sum, item) => sum + item.attended, 0).toLocaleString()}
                   </TableCell>
-                  <TableCell className="text-right py-4 px-6 text-amber-600 dark:text-amber-500">
+                  <TableCell className="text-center py-4 px-6 text-amber-600 dark:text-amber-500">
                     {stats?.municipalityBreakdown?.reduce((sum, item) => sum + item.absent, 0).toLocaleString()}
                   </TableCell>
-                  <TableCell className="text-right py-4 px-6 text-blue-600 dark:text-blue-500">
+                  <TableCell className="text-center py-4 px-6 text-blue-600 dark:text-blue-500">
                     {stats?.municipalityBreakdown?.reduce((sum, item) => sum + item.remaining, 0).toLocaleString()}
                   </TableCell>
                   <TableCell className="py-4 px-6">
@@ -657,9 +668,9 @@ const NesDashboardPage = () => {
                       const totalAttended = stats?.municipalityBreakdown?.reduce((sum, item) => sum + item.attended, 0) || 0;
                       const totalCompletion = totalTarget > 0 ? Math.round((totalAttended / totalTarget) * 100) : 0;
                       return (
-                        <div className="flex items-center gap-3">
-                          <span className="text-xs font-bold w-10 text-violet-700 dark:text-violet-400">{totalCompletion}%</span>
-                          <div className="flex-1 h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div className="flex items-center justify-center gap-3">
+                          <span className="text-xs font-bold w-10 text-violet-700 dark:text-violet-400 text-center">{totalCompletion}%</span>
+                          <div className="flex-1 max-w-[120px] h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                             <div 
                               className="h-full bg-violet-600 transition-all duration-500" 
                               style={{ width: `${totalCompletion}%` }}

@@ -62,7 +62,7 @@ const DashboardPage = () => {
     }
   };
 
-  if (isLoading) {
+  if (isLoading && !stats) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="spinner" />

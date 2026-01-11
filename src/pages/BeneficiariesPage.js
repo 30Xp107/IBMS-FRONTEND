@@ -1123,7 +1123,7 @@ const BeneficiariesPage = () => {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          {isLoading ? (
+          {isLoading && beneficiaries.length === 0 ? (
             <div className="flex items-center justify-center h-32">
               <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin" />
             </div>
@@ -1178,80 +1178,80 @@ const BeneficiariesPage = () => {
                         </TableHead>
                       )}
                       <TableHead 
-                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-left pl-6"
                         onClick={() => handleSort("hhid")}
                       >
-                        <div className="flex items-center">
+                        <div className="flex items-center justify-start">
                           HHID {getSortIcon("hhid")}
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
                         onClick={() => handleSort("pkno")}
                       >
-                        <div className="flex items-center">
+                        <div className="flex items-center justify-center">
                           PKNO {getSortIcon("pkno")}
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
                         onClick={() => handleSort("last_name")}
                       >
-                        <div className="flex items-center">
+                        <div className="flex items-center justify-center">
                           Name {getSortIcon("last_name")}
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
                         onClick={() => handleSort("birthdate")}
                       >
-                        <div className="flex items-center">
+                        <div className="flex items-center justify-center">
                           Birthdate {getSortIcon("birthdate")}
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
                         onClick={() => handleSort("barangay")}
                       >
-                        <div className="flex items-center">
+                        <div className="flex items-center justify-center">
                           Barangay {getSortIcon("barangay")}
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
                         onClick={() => handleSort("municipality")}
                       >
-                        <div className="flex items-center">
+                        <div className="flex items-center justify-center">
                           Municipality {getSortIcon("municipality")}
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
                         onClick={() => handleSort("region")}
                       >
-                        <div className="flex items-center">
+                        <div className="flex items-center justify-center">
                           Region {getSortIcon("region")}
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
                         onClick={() => handleSort("province")}
                       >
-                        <div className="flex items-center">
+                        <div className="flex items-center justify-center">
                           Province {getSortIcon("province")}
                         </div>
                       </TableHead>
-                      <TableHead className="font-semibold text-slate-600 dark:text-slate-300">Contact</TableHead>
-                      <TableHead className="font-semibold text-slate-600 dark:text-slate-300">Is 4Ps</TableHead>
+                      <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center">Contact</TableHead>
+                      <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center">Is 4Ps</TableHead>
                       <TableHead 
-                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
                         onClick={() => handleSort("status")}
                       >
-                        <div className="flex items-center">
+                        <div className="flex items-center justify-center">
                           Status {getSortIcon("status")}
                         </div>
                       </TableHead>
-                      <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-right">Actions</TableHead>
+                      <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1266,41 +1266,45 @@ const BeneficiariesPage = () => {
                             />
                           </TableCell>
                         )}
-                        <TableCell className="font-mono text-sm dark:text-slate-300">{b.hhid}</TableCell>
-                        <TableCell className="font-mono text-sm dark:text-slate-300">{b.pkno}</TableCell>
-                        <TableCell className="dark:text-slate-300">
+                        <TableCell className="font-mono text-sm dark:text-slate-300 text-left pl-6">{b.hhid}</TableCell>
+                        <TableCell className="font-mono text-sm dark:text-slate-300 text-center">{b.pkno}</TableCell>
+                        <TableCell className="dark:text-slate-300 text-center">
                           {b.last_name}, {b.first_name} {b.middle_name}
                         </TableCell>
-                        <TableCell className="dark:text-slate-300">
+                        <TableCell className="dark:text-slate-300 text-center">
                           {b.birthdate ? (b.birthdate.includes('T') ? b.birthdate.split('T')[0] : b.birthdate) : "-"}
                         </TableCell>
-                        <TableCell className="dark:text-slate-300">{b.barangay}</TableCell>
-                        <TableCell className="dark:text-slate-300">{b.municipality}</TableCell>
-                        <TableCell className="dark:text-slate-300">{b.region}</TableCell>
-                        <TableCell className="dark:text-slate-300">{b.province}</TableCell>
-                        <TableCell className="dark:text-slate-300">{b.contact || "-"}</TableCell>
-                        <TableCell className="dark:text-slate-300">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            b.is4ps === "Yes" 
-                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" 
-                              : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400"
-                          }`}>
-                            {b.is4ps || "No"}
-                          </span>
+                        <TableCell className="dark:text-slate-300 text-center">{b.barangay}</TableCell>
+                        <TableCell className="dark:text-slate-300 text-center">{b.municipality}</TableCell>
+                        <TableCell className="dark:text-slate-300 text-center">{b.region}</TableCell>
+                        <TableCell className="dark:text-slate-300 text-center">{b.province}</TableCell>
+                        <TableCell className="dark:text-slate-300 text-center">{b.contact || "-"}</TableCell>
+                        <TableCell className="dark:text-slate-300 text-center">
+                          <div className="flex justify-center">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              b.is4ps === "Yes" 
+                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" 
+                                : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400"
+                            }`}>
+                              {b.is4ps || "No"}
+                            </span>
+                          </div>
                         </TableCell>
-                        <TableCell className="dark:text-slate-300">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            b.status === "Active" 
-                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" 
-                              : b.status === "Not for Recording"
-                                ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                                : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                          }`}>
-                            {b.status || "Active"}
-                          </span>
+                        <TableCell className="dark:text-slate-300 text-center">
+                          <div className="flex justify-center">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              b.status === "Active" 
+                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" 
+                                : b.status === "Not for Recording"
+                                  ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                                  : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                            }`}>
+                              {b.status || "Active"}
+                            </span>
+                          </div>
                         </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
+                        <TableCell className="text-center">
+                          <div className="flex justify-center gap-2">
                             <Button
                               variant="ghost"
                               size="icon"

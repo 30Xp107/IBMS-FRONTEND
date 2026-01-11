@@ -552,9 +552,9 @@ const NESPage = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {isLoading ? (
-            <div className="flex items-center justify-center h-32">
-              <div className="spinner" />
+          {isLoading && filteredBeneficiaries.length === 0 ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
             </div>
           ) : filteredBeneficiaries.length === 0 ? (
             <div className="text-center py-12 text-slate-500 dark:text-slate-400">
@@ -567,55 +567,55 @@ const NESPage = () => {
                 <TableHeader>
                   <TableRow className="bg-stone-100 dark:bg-slate-800/50 hover:bg-stone-100 dark:hover:bg-slate-800/50 border-b dark:border-slate-800">
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
-                      onClick={() => handleSort("hhid")}
-                    >
-                      <div className="flex items-center">
-                        HHID {getSortIcon("hhid")}
-                      </div>
-                    </TableHead>
+                  className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-left pl-6"
+                  onClick={() => handleSort("hhid")}
+                >
+                  <div className="flex items-center justify-start">
+                    HHID {getSortIcon("hhid")}
+                  </div>
+                </TableHead>
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
                       onClick={() => handleSort("last_name")}
                     >
-                      <div className="flex items-center">
+                      <div className="flex items-center justify-center">
                         Beneficiary Name {getSortIcon("last_name")}
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
                       onClick={() => handleSort("barangay")}
                     >
-                      <div className="flex items-center">
+                      <div className="flex items-center justify-center">
                         Barangay {getSortIcon("barangay")}
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
                       onClick={() => handleSort("municipality")}
                     >
-                      <div className="flex items-center">
+                      <div className="flex items-center justify-center">
                         Municipality {getSortIcon("municipality")}
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
                       onClick={() => handleSort("province")}
                     >
-                      <div className="flex items-center">
+                      <div className="flex items-center justify-center">
                         Province {getSortIcon("province")}
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
                       onClick={() => handleSort("attendance")}
                     >
-                      <div className="flex items-center">
+                      <div className="flex items-center justify-center">
                         Attendance {getSortIcon("attendance")}
                       </div>
                     </TableHead>
-                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300">Reason for Absence</TableHead>
-                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300">Status</TableHead>
+                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center">Reason for Absence</TableHead>
+                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -623,33 +623,35 @@ const NESPage = () => {
                     const nes = nesRecords.find(r => r.beneficiary_id === b.id);
                     return (
                       <TableRow key={b.id} className="border-b dark:border-slate-800 hover:bg-stone-50 dark:hover:bg-slate-800/30">
-                        <TableCell className="font-mono text-sm dark:text-slate-300">{b.hhid}</TableCell>
-                        <TableCell className="dark:text-slate-300">{b.last_name}, {b.first_name}</TableCell>
-                        <TableCell className="dark:text-slate-300">{b.barangay}</TableCell>
-                        <TableCell className="dark:text-slate-300">{b.municipality}</TableCell>
-                        <TableCell className="dark:text-slate-300">{b.province}</TableCell>
-                        <TableCell>
-                          <Select
-                            value={nes?.attendance || "none"}
-                            onValueChange={(val) => handleUpdate(b, "attendance", val)}
-                          >
-                            <SelectTrigger className={`w-32 h-8 text-xs ${
-                              nes?.attendance === "present" 
-                                ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800" 
-                                : nes?.attendance === "absent"
-                                ? "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800"
-                                : "dark:bg-slate-900 dark:border-slate-700"
-                            }`}>
-                              <SelectValue placeholder="Select status" />
-                            </SelectTrigger>
-                            <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
-                              <SelectItem value="none">Not Recorded</SelectItem>
-                              <SelectItem value="present">Present</SelectItem>
-                              <SelectItem value="absent">Absent</SelectItem>
-                            </SelectContent>
-                          </Select>
+                        <TableCell className="font-mono text-sm dark:text-slate-300 text-left pl-6">{b.hhid}</TableCell>
+                        <TableCell className="dark:text-slate-300 text-center">{b.last_name}, {b.first_name}</TableCell>
+                        <TableCell className="dark:text-slate-300 text-center">{b.barangay}</TableCell>
+                        <TableCell className="dark:text-slate-300 text-center">{b.municipality}</TableCell>
+                        <TableCell className="dark:text-slate-300 text-center">{b.province}</TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex justify-center">
+                            <Select
+                              value={nes?.attendance || "none"}
+                              onValueChange={(val) => handleUpdate(b, "attendance", val)}
+                            >
+                              <SelectTrigger className={`w-32 h-8 text-xs ${
+                                nes?.attendance === "present" 
+                                  ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800" 
+                                  : nes?.attendance === "absent"
+                                  ? "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800"
+                                  : "dark:bg-slate-900 dark:border-slate-700"
+                              }`}>
+                                <SelectValue placeholder="Select status" />
+                              </SelectTrigger>
+                              <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
+                                <SelectItem value="none">Not Recorded</SelectItem>
+                                <SelectItem value="present">Present</SelectItem>
+                                <SelectItem value="absent">Absent</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="text-center">
                           <Input
                             placeholder="Reason..."
                             value={nes?.reason || ""}
@@ -673,21 +675,23 @@ const NESPage = () => {
                             }}
                             onBlur={(e) => handleUpdate(b, "reason", e.target.value)}
                             disabled={nes?.attendance !== "absent"}
-                            className="h-8 text-xs dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
+                            className="h-8 text-xs dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200 text-center"
                           />
                         </TableCell>
-                        <TableCell>
-                          {nes && (nes.attendance === "present" || (nes.attendance === "absent" && nes.reason)) ? (
-                            <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-500">
-                              <CheckCircle className="w-3 h-3" />
-                              Saved
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500">
-                              <XCircle className="w-3 h-3" />
-                              Pending
-                            </span>
-                          )}
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-1 text-xs">
+                            {nes && (nes.attendance === "present" || (nes.attendance === "absent" && nes.reason)) ? (
+                              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-500">
+                                <CheckCircle className="w-3 h-3" />
+                                Saved
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1 text-slate-400 dark:text-slate-500">
+                                <XCircle className="w-3 h-3" />
+                                Pending
+                              </span>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );

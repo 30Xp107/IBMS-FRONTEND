@@ -592,11 +592,11 @@ const RedemptionPage = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {isLoading ? (
+          {isLoading && filteredBeneficiaries.length === 0 ? (
             <div className="flex items-center justify-center h-64">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
             </div>
-          ) : beneficiaries.length === 0 ? (
+          ) : filteredBeneficiaries.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-slate-500 dark:text-slate-400">
               <FileText className="w-16 h-16 mb-4 opacity-20" />
               <p className="text-lg font-medium">No records found</p>
@@ -608,33 +608,33 @@ const RedemptionPage = () => {
                 <TableHeader>
                   <TableRow className="bg-stone-100 dark:bg-slate-800/50 hover:bg-stone-100 dark:hover:bg-slate-800/50 border-b dark:border-slate-800">
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-left pl-6"
                       onClick={() => handleSort("hhid")}
                     >
-                      <div className="flex items-center">
+                      <div className="flex items-center justify-start">
                         HHID {getSortIcon("hhid")}
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
                       onClick={() => handleSort("last_name")}
                     >
-                      <div className="flex items-center">
+                      <div className="flex items-center justify-center">
                         Name {getSortIcon("last_name")}
                       </div>
                     </TableHead>
-                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300">Location</TableHead>
+                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center">Location</TableHead>
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
                       onClick={() => handleSort("attendance")}
                     >
-                      <div className="flex items-center">
+                      <div className="flex items-center justify-center">
                         Status {getSortIcon("attendance")}
                       </div>
                     </TableHead>
-                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300">Reason</TableHead>
+                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center">Reason</TableHead>
                     <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center">Remarks</TableHead>
-                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300">Record Status</TableHead>
+                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center">Record Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -642,148 +642,154 @@ const RedemptionPage = () => {
                     const redemption = redemptions.find(r => r && r.beneficiary_id === b.id);
                     return (
                       <TableRow key={b.id} className="border-b dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
-                        <TableCell className="font-medium text-slate-700 dark:text-slate-300">{b.hhid}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-col">
+                        <TableCell className="font-medium text-slate-700 dark:text-slate-300 text-left pl-6">{b.hhid}</TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex flex-col items-center">
                             <span className="font-medium text-slate-900 dark:text-slate-100">{b.last_name}, {b.first_name}</span>
                             <span className="text-[10px] text-slate-500 dark:text-slate-500 uppercase tracking-wider">{b.middle_name}</span>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col text-xs text-slate-600 dark:text-slate-400">
+                        <TableCell className="text-center">
+                          <div className="flex flex-col text-xs text-slate-600 dark:text-slate-400 items-center">
                             <span>{b.barangay}</span>
                             <span>{b.municipality}</span>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Select
-                            value={redemption?.attendance || "none"}
-                            onValueChange={(val) => handleUpdate(b, "attendance", val)}
-                          >
-                            <SelectTrigger className={`w-32 h-8 text-xs ${
-                              redemption?.attendance === "present" 
-                                ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800" 
-                                : redemption?.attendance === "absent"
-                                ? "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800"
-                                : "dark:bg-slate-900 dark:border-slate-700"
-                            }`}>
-                              <SelectValue placeholder="Select status" />
-                            </SelectTrigger>
-                            <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
-                              <SelectItem value="none">Not Recorded</SelectItem>
-                              <SelectItem value="present">Redeemed</SelectItem>
-                              <SelectItem value="absent">UnRedeemed</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <div className="flex justify-center">
+                            <Select
+                              value={redemption?.attendance || "none"}
+                              onValueChange={(val) => handleUpdate(b, "attendance", val)}
+                            >
+                              <SelectTrigger className={`w-32 h-8 text-xs ${
+                                redemption?.attendance === "present" 
+                                  ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800" 
+                                  : redemption?.attendance === "absent"
+                                  ? "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800"
+                                  : "dark:bg-slate-900 dark:border-slate-700"
+                              }`}>
+                                <SelectValue placeholder="Select status" />
+                              </SelectTrigger>
+                              <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
+                                <SelectItem value="none">Not Recorded</SelectItem>
+                                <SelectItem value="present">Redeemed</SelectItem>
+                                <SelectItem value="absent">UnRedeemed</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </TableCell>
-                        <TableCell>
-                              <Input
-                                placeholder="Reason..."
-                                value={redemption?.reason || ""}
-                                onChange={(e) => {
-                                  const newVal = e.target.value;
-                                  setRedemptions(prev => {
-                                    const exists = prev.some(r => r.beneficiary_id === b.id);
-                                    if (exists) {
-                                      return prev.map(r => r.beneficiary_id === b.id ? { ...r, reason: newVal } : r);
-                                    } else {
-                                      return [...prev, { 
-                                        beneficiary_id: b.id, 
-                                        hhid: b.hhid,
-                                        frm_period: `${monthFilter} ${yearFilter}`,
-                                        attendance: "none",
-                                        reason: newVal,
-                                        date_recorded: new Date().toISOString().split("T")[0]
-                                      }];
-                                    }
-                                  });
-                                }}
-                                onBlur={(e) => handleUpdate(b, "reason", e.target.value)}
-                                disabled={redemption?.attendance !== "absent"}
-                                className="h-8 text-xs dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
-                               />
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm" 
-                                    disabled={!redemption?.attendance || redemption?.attendance === "none"}
-                                    className={`h-8 px-3 text-xs flex items-center gap-1.5 transition-all duration-200 ${
-                                      redemption?.action 
-                                        ? "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 hover:text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-400 dark:border-indigo-800" 
-                                        : "hover:bg-slate-100 dark:hover:bg-slate-800"
-                                    }`}
-                                  >
-                                    <Edit className="w-3.5 h-3.5" />
-                                    {redemption?.action || "Select Remarks"}
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent className="sm:max-w-[425px] dark:bg-slate-900 dark:border-slate-800">
-                                  <DialogHeader>
-                                    <DialogTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100">
-                                      Redemption Remarks
-                                    </DialogTitle>
-                                    <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                                      Select the appropriate remarks for <span className="font-semibold text-slate-700 dark:text-slate-200">{b.last_name}, {b.first_name}</span>
-                                    </div>
-                                  </DialogHeader>
-                                  <div className="grid gap-4 py-6">
-                                    <div className="grid grid-cols-1 gap-3">
-                                      {(redemption?.attendance === "present" ? [
-                                        { label: "Paid", color: "emerald", description: "Beneficiary has received payment" },
-                                        { label: "Zero Balance", color: "amber", description: "No balance remaining for this period" },
-                                        { label: "Beneficiary Not Found", color: "rose", description: "Record could not be located in database" }
-                                      ] : [
-                                        { label: "Unlocated", color: "orange", description: "Beneficiary could not be found in the area" },
-                                        { label: "Active 4Ps", color: "blue", description: "Currently active in the 4Ps program" },
-                                        { label: "Ineligible", color: "red", description: "Does not meet the criteria for redemption" }
-                                      ]).map((opt) => (
-                                        <Button
-                                          key={opt.label}
-                                          variant="outline"
-                                          className={`flex flex-col items-start gap-1 h-auto p-4 text-left transition-all duration-200 hover:border-${opt.color}-500 hover:bg-${opt.color}-50/50 dark:hover:bg-${opt.color}-900/10 ${
-                                            redemption?.action === opt.label 
-                                              ? `border-${opt.color}-500 bg-${opt.color}-50/50 dark:bg-${opt.color}-900/20 ring-1 ring-${opt.color}-500` 
-                                              : "border-slate-200 dark:border-slate-800"
-                                          }`}
-                                          onClick={() => handleUpdate(b, "action", opt.label)}
-                                        >
-                                          <div className="flex items-center gap-2">
-                                            <div className={`w-2 h-2 rounded-full bg-${opt.color}-500`} />
-                                            <span className="font-semibold text-slate-900 dark:text-slate-100">{opt.label}</span>
-                                          </div>
-                                          <span className="text-xs text-slate-500 dark:text-slate-400 pl-4">{opt.description}</span>
-                                        </Button>
-                                      ))}
-                                    </div>
-                                    {redemption?.action && (
-                                      <Button 
-                                        variant="ghost" 
-                                        size="sm" 
-                                        onClick={() => handleUpdate(b, "action", "")}
-                                        className="text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20"
-                                      >
-                                        Clear Selection
-                                      </Button>
-                                    )}
+                        <TableCell className="text-center">
+                          <Input
+                            placeholder="Reason..."
+                            value={redemption?.reason || ""}
+                            onChange={(e) => {
+                              const newVal = e.target.value;
+                              setRedemptions(prev => {
+                                const exists = prev.some(r => r.beneficiary_id === b.id);
+                                if (exists) {
+                                  return prev.map(r => r.beneficiary_id === b.id ? { ...r, reason: newVal } : r);
+                                } else {
+                                  return [...prev, { 
+                                    beneficiary_id: b.id, 
+                                    hhid: b.hhid,
+                                    frm_period: `${monthFilter} ${yearFilter}`,
+                                    attendance: "none",
+                                    reason: newVal,
+                                    date_recorded: new Date().toISOString().split("T")[0]
+                                  }];
+                                }
+                              });
+                            }}
+                            onBlur={(e) => handleUpdate(b, "reason", e.target.value)}
+                            disabled={redemption?.attendance !== "absent"}
+                            className="h-8 text-xs dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200 text-center"
+                           />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex justify-center">
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  disabled={!redemption?.attendance || redemption?.attendance === "none"}
+                                  className={`h-8 px-3 text-xs flex items-center gap-1.5 transition-all duration-200 ${
+                                    redemption?.action 
+                                      ? "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 hover:text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-400 dark:border-indigo-800" 
+                                      : "hover:bg-slate-100 dark:hover:bg-slate-800"
+                                  }`}
+                                >
+                                  <Edit className="w-3.5 h-3.5" />
+                                  {redemption?.action || "Select Remarks"}
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="sm:max-w-[425px] dark:bg-slate-900 dark:border-slate-800">
+                                <DialogHeader>
+                                  <DialogTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100">
+                                    Redemption Remarks
+                                  </DialogTitle>
+                                  <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                                    Select the appropriate remarks for <span className="font-semibold text-slate-700 dark:text-slate-200">{b.last_name}, {b.first_name}</span>
                                   </div>
-                                </DialogContent>
-                              </Dialog>
-                            </TableCell>
-                        <TableCell>
-                          {redemption && redemption.attendance !== "none" && redemption.action ? (
-                            <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-500">
-                              <CheckCircle className="w-3 h-3" />
-                              Saved
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500">
-                              <XCircle className="w-3 h-3" />
-                              Pending
-                            </span>
-                          )}
+                                </DialogHeader>
+                                <div className="grid gap-4 py-6">
+                                  <div className="grid grid-cols-1 gap-3">
+                                    {(redemption?.attendance === "present" ? [
+                                      { label: "Paid", color: "emerald", description: "Beneficiary has received payment" },
+                                      { label: "Zero Balance", color: "amber", description: "No balance remaining for this period" },
+                                      { label: "Beneficiary Not Found", color: "rose", description: "Record could not be located in database" }
+                                    ] : [
+                                      { label: "Unlocated", color: "orange", description: "Beneficiary could not be found in the area" },
+                                      { label: "Active 4Ps", color: "blue", description: "Currently active in the 4Ps program" },
+                                      { label: "Ineligible", color: "red", description: "Does not meet the criteria for redemption" }
+                                    ]).map((opt) => (
+                                      <Button
+                                        key={opt.label}
+                                        variant="outline"
+                                        className={`flex flex-col items-start gap-1 h-auto p-4 text-left transition-all duration-200 hover:border-${opt.color}-500 hover:bg-${opt.color}-50/50 dark:hover:bg-${opt.color}-900/10 ${
+                                          redemption?.action === opt.label 
+                                            ? `border-${opt.color}-500 bg-${opt.color}-50/50 dark:bg-${opt.color}-900/20 ring-1 ring-${opt.color}-500` 
+                                            : "border-slate-200 dark:border-slate-800"
+                                        }`}
+                                        onClick={() => handleUpdate(b, "action", opt.label)}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <div className={`w-2 h-2 rounded-full bg-${opt.color}-500`} />
+                                          <span className="font-semibold text-slate-900 dark:text-slate-100">{opt.label}</span>
+                                        </div>
+                                        <span className="text-xs text-slate-500 dark:text-slate-400 pl-4">{opt.description}</span>
+                                      </Button>
+                                    ))}
+                                  </div>
+                                  {redemption?.action && (
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm" 
+                                      onClick={() => handleUpdate(b, "action", "")}
+                                      className="text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20"
+                                    >
+                                      Clear Selection
+                                    </Button>
+                                  )}
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-1 text-xs">
+                            {redemption && redemption.attendance !== "none" && redemption.action ? (
+                              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-500">
+                                <CheckCircle className="w-3 h-3" />
+                                Saved
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1 text-slate-400 dark:text-slate-500">
+                                <XCircle className="w-3 h-3" />
+                                Pending
+                              </span>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
