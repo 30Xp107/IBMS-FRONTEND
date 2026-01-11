@@ -67,6 +67,7 @@ const NesDashboardPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   const [selectedMonth, setSelectedMonth] = useState(new Date().toLocaleString("default", { month: "long" }));
+  const [municipalityProvinceFilter, setMunicipalityProvinceFilter] = useState("all");
   const [sortConfigs, setSortConfigs] = useState({
     period: { key: 'period', direction: 'desc' },
     province: { key: 'province', direction: 'asc' },
@@ -379,41 +380,15 @@ const NesDashboardPage = () => {
         {/* Province Monitoring Table */}
         <Card className="border-stone-200 dark:border-slate-800 shadow-sm overflow-hidden">
           <CardHeader className="bg-slate-50/50 dark:bg-slate-800/30 border-b dark:border-slate-800">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <CardTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-violet-600" />
                 Province Monitoring
               </CardTitle>
               <CardDescription className="text-sm dark:text-slate-400 mt-1">
-                NES progress per province for {selectedMonth} {selectedYear}
+                NES progress per province
               </CardDescription>
             </div>
-            
-            <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1 rounded-md border border-slate-200 dark:border-slate-800 shadow-sm scale-90 origin-right">
-              <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger className="w-[90px] h-7 text-[10px] font-medium border-none shadow-none focus:ring-0">
-                  <SelectValue placeholder="Year" />
-                </SelectTrigger>
-                <SelectContent>
-                  {YEARS.map(year => (
-                    <SelectItem key={year} value={year}>{year}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="w-px h-3 bg-slate-200 dark:bg-slate-800" />
-              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="w-[110px] h-7 text-[10px] font-medium border-none shadow-none focus:ring-0">
-                  <SelectValue placeholder="Month" />
-                </SelectTrigger>
-                <SelectContent>
-                  {MONTHS.map(month => (
-                    <SelectItem key={month} value={month}>{month}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
@@ -573,6 +548,20 @@ const NesDashboardPage = () => {
                 NES progress per municipality for {selectedMonth} {selectedYear}
               </CardDescription>
             </div>
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-slate-400" />
+              <Select value={municipalityProvinceFilter} onValueChange={setMunicipalityProvinceFilter}>
+                <SelectTrigger className="w-[180px] h-9 text-xs bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                  <SelectValue placeholder="Filter by Province" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Provinces</SelectItem>
+                  {stats?.provinceBreakdown?.map(p => (
+                    <SelectItem key={p.province} value={p.province}>{p.province}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -619,7 +608,12 @@ const NesDashboardPage = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {getSortedData(stats?.municipalityBreakdown, sortConfigs.municipality)?.map((item, index) => {
+                {getSortedData(
+                  municipalityProvinceFilter === "all" 
+                    ? stats?.municipalityBreakdown 
+                    : stats?.municipalityBreakdown?.filter(m => m.province === municipalityProvinceFilter), 
+                  sortConfigs.municipality
+                )?.map((item, index) => {
                   const completion = item.target > 0 ? Math.round((item.attended / item.target) * 100) : 0;
                   
                   return (
@@ -651,21 +645,36 @@ const NesDashboardPage = () => {
                 <TableRow className="bg-slate-50/80 dark:bg-slate-900/80 font-bold border-t-2 border-slate-200 dark:border-slate-700">
                   <TableCell className="py-4 px-6 uppercase text-violet-700 dark:text-violet-400 text-left pl-6">Grand Total</TableCell>
                   <TableCell className="text-center py-4 px-6">
-                    {stats?.municipalityBreakdown?.reduce((sum, item) => sum + item.target, 0).toLocaleString()}
+                    {(municipalityProvinceFilter === "all" 
+                      ? stats?.municipalityBreakdown 
+                      : stats?.municipalityBreakdown?.filter(m => m.province === municipalityProvinceFilter)
+                    )?.reduce((sum, item) => sum + item.target, 0).toLocaleString()}
                   </TableCell>
                   <TableCell className="text-center py-4 px-6 text-violet-600 dark:text-violet-400">
-                    {stats?.municipalityBreakdown?.reduce((sum, item) => sum + item.attended, 0).toLocaleString()}
+                    {(municipalityProvinceFilter === "all" 
+                      ? stats?.municipalityBreakdown 
+                      : stats?.municipalityBreakdown?.filter(m => m.province === municipalityProvinceFilter)
+                    )?.reduce((sum, item) => sum + item.attended, 0).toLocaleString()}
                   </TableCell>
                   <TableCell className="text-center py-4 px-6 text-amber-600 dark:text-amber-500">
-                    {stats?.municipalityBreakdown?.reduce((sum, item) => sum + item.absent, 0).toLocaleString()}
+                    {(municipalityProvinceFilter === "all" 
+                      ? stats?.municipalityBreakdown 
+                      : stats?.municipalityBreakdown?.filter(m => m.province === municipalityProvinceFilter)
+                    )?.reduce((sum, item) => sum + item.absent, 0).toLocaleString()}
                   </TableCell>
                   <TableCell className="text-center py-4 px-6 text-blue-600 dark:text-blue-500">
-                    {stats?.municipalityBreakdown?.reduce((sum, item) => sum + item.remaining, 0).toLocaleString()}
+                    {(municipalityProvinceFilter === "all" 
+                      ? stats?.municipalityBreakdown 
+                      : stats?.municipalityBreakdown?.filter(m => m.province === municipalityProvinceFilter)
+                    )?.reduce((sum, item) => sum + item.remaining, 0).toLocaleString()}
                   </TableCell>
                   <TableCell className="py-4 px-6">
                     {(() => {
-                      const totalTarget = stats?.municipalityBreakdown?.reduce((sum, item) => sum + item.target, 0) || 0;
-                      const totalAttended = stats?.municipalityBreakdown?.reduce((sum, item) => sum + item.attended, 0) || 0;
+                      const filteredData = municipalityProvinceFilter === "all" 
+                        ? stats?.municipalityBreakdown 
+                        : stats?.municipalityBreakdown?.filter(m => m.province === municipalityProvinceFilter);
+                      const totalTarget = filteredData?.reduce((sum, item) => sum + item.target, 0) || 0;
+                      const totalAttended = filteredData?.reduce((sum, item) => sum + item.attended, 0) || 0;
                       const totalCompletion = totalTarget > 0 ? Math.round((totalAttended / totalTarget) * 100) : 0;
                       return (
                         <div className="flex items-center justify-center gap-3">
