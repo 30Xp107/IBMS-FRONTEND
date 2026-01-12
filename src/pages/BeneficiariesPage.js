@@ -612,6 +612,10 @@ const BeneficiariesPage = () => {
         "Province": b.province,
         "Region": b.region || "",
         "Contact": b.contact || "",
+        "Redeemed": b.redemption_stats?.redeemed || 0,
+        "Unredeemed": b.redemption_stats?.unredeemed || 0,
+        "Present (NES)": b.nes_stats?.present || 0,
+        "Absent (NES)": b.nes_stats?.absent || 0,
         "is4ps": b.is4ps ? "Yes" : "No"
       }));
 
@@ -634,6 +638,10 @@ const BeneficiariesPage = () => {
         { wch: 15 }, // Province
         { wch: 15 }, // Region
         { wch: 15 }, // Contact
+        { wch: 12 }, // Redeemed
+        { wch: 12 }, // Unredeemed
+        { wch: 12 }, // Present (NES)
+        { wch: 12 }, // Absent (NES)
         { wch: 10 }, // is4ps
       ];
       worksheet['!cols'] = wscols;
@@ -1242,6 +1250,10 @@ const BeneficiariesPage = () => {
                         </div>
                       </TableHead>
                       <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center">Contact</TableHead>
+                      <TableHead className="font-semibold text-emerald-600 dark:text-emerald-400 text-center">Redeemed</TableHead>
+                      <TableHead className="font-semibold text-amber-600 dark:text-amber-400 text-center">Unredeemed</TableHead>
+                      <TableHead className="font-semibold text-emerald-600 dark:text-emerald-400 text-center">Present (NES)</TableHead>
+                      <TableHead className="font-semibold text-amber-600 dark:text-amber-400 text-center">Absent (NES)</TableHead>
                       <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center">Is 4Ps</TableHead>
                       <TableHead 
                         className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
@@ -1279,6 +1291,26 @@ const BeneficiariesPage = () => {
                         <TableCell className="dark:text-slate-300 text-center">{b.region}</TableCell>
                         <TableCell className="dark:text-slate-300 text-center">{b.province}</TableCell>
                         <TableCell className="dark:text-slate-300 text-center">{b.contact || "-"}</TableCell>
+                        <TableCell className="text-center">
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                            {b.redemption_stats?.redeemed || 0}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className="font-bold text-amber-600 dark:text-amber-400">
+                            {b.redemption_stats?.unredeemed || 0}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                            {b.nes_stats?.present || 0}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className="font-bold text-amber-600 dark:text-amber-400">
+                            {b.nes_stats?.absent || 0}
+                          </span>
+                        </TableCell>
                         <TableCell className="dark:text-slate-300 text-center">
                           <div className="flex justify-center">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${
