@@ -77,6 +77,7 @@ const Layout = () => {
     { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { to: "/dashboard/redemption", icon: Calendar, label: "Redemption Dashboard", isSubItem: true },
     { to: "/dashboard/nes", icon: FileText, label: "NES Dashboard", isSubItem: true },
+    { to: "/calendar", icon: Calendar, label: "My Calendar" },
     { to: "/beneficiaries", icon: Users, label: "Beneficiaries" },
     { to: "/redemption", icon: Calendar, label: "Redemption" },
     { to: "/nes", icon: FileText, label: "NES" },
@@ -91,17 +92,6 @@ const Layout = () => {
 
   return (
     <div className="flex min-h-screen bg-stone-50 dark:bg-slate-950 transition-colors duration-300">
-      {/* Mobile menu button - Only visible when sidebar is closed */}
-      {!sidebarOpen && (
-        <button
-          data-testid="mobile-menu-btn"
-          className="fixed top-4 left-4 z-50 p-2.5 bg-slate-900 text-white rounded-md shadow-lg shadow-emerald-900/20 lg:hidden border border-slate-800"
-          onClick={() => setSidebarOpen(true)}
-        >
-          <Menu size={20} />
-        </button>
-      )}
-
       {/* Overlay */}
       {sidebarOpen && (
         <div
@@ -112,7 +102,7 @@ const Layout = () => {
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-72 sm:w-64 bg-slate-900 text-white transform transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-none ${
+        className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white transform transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-none ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >

@@ -277,7 +277,7 @@ const NesDashboardPage = () => {
                       <div className="flex items-center justify-start">FRM Period <SortIcon table="period" column="period" /></div>
                     </TableHead>
                     <TableHead 
-                      className="text-center font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
+                      className="text-center font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors hidden sm:table-cell"
                       onClick={() => handleSort('period', 'target')}
                     >
                       <div className="flex items-center justify-center">Target <SortIcon table="period" column="target" /></div>
@@ -289,19 +289,19 @@ const NesDashboardPage = () => {
                       <div className="flex items-center justify-center">Attended <SortIcon table="period" column="attended" /></div>
                     </TableHead>
                     <TableHead 
-                      className="text-center font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
+                      className="text-center font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors hidden lg:table-cell"
                       onClick={() => handleSort('period', 'absent')}
                     >
                       <div className="flex items-center justify-center">Absent <SortIcon table="period" column="absent" /></div>
                     </TableHead>
                     <TableHead 
-                      className="text-center font-bold text-blue-600 dark:text-blue-500 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
+                      className="text-center font-bold text-blue-600 dark:text-blue-500 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors hidden xl:table-cell"
                       onClick={() => handleSort('period', 'remaining')}
                     >
                       <div className="flex items-center justify-center">Remaining <SortIcon table="period" column="remaining" /></div>
                     </TableHead>
                     <TableHead 
-                      className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 w-[150px] cursor-pointer hover:bg-slate-100/50 transition-colors text-center"
+                      className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 w-[150px] cursor-pointer hover:bg-slate-100/50 transition-colors text-center hidden md:table-cell"
                       onClick={() => handleSort('period', 'completion')}
                     >
                       <div className="flex items-center justify-center">Completion <SortIcon table="period" column="completion" /></div>
@@ -314,11 +314,11 @@ const NesDashboardPage = () => {
                     return (
                       <TableRow key={index} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors border-b dark:border-slate-800">
                         <TableCell className="font-bold text-slate-800 dark:text-slate-200 py-4 px-6 text-left pl-6">{item.period}</TableCell>
-                        <TableCell className="text-center font-medium text-slate-600 dark:text-slate-400 py-4 px-6">{item.target.toLocaleString()}</TableCell>
+                        <TableCell className="text-center font-medium text-slate-600 dark:text-slate-400 py-4 px-6 hidden sm:table-cell">{item.target.toLocaleString()}</TableCell>
                         <TableCell className="text-center font-bold text-violet-600 dark:text-violet-400 py-4 px-6">{item.attended.toLocaleString()}</TableCell>
-                        <TableCell className="text-center font-bold text-amber-600 dark:text-amber-500 py-4 px-6">{item.absent.toLocaleString()}</TableCell>
-                        <TableCell className="text-center font-bold text-blue-600 dark:text-blue-500 py-4 px-6">{item.remaining.toLocaleString()}</TableCell>
-                        <TableCell className="py-4 px-6">
+                        <TableCell className="text-center font-bold text-amber-600 dark:text-amber-500 py-4 px-6 hidden lg:table-cell">{item.absent.toLocaleString()}</TableCell>
+                        <TableCell className="text-center font-bold text-blue-600 dark:text-blue-500 py-4 px-6 hidden xl:table-cell">{item.remaining.toLocaleString()}</TableCell>
+                        <TableCell className="py-4 px-6 hidden md:table-cell">
                           <div className="flex items-center justify-center gap-3">
                             <span className="text-xs font-bold w-10 text-slate-700 dark:text-slate-300 text-center">{completion}%</span>
                             <div className="flex-1 max-w-[120px] h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
@@ -340,19 +340,19 @@ const NesDashboardPage = () => {
                   {/* Grand Total Row */}
                   <TableRow className="bg-slate-50/80 dark:bg-slate-900/80 font-bold border-t-2 border-slate-200 dark:border-slate-700">
                     <TableCell className="py-4 px-6 uppercase text-violet-700 dark:text-violet-400 text-left pl-6">Grand Total</TableCell>
-                    <TableCell className="text-center py-4 px-6">
+                    <TableCell className="text-center py-4 px-6 hidden sm:table-cell">
                       {stats?.periodStats?.reduce((sum, item) => sum + item.target, 0).toLocaleString()}
                     </TableCell>
                     <TableCell className="text-center py-4 px-6 text-violet-600 dark:text-violet-400">
                       {stats?.periodStats?.reduce((sum, item) => sum + item.attended, 0).toLocaleString()}
                     </TableCell>
-                    <TableCell className="text-center py-4 px-6 text-amber-600 dark:text-amber-500">
+                    <TableCell className="text-center py-4 px-6 text-amber-600 dark:text-amber-500 hidden lg:table-cell">
                       {stats?.periodStats?.reduce((sum, item) => sum + item.absent, 0).toLocaleString()}
                     </TableCell>
-                    <TableCell className="text-center py-4 px-6 text-blue-600 dark:text-blue-500">
+                    <TableCell className="text-center py-4 px-6 text-blue-600 dark:text-blue-500 hidden xl:table-cell">
                       {stats?.periodStats?.reduce((sum, item) => sum + item.remaining, 0).toLocaleString()}
                     </TableCell>
-                    <TableCell className="py-4 px-6">
+                    <TableCell className="py-4 px-6 hidden md:table-cell">
                       {(() => {
                         const totalTarget = stats?.periodStats?.reduce((sum, item) => sum + item.target, 0) || 0;
                         const totalAttended = stats?.periodStats?.reduce((sum, item) => sum + item.attended, 0) || 0;
@@ -402,7 +402,7 @@ const NesDashboardPage = () => {
                       <div className="flex items-center justify-start">Province <SortIcon table="province" column="province" /></div>
                     </TableHead>
                     <TableHead 
-                      className="text-center font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
+                      className="text-center font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors hidden sm:table-cell"
                       onClick={() => handleSort('province', 'target')}
                     >
                       <div className="flex items-center justify-center">Target <SortIcon table="province" column="target" /></div>
@@ -414,19 +414,19 @@ const NesDashboardPage = () => {
                       <div className="flex items-center justify-center">Attended <SortIcon table="province" column="attended" /></div>
                     </TableHead>
                     <TableHead 
-                      className="text-center font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
+                      className="text-center font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors hidden lg:table-cell"
                       onClick={() => handleSort('province', 'absent')}
                     >
                       <div className="flex items-center justify-center">Absent <SortIcon table="province" column="absent" /></div>
                     </TableHead>
                     <TableHead 
-                      className="text-center font-bold text-blue-600 dark:text-blue-500 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
+                      className="text-center font-bold text-blue-600 dark:text-blue-500 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors hidden xl:table-cell"
                       onClick={() => handleSort('province', 'remaining')}
                     >
                       <div className="flex items-center justify-center">Remaining <SortIcon table="province" column="remaining" /></div>
                     </TableHead>
                     <TableHead 
-                      className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 w-[150px] cursor-pointer hover:bg-slate-100/50 transition-colors text-center"
+                      className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 w-[150px] cursor-pointer hover:bg-slate-100/50 transition-colors text-center hidden md:table-cell"
                       onClick={() => handleSort('province', 'completion')}
                     >
                       <div className="flex items-center justify-center">Completion <SortIcon table="province" column="completion" /></div>
@@ -439,11 +439,11 @@ const NesDashboardPage = () => {
                     return (
                       <TableRow key={index} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors border-b dark:border-slate-800">
                         <TableCell className="font-bold text-slate-800 dark:text-slate-200 py-4 px-6 uppercase text-left pl-6">{item.province}</TableCell>
-                        <TableCell className="text-center font-medium text-slate-600 dark:text-slate-400 py-4 px-6">{item.target.toLocaleString()}</TableCell>
+                        <TableCell className="text-center font-medium text-slate-600 dark:text-slate-400 py-4 px-6 hidden sm:table-cell">{item.target.toLocaleString()}</TableCell>
                         <TableCell className="text-center font-bold text-violet-600 dark:text-violet-400 py-4 px-6">{item.attended.toLocaleString()}</TableCell>
-                        <TableCell className="text-center font-bold text-amber-600 dark:text-amber-500 py-4 px-6">{item.absent.toLocaleString()}</TableCell>
-                        <TableCell className="text-center font-bold text-blue-600 dark:text-blue-500 py-4 px-6">{item.remaining.toLocaleString()}</TableCell>
-                        <TableCell className="py-4 px-6">
+                        <TableCell className="text-center font-bold text-amber-600 dark:text-amber-500 py-4 px-6 hidden lg:table-cell">{item.absent.toLocaleString()}</TableCell>
+                        <TableCell className="text-center font-bold text-blue-600 dark:text-blue-500 py-4 px-6 hidden xl:table-cell">{item.remaining.toLocaleString()}</TableCell>
+                        <TableCell className="py-4 px-6 hidden md:table-cell">
                           <div className="flex items-center justify-center gap-2">
                             <span className="text-xs font-bold w-10 text-center">{completion}%</span>
                             <div className="flex-1 max-w-[100px] h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
@@ -456,19 +456,19 @@ const NesDashboardPage = () => {
                   })}
                   <TableRow className="bg-slate-50/80 dark:bg-slate-900/80 font-bold border-t-2 border-slate-200 dark:border-slate-700">
                     <TableCell className="py-4 px-6 uppercase text-violet-700 dark:text-violet-400 text-left pl-6">Grand Total</TableCell>
-                    <TableCell className="text-center py-4 px-6">
+                    <TableCell className="text-center py-4 px-6 hidden sm:table-cell">
                       {stats?.provinceBreakdown?.reduce((sum, item) => sum + item.target, 0).toLocaleString()}
                     </TableCell>
                     <TableCell className="text-center py-4 px-6 text-violet-600 dark:text-violet-400">
                       {stats?.provinceBreakdown?.reduce((sum, item) => sum + item.attended, 0).toLocaleString()}
                     </TableCell>
-                    <TableCell className="text-center py-4 px-6 text-amber-600 dark:text-amber-500">
+                    <TableCell className="text-center py-4 px-6 text-amber-600 dark:text-amber-500 hidden lg:table-cell">
                       {stats?.provinceBreakdown?.reduce((sum, item) => sum + item.absent, 0).toLocaleString()}
                     </TableCell>
-                    <TableCell className="text-center py-4 px-6 text-blue-600 dark:text-blue-500">
+                    <TableCell className="text-center py-4 px-6 text-blue-600 dark:text-blue-500 hidden xl:table-cell">
                       {stats?.provinceBreakdown?.reduce((sum, item) => sum + item.remaining, 0).toLocaleString()}
                     </TableCell>
-                    <TableCell className="py-4 px-6">
+                    <TableCell className="py-4 px-6 hidden md:table-cell">
                       {(() => {
                         const totalTarget = stats?.provinceBreakdown?.reduce((sum, item) => sum + item.target, 0) || 0;
                         const totalAttended = stats?.provinceBreakdown?.reduce((sum, item) => sum + item.attended, 0) || 0;
@@ -576,7 +576,7 @@ const NesDashboardPage = () => {
                     <div className="flex items-center justify-start">Municipality <SortIcon table="municipality" column="municipality" /></div>
                   </TableHead>
                   <TableHead 
-                    className="text-center font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
+                    className="text-center font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors hidden sm:table-cell"
                     onClick={() => handleSort('municipality', 'target')}
                   >
                     <div className="flex items-center justify-center">Target <SortIcon table="municipality" column="target" /></div>
@@ -588,19 +588,19 @@ const NesDashboardPage = () => {
                     <div className="flex items-center justify-center">Attended <SortIcon table="municipality" column="attended" /></div>
                   </TableHead>
                   <TableHead 
-                    className="text-center font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
+                    className="text-center font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors hidden lg:table-cell"
                     onClick={() => handleSort('municipality', 'absent')}
                   >
                     <div className="flex items-center justify-center">Absent <SortIcon table="municipality" column="absent" /></div>
                   </TableHead>
                   <TableHead 
-                    className="text-center font-bold text-blue-600 dark:text-blue-500 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors"
+                    className="text-center font-bold text-blue-600 dark:text-blue-500 uppercase tracking-wider text-xs py-4 px-6 cursor-pointer hover:bg-slate-100/50 transition-colors hidden xl:table-cell"
                     onClick={() => handleSort('municipality', 'remaining')}
                   >
                     <div className="flex items-center justify-center">Remaining <SortIcon table="municipality" column="remaining" /></div>
                   </TableHead>
                   <TableHead 
-                    className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 w-[200px] cursor-pointer hover:bg-slate-100/50 transition-colors text-center"
+                    className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-xs py-4 px-6 w-[200px] cursor-pointer hover:bg-slate-100/50 transition-colors text-center hidden md:table-cell"
                     onClick={() => handleSort('municipality', 'completion')}
                   >
                     <div className="flex items-center justify-center">Completion <SortIcon table="municipality" column="completion" /></div>
@@ -619,11 +619,11 @@ const NesDashboardPage = () => {
                   return (
                     <TableRow key={index} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors border-b dark:border-slate-800">
                       <TableCell className="font-bold text-slate-800 dark:text-slate-200 py-4 px-6 uppercase text-left pl-6">{item.municipality}</TableCell>
-                      <TableCell className="text-center font-medium text-slate-600 dark:text-slate-400 py-4 px-6">{item.target.toLocaleString()}</TableCell>
+                      <TableCell className="text-center font-medium text-slate-600 dark:text-slate-400 py-4 px-6 hidden sm:table-cell">{item.target.toLocaleString()}</TableCell>
                       <TableCell className="text-center font-bold text-violet-600 dark:text-violet-400 py-4 px-6">{item.attended.toLocaleString()}</TableCell>
-                      <TableCell className="text-center font-bold text-amber-600 dark:text-amber-500 py-4 px-6">{item.absent.toLocaleString()}</TableCell>
-                      <TableCell className="text-center font-bold text-blue-600 dark:text-blue-500 py-4 px-6">{item.remaining.toLocaleString()}</TableCell>
-                      <TableCell className="py-4 px-6">
+                      <TableCell className="text-center font-bold text-amber-600 dark:text-amber-500 py-4 px-6 hidden lg:table-cell">{item.absent.toLocaleString()}</TableCell>
+                      <TableCell className="text-center font-bold text-blue-600 dark:text-blue-500 py-4 px-6 hidden xl:table-cell">{item.remaining.toLocaleString()}</TableCell>
+                      <TableCell className="py-4 px-6 hidden md:table-cell">
                         <div className="flex items-center justify-center gap-3">
                           <span className="text-xs font-bold w-10 text-slate-700 dark:text-slate-300 text-center">{completion}%</span>
                           <div className="flex-1 max-w-[120px] h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
@@ -644,7 +644,7 @@ const NesDashboardPage = () => {
                 })}
                 <TableRow className="bg-slate-50/80 dark:bg-slate-900/80 font-bold border-t-2 border-slate-200 dark:border-slate-700">
                   <TableCell className="py-4 px-6 uppercase text-violet-700 dark:text-violet-400 text-left pl-6">Grand Total</TableCell>
-                  <TableCell className="text-center py-4 px-6">
+                  <TableCell className="text-center py-4 px-6 hidden sm:table-cell">
                     {(municipalityProvinceFilter === "all" 
                       ? stats?.municipalityBreakdown 
                       : stats?.municipalityBreakdown?.filter(m => m.province === municipalityProvinceFilter)
@@ -656,19 +656,19 @@ const NesDashboardPage = () => {
                       : stats?.municipalityBreakdown?.filter(m => m.province === municipalityProvinceFilter)
                     )?.reduce((sum, item) => sum + item.attended, 0).toLocaleString()}
                   </TableCell>
-                  <TableCell className="text-center py-4 px-6 text-amber-600 dark:text-amber-500">
+                  <TableCell className="text-center py-4 px-6 text-amber-600 dark:text-amber-500 hidden lg:table-cell">
                     {(municipalityProvinceFilter === "all" 
                       ? stats?.municipalityBreakdown 
                       : stats?.municipalityBreakdown?.filter(m => m.province === municipalityProvinceFilter)
                     )?.reduce((sum, item) => sum + item.absent, 0).toLocaleString()}
                   </TableCell>
-                  <TableCell className="text-center py-4 px-6 text-blue-600 dark:text-blue-500">
+                  <TableCell className="text-center py-4 px-6 text-blue-600 dark:text-blue-500 hidden xl:table-cell">
                     {(municipalityProvinceFilter === "all" 
                       ? stats?.municipalityBreakdown 
                       : stats?.municipalityBreakdown?.filter(m => m.province === municipalityProvinceFilter)
                     )?.reduce((sum, item) => sum + item.remaining, 0).toLocaleString()}
                   </TableCell>
-                  <TableCell className="py-4 px-6">
+                  <TableCell className="py-4 px-6 hidden md:table-cell">
                     {(() => {
                       const filteredData = municipalityProvinceFilter === "all" 
                         ? stats?.municipalityBreakdown 

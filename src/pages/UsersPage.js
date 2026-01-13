@@ -427,7 +427,7 @@ const UsersPage = () => {
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden md:table-cell"
                       onClick={() => handleSort("email")}
                     >
                       <div className="flex items-center justify-center">
@@ -435,7 +435,7 @@ const UsersPage = () => {
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden sm:table-cell"
                       onClick={() => handleSort("role")}
                     >
                       <div className="flex items-center justify-center">
@@ -451,7 +451,7 @@ const UsersPage = () => {
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden lg:table-cell"
                       onClick={() => handleSort("assigned_areas")}
                     >
                       <div className="flex items-center justify-center">
@@ -459,7 +459,7 @@ const UsersPage = () => {
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden xl:table-cell"
                       onClick={() => handleSort("createdAt")}
                     >
                       <div className="flex items-center justify-center">
@@ -473,8 +473,8 @@ const UsersPage = () => {
                   {filteredUsers.map((user) => (
                     <TableRow key={user.id} className="border-b dark:border-slate-800 hover:bg-stone-50 dark:hover:bg-slate-800/30">
                       <TableCell className="font-medium dark:text-slate-200 text-left pl-6">{user.name}</TableCell>
-                      <TableCell className="dark:text-slate-300 text-center">{user.email}</TableCell>
-                      <TableCell className="capitalize dark:text-slate-300 text-center">
+                      <TableCell className="dark:text-slate-300 text-center hidden md:table-cell">{user.email}</TableCell>
+                      <TableCell className="capitalize dark:text-slate-300 text-center hidden sm:table-cell">
                         <div className="flex justify-center">
                           <Select
                             value={user.role}
@@ -495,7 +495,7 @@ const UsersPage = () => {
                           {getStatusBadge(user.status)}
                         </div>
                       </TableCell>
-                      <TableCell className="text-center">
+                      <TableCell className="text-center hidden lg:table-cell">
                         {user.assigned_areas && user.assigned_areas.length > 0 ? (
                           <div className="flex flex-wrap gap-1 justify-center">
                             {user.assigned_areas.map((area) => {
@@ -515,7 +515,7 @@ const UsersPage = () => {
                           <span className="text-slate-400 dark:text-slate-600">-</span>
                         )}
                       </TableCell>
-                      <TableCell className="dark:text-slate-300 text-xs whitespace-nowrap text-center">
+                      <TableCell className="dark:text-slate-300 text-xs whitespace-nowrap text-center hidden xl:table-cell">
                         {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "-"}
                       </TableCell>
                       <TableCell className="text-center">

@@ -356,7 +356,7 @@ const AuditLogPage = () => {
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden sm:table-cell"
                       onClick={() => handleSort("module")}
                     >
                       <div className="flex items-center justify-center">
@@ -364,14 +364,14 @@ const AuditLogPage = () => {
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden lg:table-cell"
                       onClick={() => handleSort("record_id")}
                     >
                       <div className="flex items-center justify-center">
                         Record ID {getSortIcon("record_id")}
                       </div>
                     </TableHead>
-                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center">Changes</TableHead>
+                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center hidden md:table-cell">Changes</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -413,15 +413,15 @@ const AuditLogPage = () => {
                             {getActionBadge(log.action)}
                           </div>
                         </TableCell>
-                        <TableCell className="py-3 text-center">
+                        <TableCell className="py-3 text-center hidden sm:table-cell">
                           <div className="flex justify-center">
                             {getModuleBadge(log.module)}
                           </div>
                         </TableCell>
-                        <TableCell className="py-3 font-mono text-xs text-slate-500 dark:text-slate-400 text-center">
+                        <TableCell className="py-3 font-mono text-xs text-slate-500 dark:text-slate-400 text-center hidden lg:table-cell">
                           {log.record_id ? `${log.record_id.substring(0, 8)}...` : "-"}
                         </TableCell>
-                        <TableCell className="py-3 text-center">
+                        <TableCell className="py-3 text-center hidden md:table-cell">
                           <div className="flex items-center justify-center gap-2">
                             {renderChanges(log)}
                             <Eye className="w-4 h-4 text-slate-400" />
@@ -481,9 +481,8 @@ const AuditLogPage = () => {
         </div>
       )}
 
-      {/* Log Detail Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto dark:bg-slate-900 dark:border-slate-800">
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto dark:bg-slate-900 dark:border-slate-800 max-w-[95vw] sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl">
               <ClipboardList className="w-5 h-5 text-emerald-600" />

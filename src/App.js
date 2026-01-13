@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
 import DashboardPage from "@/pages/DashboardPage";
+import CalendarPage from "@/pages/CalendarPage";
 import RedemptionDashboardPage from "@/pages/RedemptionDashboardPage";
 import NesDashboardPage from "@/pages/NesDashboardPage";
 import BeneficiariesPage from "@/pages/BeneficiariesPage";
@@ -66,6 +67,7 @@ function AppRoutes() {
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="dashboard/redemption" element={<RedemptionDashboardPage />} />
         <Route path="dashboard/nes" element={<NesDashboardPage />} />
+        <Route path="calendar" element={<CalendarPage />} />
         <Route path="beneficiaries" element={<BeneficiariesPage />} />
         <Route path="redemption" element={<RedemptionPage />} />
         <Route path="nes" element={<NESPage />} />

@@ -1194,7 +1194,7 @@ const BeneficiariesPage = () => {
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden md:table-cell"
                         onClick={() => handleSort("pkno")}
                       >
                         <div className="flex items-center justify-center">
@@ -1210,7 +1210,7 @@ const BeneficiariesPage = () => {
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden lg:table-cell"
                         onClick={() => handleSort("birthdate")}
                       >
                         <div className="flex items-center justify-center">
@@ -1218,7 +1218,7 @@ const BeneficiariesPage = () => {
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden xl:table-cell"
                         onClick={() => handleSort("barangay")}
                       >
                         <div className="flex items-center justify-center">
@@ -1226,7 +1226,7 @@ const BeneficiariesPage = () => {
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden xl:table-cell"
                         onClick={() => handleSort("municipality")}
                       >
                         <div className="flex items-center justify-center">
@@ -1234,7 +1234,7 @@ const BeneficiariesPage = () => {
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden 2xl:table-cell"
                         onClick={() => handleSort("region")}
                       >
                         <div className="flex items-center justify-center">
@@ -1242,21 +1242,21 @@ const BeneficiariesPage = () => {
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden 2xl:table-cell"
                         onClick={() => handleSort("province")}
                       >
                         <div className="flex items-center justify-center">
                           Province {getSortIcon("province")}
                         </div>
                       </TableHead>
-                      <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center">Contact</TableHead>
-                      <TableHead className="font-semibold text-emerald-600 dark:text-emerald-400 text-center">Redeemed</TableHead>
-                      <TableHead className="font-semibold text-amber-600 dark:text-amber-400 text-center">Unredeemed</TableHead>
-                      <TableHead className="font-semibold text-emerald-600 dark:text-emerald-400 text-center">Present (NES)</TableHead>
-                      <TableHead className="font-semibold text-amber-600 dark:text-amber-400 text-center">Absent (NES)</TableHead>
-                      <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center">Is 4Ps</TableHead>
+                      <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center hidden 2xl:table-cell">Contact</TableHead>
+                      <TableHead className="font-semibold text-emerald-600 dark:text-emerald-400 text-center hidden lg:table-cell">Redeemed</TableHead>
+                      <TableHead className="font-semibold text-amber-600 dark:text-amber-400 text-center hidden lg:table-cell">Unredeemed</TableHead>
+                      <TableHead className="font-semibold text-emerald-600 dark:text-emerald-400 text-center hidden xl:table-cell">Present (NES)</TableHead>
+                      <TableHead className="font-semibold text-amber-600 dark:text-amber-400 text-center hidden xl:table-cell">Absent (NES)</TableHead>
+                      <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center hidden md:table-cell">Is 4Ps</TableHead>
                       <TableHead 
-                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden sm:table-cell"
                         onClick={() => handleSort("status")}
                       >
                         <div className="flex items-center justify-center">
@@ -1279,39 +1279,39 @@ const BeneficiariesPage = () => {
                           </TableCell>
                         )}
                         <TableCell className="font-mono text-sm dark:text-slate-300 text-left pl-6">{b.hhid}</TableCell>
-                        <TableCell className="font-mono text-sm dark:text-slate-300 text-center">{b.pkno}</TableCell>
+                        <TableCell className="font-mono text-sm dark:text-slate-300 text-center hidden md:table-cell">{b.pkno}</TableCell>
                         <TableCell className="dark:text-slate-300 text-center">
                           {b.last_name}, {b.first_name} {b.middle_name}
                         </TableCell>
-                        <TableCell className="dark:text-slate-300 text-center">
+                        <TableCell className="dark:text-slate-300 text-center hidden lg:table-cell">
                           {b.birthdate ? (b.birthdate.includes('T') ? b.birthdate.split('T')[0] : b.birthdate) : "-"}
                         </TableCell>
-                        <TableCell className="dark:text-slate-300 text-center">{b.barangay}</TableCell>
-                        <TableCell className="dark:text-slate-300 text-center">{b.municipality}</TableCell>
-                        <TableCell className="dark:text-slate-300 text-center">{b.region}</TableCell>
-                        <TableCell className="dark:text-slate-300 text-center">{b.province}</TableCell>
-                        <TableCell className="dark:text-slate-300 text-center">{b.contact || "-"}</TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="dark:text-slate-300 text-center hidden xl:table-cell">{b.barangay}</TableCell>
+                        <TableCell className="dark:text-slate-300 text-center hidden xl:table-cell">{b.municipality}</TableCell>
+                        <TableCell className="dark:text-slate-300 text-center hidden 2xl:table-cell">{b.region}</TableCell>
+                        <TableCell className="dark:text-slate-300 text-center hidden 2xl:table-cell">{b.province}</TableCell>
+                        <TableCell className="dark:text-slate-300 text-center hidden 2xl:table-cell">{b.contact || "-"}</TableCell>
+                        <TableCell className="text-center hidden lg:table-cell">
                           <span className="font-bold text-emerald-600 dark:text-emerald-400">
                             {b.redemption_stats?.redeemed || 0}
                           </span>
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-center hidden lg:table-cell">
                           <span className="font-bold text-amber-600 dark:text-amber-400">
                             {b.redemption_stats?.unredeemed || 0}
                           </span>
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-center hidden xl:table-cell">
                           <span className="font-bold text-emerald-600 dark:text-emerald-400">
                             {b.nes_stats?.present || 0}
                           </span>
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-center hidden xl:table-cell">
                           <span className="font-bold text-amber-600 dark:text-amber-400">
                             {b.nes_stats?.absent || 0}
                           </span>
                         </TableCell>
-                        <TableCell className="dark:text-slate-300 text-center">
+                        <TableCell className="dark:text-slate-300 text-center hidden md:table-cell">
                           <div className="flex justify-center">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                               b.is4ps === "Yes" 
@@ -1322,7 +1322,7 @@ const BeneficiariesPage = () => {
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell className="dark:text-slate-300 text-center">
+                        <TableCell className="dark:text-slate-300 text-center hidden sm:table-cell">
                           <div className="flex justify-center">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                               b.status === "Active" 

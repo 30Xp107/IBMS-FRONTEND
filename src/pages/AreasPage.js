@@ -225,7 +225,7 @@ const AreasPage = () => {
                 <TableHeader>
                   <TableRow className="bg-stone-100 dark:bg-slate-800/50 hover:bg-stone-100 dark:hover:bg-slate-800/50 border-b dark:border-slate-800">
                       <TableHead 
-                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-left pl-6"
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-left pl-6 hidden md:table-cell"
                         onClick={() => handleSort("code")}
                       >
                         <div className="flex items-center justify-start">
@@ -241,7 +241,7 @@ const AreasPage = () => {
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden sm:table-cell"
                         onClick={() => handleSort("type")}
                       >
                         <div className="flex items-center justify-center">
@@ -249,7 +249,7 @@ const AreasPage = () => {
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden lg:table-cell"
                         onClick={() => handleSort("parent_id")}
                       >
                         <div className="flex items-center justify-center">
@@ -257,7 +257,7 @@ const AreasPage = () => {
                         </div>
                       </TableHead>
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden xl:table-cell"
                       onClick={() => handleSort("createdAt")}
                     >
                       <div className="flex items-center justify-center">
@@ -270,9 +270,9 @@ const AreasPage = () => {
                 <TableBody>
                   {areas.map((area) => (
                     <TableRow key={area.id} className="border-b dark:border-slate-800 hover:bg-stone-50 dark:hover:bg-slate-800/30">
-                      <TableCell className="font-mono text-xs dark:text-slate-400 text-left pl-6">{area.code}</TableCell>
+                      <TableCell className="font-mono text-xs dark:text-slate-400 text-left pl-6 hidden md:table-cell">{area.code}</TableCell>
                       <TableCell className="font-medium dark:text-slate-200 text-center">{area.name}</TableCell>
-                      <TableCell className="text-center">
+                      <TableCell className="text-center hidden sm:table-cell">
                         <div className="flex justify-center">
                           <Badge variant="outline" className={getTypeBadgeColor(area.type)}>
                             {getTypeIcon(area.type)}
@@ -280,8 +280,8 @@ const AreasPage = () => {
                           </Badge>
                         </div>
                       </TableCell>
-                      <TableCell className="dark:text-slate-300 text-center">{getParentName(area)}</TableCell>
-                      <TableCell className="text-slate-500 dark:text-slate-400 text-center">
+                      <TableCell className="dark:text-slate-300 text-center hidden lg:table-cell">{getParentName(area)}</TableCell>
+                      <TableCell className="text-slate-500 dark:text-slate-400 text-center hidden xl:table-cell">
                         {new Date(area.createdAt).toLocaleDateString()}
                       </TableCell>
                       <TableCell className="text-center">

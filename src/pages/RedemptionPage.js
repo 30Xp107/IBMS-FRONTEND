@@ -608,7 +608,7 @@ const RedemptionPage = () => {
                 <TableHeader>
                   <TableRow className="bg-stone-100 dark:bg-slate-800/50 hover:bg-stone-100 dark:hover:bg-slate-800/50 border-b dark:border-slate-800">
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-left pl-6"
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-left pl-6 hidden sm:table-cell"
                       onClick={() => handleSort("hhid")}
                     >
                       <div className="flex items-center justify-start">
@@ -616,14 +616,14 @@ const RedemptionPage = () => {
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-left sm:text-center"
                       onClick={() => handleSort("last_name")}
                     >
-                      <div className="flex items-center justify-center">
-                        Name {getSortIcon("last_name")}
+                      <div className="flex items-center justify-start sm:justify-center">
+                        Beneficiary {getSortIcon("last_name")}
                       </div>
                     </TableHead>
-                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center">Location</TableHead>
+                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center hidden lg:table-cell">Location</TableHead>
                     <TableHead 
                       className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
                       onClick={() => handleSort("attendance")}
@@ -632,9 +632,9 @@ const RedemptionPage = () => {
                         Status {getSortIcon("attendance")}
                       </div>
                     </TableHead>
-                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center">Reason</TableHead>
+                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center hidden md:table-cell">Reason</TableHead>
                     <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center">Remarks</TableHead>
-                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center">Record Status</TableHead>
+                    <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center hidden xl:table-cell">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -642,14 +642,15 @@ const RedemptionPage = () => {
                     const redemption = redemptions.find(r => r && r.beneficiary_id === b.id);
                     return (
                       <TableRow key={b.id} className="border-b dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
-                        <TableCell className="font-medium text-slate-700 dark:text-slate-300 text-left pl-6">{b.hhid}</TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex flex-col items-center">
+                        <TableCell className="font-medium text-slate-700 dark:text-slate-300 text-left pl-6 hidden sm:table-cell">{b.hhid}</TableCell>
+                        <TableCell className="text-left sm:text-center">
+                          <div className="flex flex-col sm:items-center">
                             <span className="font-medium text-slate-900 dark:text-slate-100">{b.last_name}, {b.first_name}</span>
-                            <span className="text-[10px] text-slate-500 dark:text-slate-500 uppercase tracking-wider">{b.middle_name}</span>
+                            <span className="text-[10px] text-slate-500 sm:hidden">{b.hhid}</span>
+                            <span className="text-[10px] text-slate-500 dark:text-slate-500 uppercase tracking-wider hidden sm:inline">{b.middle_name}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-center hidden lg:table-cell">
                           <div className="flex flex-col text-xs text-slate-600 dark:text-slate-400 items-center">
                             <span>{b.barangay}</span>
                             <span>{b.municipality}</span>
@@ -661,14 +662,14 @@ const RedemptionPage = () => {
                               value={redemption?.attendance || "none"}
                               onValueChange={(val) => handleUpdate(b, "attendance", val)}
                             >
-                              <SelectTrigger className={`w-32 h-8 text-xs ${
+                              <SelectTrigger className={`w-28 sm:w-32 h-8 text-[10px] sm:text-xs ${
                                 redemption?.attendance === "present" 
                                   ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800" 
                                   : redemption?.attendance === "absent"
                                   ? "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800"
                                   : "dark:bg-slate-900 dark:border-slate-700"
                               }`}>
-                                <SelectValue placeholder="Select status" />
+                                <SelectValue placeholder="Status" />
                               </SelectTrigger>
                               <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
                                 <SelectItem value="none">Not Recorded</SelectItem>
@@ -678,7 +679,7 @@ const RedemptionPage = () => {
                             </Select>
                           </div>
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-center hidden md:table-cell">
                           <Input
                             placeholder="Reason..."
                             value={redemption?.reason || ""}
@@ -713,17 +714,18 @@ const RedemptionPage = () => {
                                   variant="outline" 
                                   size="sm" 
                                   disabled={!redemption?.attendance || redemption?.attendance === "none"}
-                                  className={`h-8 px-3 text-xs flex items-center gap-1.5 transition-all duration-200 ${
+                                  className={`h-8 px-2 sm:px-3 text-[10px] sm:text-xs flex items-center gap-1.5 transition-all duration-200 ${
                                     redemption?.action 
                                       ? "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 hover:text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-400 dark:border-indigo-800" 
                                       : "hover:bg-slate-100 dark:hover:bg-slate-800"
                                   }`}
                                 >
-                                  <Edit className="w-3.5 h-3.5" />
-                                  {redemption?.action || "Select Remarks"}
+                                  <Edit className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                                  <span className="hidden xs:inline">{redemption?.action || "Select Remarks"}</span>
+                                  {!redemption?.action && <span className="xs:hidden">Remarks</span>}
                                 </Button>
                               </DialogTrigger>
-                              <DialogContent className="sm:max-w-[425px] dark:bg-slate-900 dark:border-slate-800">
+                              <DialogContent className="sm:max-w-[425px] max-w-[95vw] dark:bg-slate-900 dark:border-slate-800">
                                 <DialogHeader>
                                   <DialogTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100">
                                     Redemption Remarks
@@ -776,7 +778,7 @@ const RedemptionPage = () => {
                             </Dialog>
                           </div>
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-center hidden xl:table-cell">
                           <div className="flex items-center justify-center gap-1 text-xs">
                             {redemption && redemption.attendance !== "none" && redemption.action ? (
                               <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-500">

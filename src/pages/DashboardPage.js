@@ -1,34 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Users, Calendar as CalendarIcon, FileText, UserCheck, TrendingUp, AlertCircle, Clock, ArrowRight, Activity, ChevronRight, Plus, Trash2, CheckCircle2, Circle, Pencil } from "lucide-react";
+import { Users, FileText, UserCheck, TrendingUp, AlertCircle, Clock, ArrowRight, Activity, ChevronRight, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
-import { Progress } from "@/components/ui/progress";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Calendar } from "@/components/ui/calendar";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { format, formatDistanceToNow, isValid, isSameDay } from "date-fns";
 import {
   BarChart,
   Bar,
@@ -39,122 +16,16 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import { formatDistanceToNow, isValid } from "date-fns";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const DashboardPage = () => {
   const { api, isAdmin, user } = useAuth();
   const [stats, setStats] = useState(null);
   const [recentLogs, setRecentLogs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  
-  // Calendar States
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [events, setEvents] = useState([]);
-  const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
-  const [isSubmittingEvent, setIsSubmittingEvent] = useState(false);
-  const [editingEvent, setEditingEvent] = useState(null);
-  const [eventFormData, setEventFormData] = useState({
-    title: "",
-    description: "",
-    type: "event",
-    start: new Date(),
-    allDay: false,
-    color: "#10b981"
-  });
 
-  useEffect(() => {
-    fetchData();
-    fetchEvents();
-  }, []);
-
-  const fetchEvents = async () => {
-    try {
-      const res = await api.get("/calendar-events");
-      setEvents(res.data.events || []);
-    } catch (error) {
-      console.error("Failed to fetch events:", error);
-    }
-  };
-
-  const handleSubmitEvent = async (e) => {
-    e.preventDefault();
-    try {
-      setIsSubmittingEvent(true);
-      if (editingEvent) {
-        const res = await api.put(`/calendar-events/${editingEvent._id}`, {
-          ...eventFormData,
-          start: selectedDate
-        });
-        setEvents(events.map(ev => ev._id === editingEvent._id ? res.data.event : ev));
-        toast.success("Event updated successfully");
-      } else {
-        const res = await api.post("/calendar-events", {
-          ...eventFormData,
-          start: selectedDate
-        });
-        setEvents([...events, res.data.event]);
-        toast.success("Event created successfully");
-      }
-      setIsEventDialogOpen(false);
-      resetEventForm();
-    } catch (error) {
-      toast.error(editingEvent ? "Failed to update event" : "Failed to create event");
-    } finally {
-      setIsSubmittingEvent(false);
-    }
-  };
-
-  const handleEditClick = (event) => {
-    setEditingEvent(event);
-    setEventFormData({
-      title: event.title,
-      description: event.description || "",
-      type: event.type,
-      start: new Date(event.start),
-      allDay: event.allDay,
-      color: event.color
-    });
-    setSelectedDate(new Date(event.start));
-    setIsEventDialogOpen(true);
-  };
-
-  const handleUpdateEvent = async (id, updates) => {
-    try {
-      const res = await api.put(`/calendar-events/${id}`, updates);
-      setEvents(events.map(e => e._id === id ? res.data.event : e));
-      if (!updates.status) toast.success("Event updated successfully");
-    } catch (error) {
-      toast.error("Failed to update event");
-    }
-  };
-
-  const handleDeleteEvent = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this event?")) return;
-    try {
-      await api.delete(`/calendar-events/${id}`);
-      setEvents(events.filter(e => e._id !== id));
-      toast.success("Event deleted successfully");
-    } catch (error) {
-      toast.error("Failed to delete event");
-    }
-  };
-
-  const resetEventForm = () => {
-    setEventFormData({
-      title: "",
-      description: "",
-      type: "event",
-      start: new Date(),
-      allDay: false,
-      color: "#10b981"
-    });
-    setEditingEvent(null);
-  };
-
-  const selectedDayEvents = events.filter(event => 
-    isSameDay(new Date(event.start), selectedDate)
-  );
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setIsLoading(true);
       const statsRes = await api.get("/dashboard/stats");
@@ -175,7 +46,11 @@ const DashboardPage = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [api, isAdmin]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const getActionColor = (action) => {
     switch (action) {
@@ -236,9 +111,9 @@ const DashboardPage = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Dashboard</h1>
-        <p className="text-slate-500 dark:text-slate-400">
+      <div className="flex flex-col gap-1 text-center sm:text-left">
+        <h1 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-slate-100">Dashboard</h1>
+        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
           Welcome back, {user?.name}! Here's your program overview.
         </p>
       </div>
@@ -380,153 +255,6 @@ const DashboardPage = () => {
           </CardContent>
         </Card>
 
-        {/* Calendar Section */}
-        <Card className="lg:col-span-2 border-stone-200 dark:border-slate-800 shadow-sm overflow-hidden">
-          <CardHeader className="p-4 sm:p-6 pb-3 dark:border-slate-800 border-b bg-slate-50/50 dark:bg-slate-800/30">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <CardTitle className="text-base sm:text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                  <CalendarIcon className="w-5 h-5 text-indigo-600 dark:text-indigo-500" />
-                  Task & Event Calendar
-                </CardTitle>
-                <CardDescription className="text-xs sm:text-sm dark:text-slate-400 mt-0.5">
-                  Manage your daily tasks and system events
-                </CardDescription>
-              </div>
-              <Button 
-                onClick={() => setIsEventDialogOpen(true)}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 h-9 text-xs sm:text-sm"
-              >
-                <Plus className="w-4 h-4" />
-                Add Event
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="grid grid-cols-1 md:grid-cols-12 divide-y md:divide-y-0 md:divide-x dark:divide-slate-800">
-              {/* Calendar Sidebar */}
-              <div className="md:col-span-5 lg:col-span-4 p-4 flex flex-col items-center">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={(date) => date && setSelectedDate(date)}
-                  className="rounded-md border-none"
-                  modifiers={{
-                    hasEvent: (date) => events.some(event => isSameDay(new Date(event.start), date))
-                  }}
-                  modifiersStyles={{
-                    hasEvent: { 
-                      fontWeight: 'bold',
-                      textDecoration: 'underline',
-                      color: '#4f46e5'
-                    }
-                  }}
-                />
-              </div>
-
-              {/* Events List */}
-              <div className="md:col-span-7 lg:col-span-8 flex flex-col h-[400px]">
-                <div className="p-4 border-b dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/30 flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                    {format(selectedDate, "MMMM d, yyyy")}
-                  </h3>
-                  <Badge variant="outline" className="text-[10px] font-medium">
-                    {selectedDayEvents.length} {selectedDayEvents.length === 1 ? 'Event' : 'Events'}
-                  </Badge>
-                </div>
-                
-                <ScrollArea className="flex-1">
-                  <div className="p-4 space-y-3">
-                    {selectedDayEvents.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-12 text-center">
-                        <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3">
-                          <CalendarIcon className="w-6 h-6 text-slate-400" />
-                        </div>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">No events scheduled for this day</p>
-                        <Button 
-                          variant="link" 
-                          className="text-indigo-600 dark:text-indigo-400 text-xs mt-1"
-                          onClick={() => setIsEventDialogOpen(true)}
-                        >
-                          Create one now
-                        </Button>
-                      </div>
-                    ) : (
-                      selectedDayEvents.map((event) => (
-                        <div 
-                          key={event._id}
-                          className="group p-3 rounded-lg border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900/50 hover:shadow-md transition-all"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-start gap-3 min-w-0">
-                              <button 
-                                onClick={() => handleUpdateEvent(event._id, { 
-                                  status: event.status === 'completed' ? 'pending' : 'completed' 
-                                })}
-                                className="mt-0.5 flex-shrink-0"
-                              >
-                                {event.status === 'completed' ? (
-                                  <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                                ) : (
-                                  <Circle className="w-5 h-5 text-slate-300 hover:text-indigo-500 transition-colors" />
-                                )}
-                              </button>
-                              <div className="min-w-0">
-                                <h4 className={`text-sm font-semibold ${event.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-800 dark:text-slate-100'}`}>
-                                  {event.title}
-                                </h4>
-                                {event.description && (
-                                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
-                                    {event.description}
-                                  </p>
-                                )}
-                                <div className="flex items-center gap-2 mt-2">
-                                  <Badge 
-                                    className="text-[9px] px-1.5 py-0 capitalize"
-                                    style={{ 
-                                      backgroundColor: `${event.color}20`, 
-                                      color: event.color,
-                                      borderColor: `${event.color}40`
-                                    }}
-                                    variant="outline"
-                                  >
-                                    {event.type}
-                                  </Badge>
-                                  {event.allDay && (
-                                    <span className="text-[10px] text-slate-400">All day</span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-8 w-8 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
-                                onClick={() => handleEditClick(event)}
-                              >
-                                <Pencil className="w-4 h-4" />
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-8 w-8 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20"
-                                onClick={() => handleDeleteEvent(event._id)}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </ScrollArea>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Quick Info & Activity */}
         <div className="space-y-4 sm:space-y-6">
           <Card className="border-stone-200 dark:border-slate-800 shadow-sm overflow-hidden">
@@ -637,97 +365,6 @@ const DashboardPage = () => {
           )}
         </div>
       </div>
-
-      {/* Event Dialog */}
-      <Dialog open={isEventDialogOpen} onOpenChange={(open) => {
-        setIsEventDialogOpen(open);
-        if (!open) resetEventForm();
-      }}>
-        <DialogContent className="sm:max-w-[425px]">
-          <form onSubmit={handleSubmitEvent}>
-            <DialogHeader>
-              <DialogTitle>{editingEvent ? 'Edit Event' : 'Add New Event'}</DialogTitle>
-              <DialogDescription>
-                Create a task or event for {format(selectedDate, "MMMM d, yyyy")}.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="title">Title</Label>
-                <Input
-                  id="title"
-                  placeholder="Event title"
-                  value={eventFormData.title}
-                  onChange={(e) => setEventFormData({ ...eventFormData, title: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="description">Description (Optional)</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Add details about this event"
-                  value={eventFormData.description}
-                  onChange={(e) => setEventFormData({ ...eventFormData, description: e.target.value })}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="type">Type</Label>
-                  <Select 
-                    value={eventFormData.type} 
-                    onValueChange={(value) => setEventFormData({ ...eventFormData, type: value })}
-                  >
-                    <SelectTrigger id="type">
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="event">Event</SelectItem>
-                      <SelectItem value="task">Task</SelectItem>
-                      <SelectItem value="meeting">Meeting</SelectItem>
-                      <SelectItem value="deadline">Deadline</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="color">Color</Label>
-                  <Select 
-                    value={eventFormData.color} 
-                    onValueChange={(value) => setEventFormData({ ...eventFormData, color: value })}
-                  >
-                    <SelectTrigger id="color">
-                      <SelectValue placeholder="Select color" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="#10b981">Green</SelectItem>
-                      <SelectItem value="#3b82f6">Blue</SelectItem>
-                      <SelectItem value="#f59e0b">Amber</SelectItem>
-                      <SelectItem value="#ef4444">Red</SelectItem>
-                      <SelectItem value="#8b5cf6">Purple</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setIsEventDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button 
-                type="submit" 
-                className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                disabled={isSubmittingEvent}
-              >
-                {isSubmittingEvent ? 'Saving...' : 'Save Event'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
