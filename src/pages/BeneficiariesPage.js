@@ -1172,12 +1172,12 @@ const BeneficiariesPage = () => {
                 </div>
               )}
 
-              <div className="overflow-x-auto">
-                <Table>
+              <div className="overflow-x-auto relative">
+                <Table className="min-w-[1200px]">
                   <TableHeader>
                     <TableRow className="bg-stone-100 dark:bg-slate-800/50 hover:bg-stone-100 dark:hover:bg-slate-800/50 border-b dark:border-slate-800">
                       {isAdmin && (
-                        <TableHead className="w-[50px]">
+                        <TableHead className="w-[50px] sticky left-0 z-30 bg-stone-100 dark:bg-slate-800/50 border-r dark:border-slate-700 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                           <Checkbox 
                             checked={beneficiaries.length > 0 && selectedIds.length === beneficiaries.length}
                             onCheckedChange={handleSelectAll}
@@ -1186,7 +1186,7 @@ const BeneficiariesPage = () => {
                         </TableHead>
                       )}
                       <TableHead 
-                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-left pl-6"
+                        className={`font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-left pl-6 sticky z-30 bg-stone-100 dark:bg-slate-800/50 border-r dark:border-slate-700 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${isAdmin ? "left-[50px] w-[150px]" : "left-0 w-[150px]"}`}
                         onClick={() => handleSort("hhid")}
                       >
                         <div className="flex items-center justify-start">
@@ -1194,7 +1194,7 @@ const BeneficiariesPage = () => {
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden md:table-cell"
+                        className={`font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden md:table-cell sticky z-30 bg-stone-100 dark:bg-slate-800/50 border-r dark:border-slate-700 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${isAdmin ? "left-[200px] w-[120px]" : "left-[150px] w-[120px]"}`}
                         onClick={() => handleSort("pkno")}
                       >
                         <div className="flex items-center justify-center">
@@ -1202,7 +1202,7 @@ const BeneficiariesPage = () => {
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center"
+                        className={`font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center sticky z-30 bg-stone-100 dark:bg-slate-800/50 border-r dark:border-slate-700 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] w-[200px] ${isAdmin ? "left-[200px] md:left-[320px]" : "left-[150px] md:left-[270px]"}`}
                         onClick={() => handleSort("last_name")}
                       >
                         <div className="flex items-center justify-center">
@@ -1268,9 +1268,9 @@ const BeneficiariesPage = () => {
                   </TableHeader>
                   <TableBody>
                     {sortedBeneficiaries.map((b) => (
-                      <TableRow key={b.id} className="border-b dark:border-slate-800 hover:bg-stone-50 dark:hover:bg-slate-800/30">
+                      <TableRow key={b.id} className="group border-b dark:border-slate-800 hover:bg-stone-50 dark:hover:bg-slate-800/30">
                         {isAdmin && (
-                          <TableCell>
+                          <TableCell className="sticky left-0 z-20 bg-white dark:bg-slate-900 group-hover:bg-stone-50 dark:group-hover:bg-slate-800/30 border-r dark:border-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] w-[50px]">
                             <Checkbox 
                               checked={selectedIds.includes(b.id)}
                               onCheckedChange={(checked) => handleSelectOne(b.id, checked)}
@@ -1278,9 +1278,13 @@ const BeneficiariesPage = () => {
                             />
                           </TableCell>
                         )}
-                        <TableCell className="font-mono text-sm dark:text-slate-300 text-left pl-6">{b.hhid}</TableCell>
-                        <TableCell className="font-mono text-sm dark:text-slate-300 text-center hidden md:table-cell">{b.pkno}</TableCell>
-                        <TableCell className="dark:text-slate-300 text-center">
+                        <TableCell className={`font-mono text-sm dark:text-slate-300 text-left pl-6 sticky z-20 bg-white dark:bg-slate-900 group-hover:bg-stone-50 dark:group-hover:bg-slate-800/30 border-r dark:border-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${isAdmin ? "left-[50px] w-[150px]" : "left-0 w-[150px]"}`}>
+                          {b.hhid}
+                        </TableCell>
+                        <TableCell className={`font-mono text-sm dark:text-slate-300 text-center hidden md:table-cell sticky z-20 bg-white dark:bg-slate-900 group-hover:bg-stone-50 dark:group-hover:bg-slate-800/30 border-r dark:border-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${isAdmin ? "left-[200px] w-[120px]" : "left-[150px] w-[120px]"}`}>
+                          {b.pkno}
+                        </TableCell>
+                        <TableCell className={`dark:text-slate-300 text-center sticky z-20 bg-white dark:bg-slate-900 group-hover:bg-stone-50 dark:group-hover:bg-slate-800/30 border-r dark:border-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] w-[200px] ${isAdmin ? "left-[200px] md:left-[320px]" : "left-[150px] md:left-[270px]"}`}>
                           {b.last_name}, {b.first_name} {b.middle_name}
                         </TableCell>
                         <TableCell className="dark:text-slate-300 text-center hidden lg:table-cell">

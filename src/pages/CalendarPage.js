@@ -746,143 +746,145 @@ const CalendarPage = () => {
 
       {/* Event Dialog */}
       <Dialog open={isEventDialogOpen} onOpenChange={setIsEventDialogOpen}>
-        <DialogContent className="max-w-[95vw] sm:max-w-[480px] rounded-[24px] bg-[#0f172a] border-slate-800 text-slate-100 p-6 shadow-2xl overflow-hidden">
+        <DialogContent className="max-w-[95vw] sm:max-w-[500px] rounded-[24px] bg-[#0f172a] border-slate-800 text-slate-100 p-0 shadow-2xl overflow-hidden">
           <form onSubmit={handleSubmitEvent}>
-            <DialogHeader className="space-y-1">
-              <div className="flex items-center justify-between">
-                <DialogTitle className="text-lg sm:text-xl font-bold tracking-tight text-white">
-                  {editingEvent ? 'Edit Event' : 'Add Event'}
-                </DialogTitle>
-              </div>
-              <DialogDescription className="text-slate-400 text-xs sm:text-sm">
-                Schedule something for {format(eventFormData.start, "MMMM d, yyyy")}
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4 py-6">
-              <div className="space-y-1.5">
-                <Label htmlFor="title" className="text-xs font-semibold text-slate-400 uppercase tracking-wider ml-1">Event Title</Label>
-                <Input
-                  id="title"
-                  placeholder="What's happening?"
-                  className="rounded-xl bg-[#1e293b] border-slate-700/50 h-10 text-sm text-white placeholder:text-slate-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-                  value={eventFormData.title}
-                  onChange={(e) => setEventFormData({ ...eventFormData, title: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="description" className="text-xs font-semibold text-slate-400 uppercase tracking-wider ml-1">Description</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Add more details..."
-                  className="rounded-xl bg-[#1e293b] border-slate-700/50 min-h-[80px] text-sm text-white placeholder:text-slate-500 focus:ring-1 focus:ring-indigo-500 transition-all resize-none"
-                  value={eventFormData.description}
-                  onChange={(e) => setEventFormData({ ...eventFormData, description: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-3">
-                <Label className="text-xs font-semibold text-slate-400 uppercase tracking-wider ml-1">Timeline</Label>
-                <div className="flex flex-col sm:flex-row items-center gap-2 p-2 rounded-2xl bg-[#1e293b] border border-slate-700/50 group focus-within:border-indigo-500/50 transition-all">
-                  <div className="flex-1 flex items-center gap-2 w-full">
-                    <div className="w-8 h-8 rounded-lg bg-slate-800/50 flex items-center justify-center text-slate-400 group-focus-within:text-indigo-400 shrink-0">
-                      <CalendarIcon className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1 flex flex-col min-w-0">
-                      <Input
-                        type={eventFormData.allDay ? "date" : "datetime-local"}
-                        className="h-8 bg-transparent border-none text-[13px] text-white focus-visible:ring-0 p-0 font-medium w-full"
-                        value={eventFormData.allDay ? format(eventFormData.start, "yyyy-MM-dd") : getDateTimeString(eventFormData.start)}
-                        onChange={(e) => handleDateChange('start', e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  
-                  <ChevronRight className="w-4 h-4 text-slate-600 hidden sm:block shrink-0" />
-                  <div className="w-full h-[1px] bg-slate-800 sm:hidden" />
-                  
-                  <div className="flex-1 flex items-center gap-2 w-full">
-                    <div className="w-8 h-8 rounded-lg bg-slate-800/50 flex items-center justify-center text-slate-400 group-focus-within:text-indigo-400 shrink-0">
-                      <Clock className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1 flex flex-col min-w-0">
-                      <Input
-                        type={eventFormData.allDay ? "date" : "datetime-local"}
-                        className="h-8 bg-transparent border-none text-[13px] text-white focus-visible:ring-0 p-0 font-medium w-full"
-                        value={eventFormData.allDay ? format(eventFormData.end, "yyyy-MM-dd") : getDateTimeString(eventFormData.end)}
-                        onChange={(e) => handleDateChange('end', e.target.value)}
-                      />
-                    </div>
-                  </div>
+            <div className="p-6 pb-0">
+              <DialogHeader className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <DialogTitle className="text-lg sm:text-xl font-bold tracking-tight text-white">
+                    {editingEvent ? 'Edit Event' : 'Add Event'}
+                  </DialogTitle>
                 </div>
-              </div>
+                <DialogDescription className="text-slate-400 text-xs sm:text-sm">
+                  Schedule something for {format(eventFormData.start, "MMMM d, yyyy")}
+                </DialogDescription>
+              </DialogHeader>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-4 py-6">
                 <div className="space-y-1.5">
-                  <Label htmlFor="type" className="text-xs font-semibold text-slate-400 uppercase tracking-wider ml-1">Type</Label>
-                  <Select 
-                    value={eventFormData.type} 
-                    onValueChange={(value) => setEventFormData({ ...eventFormData, type: value })}
-                  >
-                    <SelectTrigger className="rounded-xl bg-[#1e293b] border-slate-700/50 h-10 text-sm text-white focus:ring-1 focus:ring-indigo-500 transition-all">
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-[#1e293b] border-slate-700 text-white">
-                      <SelectItem value="event">Event</SelectItem>
-                      <SelectItem value="task">Task</SelectItem>
-                      <SelectItem value="meeting">Meeting</SelectItem>
-                      <SelectItem value="deadline">Deadline</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="title" className="text-xs font-semibold text-slate-400 uppercase tracking-wider ml-1">Event Title</Label>
+                  <Input
+                    id="title"
+                    placeholder="What's happening?"
+                    className="rounded-xl bg-[#1e293b] border-slate-700/50 h-10 text-sm text-white placeholder:text-slate-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                    value={eventFormData.title}
+                    onChange={(e) => setEventFormData({ ...eventFormData, title: e.target.value })}
+                    required
+                  />
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-400 uppercase tracking-wider ml-1">Label Color</Label>
-                  <div className="flex items-center gap-2 pt-0.5">
-                    {["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"].map(c => (
-                      <div 
-                        key={c}
-                        onClick={() => setEventFormData({ ...eventFormData, color: c })}
-                        className={`w-7 h-7 rounded-full cursor-pointer transition-all duration-200 relative ${
-                          eventFormData.color === c 
-                            ? 'scale-110 ring-2 ring-white/50 ring-offset-2 ring-offset-[#0f172a]' 
-                            : 'hover:scale-105 opacity-80 hover:opacity-100'
-                        }`}
-                        style={{ backgroundColor: c }}
-                      >
-                        {eventFormData.color === c && (
-                          <div className="absolute inset-0 rounded-full border-2 border-white/20" />
-                        )}
+                  <Label htmlFor="description" className="text-xs font-semibold text-slate-400 uppercase tracking-wider ml-1">Description</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Add more details..."
+                    className="rounded-xl bg-[#1e293b] border-slate-700/50 min-h-[80px] text-sm text-white placeholder:text-slate-500 focus:ring-1 focus:ring-indigo-500 transition-all resize-none"
+                    value={eventFormData.description}
+                    onChange={(e) => setEventFormData({ ...eventFormData, description: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <Label className="text-xs font-semibold text-slate-400 uppercase tracking-wider ml-1">Timeline</Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-[1fr,auto,1fr] items-center gap-2 p-3 rounded-2xl bg-[#1e293b] border border-slate-700/50 group focus-within:border-indigo-500/50 transition-all">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-lg bg-slate-800/50 flex items-center justify-center text-slate-400 group-focus-within:text-indigo-400 shrink-0">
+                        <CalendarIcon className="w-4 h-4" />
                       </div>
-                    ))}
+                      <div className="flex-1 min-w-0">
+                        <Input
+                          type={eventFormData.allDay ? "date" : "datetime-local"}
+                          className="h-8 bg-transparent border-none text-[13px] text-white focus-visible:ring-0 p-0 font-medium w-full [color-scheme:dark]"
+                          value={eventFormData.allDay ? format(eventFormData.start, "yyyy-MM-dd") : getDateTimeString(eventFormData.start)}
+                          onChange={(e) => handleDateChange('start', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    
+                    <ChevronRight className="w-4 h-4 text-slate-600 hidden sm:block shrink-0" />
+                    <div className="w-full h-[1px] bg-slate-800 sm:hidden" />
+                    
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-lg bg-slate-800/50 flex items-center justify-center text-slate-400 group-focus-within:text-indigo-400 shrink-0">
+                        <Clock className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <Input
+                          type={eventFormData.allDay ? "date" : "datetime-local"}
+                          className="h-8 bg-transparent border-none text-[13px] text-white focus-visible:ring-0 p-0 font-medium w-full [color-scheme:dark]"
+                          value={eventFormData.allDay ? format(eventFormData.end, "yyyy-MM-dd") : getDateTimeString(eventFormData.end)}
+                          onChange={(e) => handleDateChange('end', e.target.value)}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex items-center gap-3 pt-1">
-                <Checkbox 
-                  id="allDay" 
-                  checked={eventFormData.allDay} 
-                  onCheckedChange={(checked) => {
-                    const isAllDay = !!checked;
-                    setEventFormData(prev => {
-                      const updated = { ...prev, allDay: isAllDay };
-                      if (isAllDay) {
-                        updated.start = startOfDay(prev.start);
-                        updated.end = endOfDay(prev.end || prev.start);
-                      }
-                      return updated;
-                    });
-                  }}
-                  className="rounded-md border-slate-600 bg-[#1e293b] data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
-                />
-                <Label htmlFor="allDay" className="text-xs font-semibold text-slate-400 cursor-pointer select-none">All day event</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="type" className="text-xs font-semibold text-slate-400 uppercase tracking-wider ml-1">Type</Label>
+                    <Select 
+                      value={eventFormData.type} 
+                      onValueChange={(value) => setEventFormData({ ...eventFormData, type: value })}
+                    >
+                      <SelectTrigger className="rounded-xl bg-[#1e293b] border-slate-700/50 h-10 text-sm text-white focus:ring-1 focus:ring-indigo-500 transition-all">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#1e293b] border-slate-700 text-white">
+                        <SelectItem value="event">Event</SelectItem>
+                        <SelectItem value="task">Task</SelectItem>
+                        <SelectItem value="meeting">Meeting</SelectItem>
+                        <SelectItem value="deadline">Deadline</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-400 uppercase tracking-wider ml-1">Label Color</Label>
+                    <div className="flex items-center gap-2 pt-0.5">
+                      {["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"].map(c => (
+                        <div 
+                          key={c}
+                          onClick={() => setEventFormData({ ...eventFormData, color: c })}
+                          className={`w-7 h-7 rounded-full cursor-pointer transition-all duration-200 relative ${
+                            eventFormData.color === c 
+                              ? 'scale-110 ring-2 ring-white/50 ring-offset-2 ring-offset-[#0f172a]' 
+                              : 'hover:scale-105 opacity-80 hover:opacity-100'
+                          }`}
+                          style={{ backgroundColor: c }}
+                        >
+                          {eventFormData.color === c && (
+                            <div className="absolute inset-0 rounded-full border-2 border-white/20" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 pt-1">
+                  <Checkbox 
+                    id="allDay" 
+                    checked={eventFormData.allDay} 
+                    onCheckedChange={(checked) => {
+                      const isAllDay = !!checked;
+                      setEventFormData(prev => {
+                        const updated = { ...prev, allDay: isAllDay };
+                        if (isAllDay) {
+                          updated.start = startOfDay(prev.start);
+                          updated.end = endOfDay(prev.end || prev.start);
+                        }
+                        return updated;
+                      });
+                    }}
+                    className="rounded-md border-slate-600 bg-[#1e293b] data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
+                  />
+                  <Label htmlFor="allDay" className="text-xs font-semibold text-slate-400 cursor-pointer select-none">All day event</Label>
+                </div>
               </div>
             </div>
 
-            <DialogFooter className="flex-row items-center justify-between gap-4 mt-2">
+            <DialogFooter className="flex items-center justify-between gap-4 p-6 pt-2 bg-[#1e293b]/30 border-t border-slate-800/50">
               <div className="flex-1">
                 {editingEvent && (
                   <Button 
@@ -897,7 +899,7 @@ const CalendarPage = () => {
                 )}
               </div>
               
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <Button 
                   type="button" 
                   variant="ghost" 
