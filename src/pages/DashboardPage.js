@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Users, Calendar as CalendarIcon, FileText, UserCheck, TrendingUp, AlertCircle, Clock, ArrowRight, Activity, ChevronRight, Plus, Trash2, CheckCircle2, Circle } from "lucide-react";
+import { Users, Calendar as CalendarIcon, FileText, UserCheck, TrendingUp, AlertCircle, Clock, ArrowRight, Activity, ChevronRight, Plus, Trash2, CheckCircle2, Circle, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
@@ -75,23 +75,46 @@ const DashboardPage = () => {
     }
   };
 
-  const handleCreateEvent = async (e) => {
+  const handleSubmitEvent = async (e) => {
     e.preventDefault();
     try {
       setIsSubmittingEvent(true);
-      const res = await api.post("/calendar-events", {
-        ...eventFormData,
-        start: selectedDate
-      });
-      setEvents([...events, res.data.event]);
+      if (editingEvent) {
+        const res = await api.put(`/calendar-events/${editingEvent._id}`, {
+          ...eventFormData,
+          start: selectedDate
+        });
+        setEvents(events.map(ev => ev._id === editingEvent._id ? res.data.event : ev));
+        toast.success("Event updated successfully");
+      } else {
+        const res = await api.post("/calendar-events", {
+          ...eventFormData,
+          start: selectedDate
+        });
+        setEvents([...events, res.data.event]);
+        toast.success("Event created successfully");
+      }
       setIsEventDialogOpen(false);
       resetEventForm();
-      toast.success("Event created successfully");
     } catch (error) {
-      toast.error("Failed to create event");
+      toast.error(editingEvent ? "Failed to update event" : "Failed to create event");
     } finally {
       setIsSubmittingEvent(false);
     }
+  };
+
+  const handleEditClick = (event) => {
+    setEditingEvent(event);
+    setEventFormData({
+      title: event.title,
+      description: event.description || "",
+      type: event.type,
+      start: new Date(event.start),
+      allDay: event.allDay,
+      color: event.color
+    });
+    setSelectedDate(new Date(event.start));
+    setIsEventDialogOpen(true);
   };
 
   const handleUpdateEvent = async (id, updates) => {
@@ -475,14 +498,24 @@ const DashboardPage = () => {
                                 </div>
                               </div>
                             </div>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-8 w-8 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 opacity-0 group-hover:opacity-100 transition-opacity"
-                              onClick={() => handleDeleteEvent(event._id)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+                                onClick={() => handleEditClick(event)}
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20"
+                                onClick={() => handleDeleteEvent(event._id)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       ))
@@ -611,7 +644,7 @@ const DashboardPage = () => {
         if (!open) resetEventForm();
       }}>
         <DialogContent className="sm:max-w-[425px]">
-          <form onSubmit={handleCreateEvent}>
+          <form onSubmit={handleSubmitEvent}>
             <DialogHeader>
               <DialogTitle>{editingEvent ? 'Edit Event' : 'Add New Event'}</DialogTitle>
               <DialogDescription>
