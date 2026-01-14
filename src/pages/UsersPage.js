@@ -49,7 +49,8 @@ const UsersPage = () => {
   const [totalUsers, setTotalUsers] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
 
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
@@ -58,9 +59,22 @@ const UsersPage = () => {
   const [showEditPassword, setShowEditPassword] = useState(false);
   const [showEditConfirmPassword, setShowEditConfirmPassword] = useState(false);
 
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Reset to page 1 when filters or search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, statusFilter, itemsPerPage]);
+
   useEffect(() => {
     fetchUsers();
-  }, [currentPage, search, statusFilter, sortConfig]);
+  }, [currentPage, debouncedSearch, statusFilter, sortConfig, itemsPerPage]);
 
   useEffect(() => {
     fetchAreas("region");
@@ -70,7 +84,7 @@ const UsersPage = () => {
     setIsLoading(true);
     try {
       let query = `?page=${currentPage}&limit=${itemsPerPage}&sort=${sortConfig.key}&order=${sortConfig.direction}`;
-      if (search) query += `&search=${encodeURIComponent(search)}`;
+      if (debouncedSearch) query += `&search=${encodeURIComponent(debouncedSearch)}`;
       if (statusFilter) query += `&status=${encodeURIComponent(statusFilter)}`;
 
       const response = await api.get(`/users${query}`);
@@ -247,11 +261,11 @@ const UsersPage = () => {
       const toastId = toast.loading("Preparing export...");
       
       // Fetch all users with current filters but no pagination
-      let query = `?limit=all`;
-      if (search) query += `&search=${encodeURIComponent(search)}`;
-      if (statusFilter !== "all") query += `&status=${statusFilter}`;
+      let query = `?limit=all&sort=${sortConfig.key}&order=${sortConfig.direction}`;
+      if (debouncedSearch) query += `&search=${encodeURIComponent(debouncedSearch)}`;
+      if (statusFilter && statusFilter !== "all") query += `&status=${encodeURIComponent(statusFilter)}`;
       
-      const response = await api.get(`/auth/users${query}`);
+      const response = await api.get(`/users${query}`);
       const allUsers = response.data.users || [];
 
       if (allUsers.length === 0) {
@@ -294,7 +308,6 @@ const UsersPage = () => {
   const filteredUsers = users;
 
   const currentUsers = filteredUsers;
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
   const getPaginationRange = () => {
     const delta = 1;
@@ -380,17 +393,31 @@ const UsersPage = () => {
                 className="pl-10 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
               />
             </div>
-            <Select value={statusFilter || "all"} onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}>
-              <SelectTrigger className="w-full sm:w-48 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
-                <SelectValue placeholder="All Statuses" />
-              </SelectTrigger>
-              <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex flex-col sm:flex-row gap-4 items-center">
+              <Select value={statusFilter || "all"} onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}>
+                <SelectTrigger className="w-full sm:w-48 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                  <SelectValue placeholder="All Statuses" />
+                </SelectTrigger>
+                <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={itemsPerPage.toString()} onValueChange={(v) => setItemsPerPage(v === "all" ? "all" : parseInt(v))}>
+                <SelectTrigger className="w-full sm:w-32 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                  <SelectValue placeholder="Rows" />
+                </SelectTrigger>
+                <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
+                  <SelectItem value="10">10 rows</SelectItem>
+                  <SelectItem value="20">20 rows</SelectItem>
+                  <SelectItem value="50">50 rows</SelectItem>
+                  <SelectItem value="100">100 rows</SelectItem>
+                  <SelectItem value="all">Show All</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -556,57 +583,65 @@ const UsersPage = () => {
         </CardContent>
 
         {/* Pagination Footer */}
-        {totalPages > 1 && (
+        {totalUsers > 0 && (
           <div className="px-6 py-4 border-t dark:border-slate-800 bg-stone-50/50 dark:bg-slate-800/20 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-              Showing <span className="font-medium text-slate-700 dark:text-slate-200">{(currentPage - 1) * itemsPerPage + 1}</span> to{" "}
-              <span className="font-medium text-slate-700 dark:text-slate-200">{Math.min(currentPage * itemsPerPage, totalUsers)}</span> of{" "}
-              <span className="font-medium text-slate-700 dark:text-slate-200">{totalUsers}</span> users
+              {itemsPerPage === "all" ? (
+                <span>Showing all <span className="font-medium text-slate-700 dark:text-slate-200">{totalUsers}</span> users</span>
+              ) : (
+                <>
+                  Showing <span className="font-medium text-slate-700 dark:text-slate-200">{(currentPage - 1) * itemsPerPage + 1}</span> to{" "}
+                  <span className="font-medium text-slate-700 dark:text-slate-200">{Math.min(currentPage * itemsPerPage, totalUsers)}</span> of{" "}
+                  <span className="font-medium text-slate-700 dark:text-slate-200">{totalUsers}</span> users
+                </>
+              )}
             </div>
             
-            <div className="flex items-center gap-1 sm:gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8 dark:bg-slate-900 dark:border-slate-700"
-                onClick={() => paginate(currentPage - 1)}
-                disabled={currentPage === 1}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
+            {itemsPerPage !== "all" && totalPages > 1 && (
+              <div className="flex items-center gap-1 sm:gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 dark:bg-slate-900 dark:border-slate-700"
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
 
-              <div className="flex items-center gap-1">
-                {getPaginationRange().map((page, index) => (
-                  page === "..." ? (
-                    <span key={`dots-${index}`} className="px-2 text-slate-400">...</span>
-                  ) : (
-                    <Button
-                      key={page}
-                      variant={currentPage === page ? "default" : "outline"}
-                      size="sm"
-                      className={`h-8 w-8 text-xs p-0 ${
-                        currentPage === page 
-                        ? "bg-emerald-600 hover:bg-emerald-700 text-white" 
-                        : "dark:bg-slate-900 dark:border-slate-700"
-                      }`}
-                      onClick={() => paginate(page)}
-                    >
-                      {page}
-                    </Button>
-                  )
-                ))}
+                <div className="flex items-center gap-1">
+                  {getPaginationRange().map((page, index) => (
+                    page === "..." ? (
+                      <span key={`dots-${index}`} className="px-2 text-slate-400">...</span>
+                    ) : (
+                      <Button
+                        key={page}
+                        variant={currentPage === page ? "default" : "outline"}
+                        size="sm"
+                        className={`h-8 w-8 text-xs p-0 ${
+                          currentPage === page 
+                          ? "bg-emerald-600 hover:bg-emerald-700 text-white" 
+                          : "dark:bg-slate-900 dark:border-slate-700"
+                        }`}
+                        onClick={() => setCurrentPage(page)}
+                      >
+                        {page}
+                      </Button>
+                    )
+                  ))}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 dark:bg-slate-900 dark:border-slate-700"
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
               </div>
-
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8 dark:bg-slate-900 dark:border-slate-700"
-                onClick={() => paginate(currentPage + 1)}
-                disabled={currentPage === totalPages}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
+            )}
           </div>
         )}
       </Card>

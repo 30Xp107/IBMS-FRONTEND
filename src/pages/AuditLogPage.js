@@ -36,24 +36,39 @@ const AuditLogPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [moduleFilter, setModuleFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedLog, setSelectedLog] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: "timestamp", direction: "desc" });
   const [totalLogs, setTotalLogs] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Reset to page 1 when search, filter, or limit changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, moduleFilter, itemsPerPage]);
 
   useEffect(() => {
     fetchLogs();
-  }, [currentPage, moduleFilter, searchQuery, sortConfig]);
+  }, [currentPage, moduleFilter, debouncedSearch, sortConfig, itemsPerPage]);
 
   const fetchLogs = async () => {
     setIsLoading(true);
     try {
       let query = `?page=${currentPage}&limit=${itemsPerPage}&sort=${sortConfig.key}&order=${sortConfig.direction}`;
       if (moduleFilter) query += `&module=${moduleFilter}`;
-      if (searchQuery) query += `&search=${searchQuery}`;
+      if (debouncedSearch) query += `&search=${debouncedSearch}`;
       
       const response = await api.get(`/audit-logs${query}`);
       setLogs(response.data.logs || []);
@@ -92,9 +107,9 @@ const AuditLogPage = () => {
       const toastId = toast.loading("Preparing export...");
       
       // Fetch all logs with current filters but no pagination
-      let query = `?limit=all`;
+      let query = `?limit=all&sort=${sortConfig.key}&order=${sortConfig.direction}`;
       if (moduleFilter) query += `&module=${moduleFilter}`;
-      if (searchQuery) query += `&search=${searchQuery}`;
+      if (debouncedSearch) query += `&search=${debouncedSearch}`;
       
       const response = await api.get(`/audit-logs${query}`);
       const allLogs = response.data.logs || [];
@@ -142,6 +157,29 @@ const AuditLogPage = () => {
   // Sorting is now handled on the server side
   const displayLogs = logs;
 
+  const getPaginationRange = () => {
+    const delta = 1;
+    const range = [];
+    const left = currentPage - delta;
+    const right = currentPage + delta;
+    let l;
+
+    for (let i = 1; i <= totalPages; i++) {
+      if (i === 1 || i === totalPages || (i >= left && i <= right)) {
+        if (l) {
+          if (i - l === 2) {
+            range.push(l + 1);
+          } else if (i - l !== 1) {
+            range.push("...");
+          }
+        }
+        range.push(i);
+        l = i;
+      }
+    }
+    return range;
+  };
+
   const getActionBadge = (action) => {
     switch (action) {
       case "CREATE":
@@ -177,6 +215,8 @@ const AuditLogPage = () => {
       nes: "bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-800",
       users: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800/30 dark:text-slate-400 dark:border-slate-700",
       areas: "bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-900/30 dark:text-pink-400 dark:border-pink-800",
+      calendar: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800",
+      system_config: "bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800",
     };
     return (
       <Badge variant="outline" className={colors[module] || "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800/30 dark:text-slate-400 dark:border-slate-700"}>
@@ -261,7 +301,8 @@ const AuditLogPage = () => {
     return <span className="text-slate-400 dark:text-slate-600">-</span>;
   };
 
-  const uniqueModules = [...new Set(logs.map((log) => log.module))];
+  const knownModules = ["beneficiaries", "redemptions", "nes", "users", "areas", "calendar", "system_config"];
+  const uniqueModules = [...new Set([...knownModules, ...logs.map((log) => log.module)])];
 
   return (
     <div className="space-y-6">
@@ -309,6 +350,20 @@ const AuditLogPage = () => {
                 ))}
               </SelectContent>
             </Select>
+
+            <Select value={itemsPerPage.toString()} onValueChange={(v) => setItemsPerPage(v === "all" ? "all" : parseInt(v))}>
+              <SelectTrigger className="w-full md:w-32 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                <SelectValue placeholder="Rows" />
+              </SelectTrigger>
+              <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
+                <SelectItem value="10">10 rows</SelectItem>
+                <SelectItem value="20">20 rows</SelectItem>
+                <SelectItem value="50">50 rows</SelectItem>
+                <SelectItem value="100">100 rows</SelectItem>
+                <SelectItem value="all">Show All</SelectItem>
+              </SelectContent>
+            </Select>
+
           </div>
         </CardContent>
       </Card>
@@ -438,41 +493,37 @@ const AuditLogPage = () => {
       </Card>
 
       {/* Pagination */}
-      {totalPages > 1 && (
+      {totalPages > 1 && itemsPerPage !== "all" && (
         <div className="flex items-center justify-center gap-2 py-4">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => paginate(currentPage - 1)}
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
             disabled={currentPage === 1}
             className="dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
           >
             Previous
           </Button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1)
-            .filter(page => {
-              // Show first, last, and pages around current
-              return page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1;
-            })
-            .map((page, index, array) => (
-              <div key={page} className="flex items-center">
-                {index > 0 && array[index - 1] !== page - 1 && (
-                  <span className="px-2 text-slate-400 dark:text-slate-600">...</span>
-                )}
+          {getPaginationRange().map((page, index) => (
+            <div key={index} className="flex items-center">
+              {page === "..." ? (
+                <span className="px-2 text-slate-400 dark:text-slate-600">...</span>
+              ) : (
                 <Button
                   variant={currentPage === page ? "default" : "outline"}
                   size="sm"
-                  onClick={() => paginate(page)}
+                  onClick={() => setCurrentPage(page)}
                   className={`w-8 ${currentPage === page ? 'dark:bg-emerald-600 dark:text-white' : 'dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800'}`}
                 >
                   {page}
                 </Button>
-              </div>
-            ))}
+              )}
+            </div>
+          ))}
           <Button
             variant="outline"
             size="sm"
-            onClick={() => paginate(currentPage + 1)}
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
             disabled={currentPage === totalPages}
             className="dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
           >

@@ -48,9 +48,23 @@ const BeneficiariesPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalBeneficiaries, setTotalBeneficiaries] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [sortConfig, setSortConfig] = useState({ key: "last_name", direction: "asc" });
   const [selectedIds, setSelectedIds] = useState([]);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Reset to page 1 when filters or search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, regionFilter, provinceFilter, municipalityFilter, barangayFilter, statusFilter, itemsPerPage]);
   const [isAllSelectedGlobally, setIsAllSelectedGlobally] = useState(false);
   const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
   const [duplicates, setDuplicates] = useState([]);
@@ -146,7 +160,7 @@ const BeneficiariesPage = () => {
 
   useEffect(() => {
     fetchBeneficiaries();
-  }, [currentPage, search, regionFilter, provinceFilter, municipalityFilter, barangayFilter, statusFilter, sortConfig]);
+  }, [currentPage, debouncedSearch, regionFilter, provinceFilter, municipalityFilter, barangayFilter, statusFilter, sortConfig, itemsPerPage]);
 
   useEffect(() => {
     fetchAreas("region");
@@ -196,7 +210,7 @@ const BeneficiariesPage = () => {
     setIsLoading(true);
     try {
       let query = `?page=${currentPage}&limit=${itemsPerPage}&sort=${sortConfig.key}&order=${sortConfig.direction}`;
-      if (search) query += `&search=${encodeURIComponent(search)}`;
+      if (debouncedSearch) query += `&search=${encodeURIComponent(debouncedSearch)}`;
       if (regionFilter !== "all") query += `&region=${encodeURIComponent(regionFilter)}`;
       if (provinceFilter !== "all") query += `&province=${encodeURIComponent(provinceFilter)}`;
       if (municipalityFilter !== "all") query += `&municipality=${encodeURIComponent(municipalityFilter)}`;
@@ -582,12 +596,13 @@ const BeneficiariesPage = () => {
       const toastId = toast.loading("Preparing export...");
       
       // Fetch all beneficiaries with current filters but no pagination
-      let query = `?limit=all`;
-      if (search) query += `&search=${encodeURIComponent(search)}`;
+      let query = `?limit=all&sort=${sortConfig.key}&order=${sortConfig.direction}`;
+      if (debouncedSearch) query += `&search=${encodeURIComponent(debouncedSearch)}`;
       if (regionFilter !== "all") query += `&region=${encodeURIComponent(regionFilter)}`;
       if (provinceFilter !== "all") query += `&province=${encodeURIComponent(provinceFilter)}`;
       if (municipalityFilter !== "all") query += `&municipality=${encodeURIComponent(municipalityFilter)}`;
       if (barangayFilter !== "all") query += `&barangay=${encodeURIComponent(barangayFilter)}`;
+      if (statusFilter !== "all") query += `&status=${encodeURIComponent(statusFilter)}`;
       
       const response = await api.get(`/beneficiaries${query}`);
       const allBeneficiaries = response.data.beneficiaries || [];
@@ -659,7 +674,28 @@ const BeneficiariesPage = () => {
 
   const sortedBeneficiaries = beneficiaries;
 
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+  const getPaginationRange = () => {
+    const delta = 1;
+    const range = [];
+    const left = currentPage - delta;
+    const right = currentPage + delta;
+    let l;
+
+    for (let i = 1; i <= totalPages; i++) {
+      if (i === 1 || i === totalPages || (i >= left && i <= right)) {
+        if (l) {
+          if (i - l === 2) {
+            range.push(l + 1);
+          } else if (i - l !== 1) {
+            range.push("...");
+          }
+        }
+        range.push(i);
+        l = i;
+      }
+    }
+    return range;
+  };
 
   return (
     <div className="space-y-6">
@@ -1077,6 +1113,19 @@ const BeneficiariesPage = () => {
                   <SelectItem value="Not for Recording">Not for Recording</SelectItem>
                 </SelectContent>
               </Select>
+
+              <Select value={itemsPerPage.toString()} onValueChange={(v) => setItemsPerPage(v === "all" ? "all" : parseInt(v))}>
+                <SelectTrigger className="w-full sm:w-32 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                  <SelectValue placeholder="Rows" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10 rows</SelectItem>
+                  <SelectItem value="20">20 rows</SelectItem>
+                  <SelectItem value="50">50 rows</SelectItem>
+                  <SelectItem value="100">100 rows</SelectItem>
+                  <SelectItem value="all">Show All</SelectItem>
+                </SelectContent>
+              </Select>
               
               {(regionFilter !== "all" || provinceFilter !== "all" || municipalityFilter !== "all" || barangayFilter !== "all" || statusFilter !== "all") && (
                 <Button 
@@ -1177,7 +1226,7 @@ const BeneficiariesPage = () => {
                   <TableHeader>
                     <TableRow className="bg-stone-100 dark:bg-slate-800/50 hover:bg-stone-100 dark:hover:bg-slate-800/50 border-b dark:border-slate-800">
                       {isAdmin && (
-                        <TableHead className="w-[50px] sticky left-0 z-30 bg-stone-100 dark:bg-slate-800/50 border-r dark:border-slate-700 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                        <TableHead className="w-[50px]">
                           <Checkbox 
                             checked={beneficiaries.length > 0 && selectedIds.length === beneficiaries.length}
                             onCheckedChange={handleSelectAll}
@@ -1186,7 +1235,7 @@ const BeneficiariesPage = () => {
                         </TableHead>
                       )}
                       <TableHead 
-                        className={`font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-left pl-6 sticky z-30 bg-stone-100 dark:bg-slate-800/50 border-r dark:border-slate-700 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${isAdmin ? "left-[50px] w-[150px]" : "left-0 w-[150px]"}`}
+                        className={`font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-left pl-6 w-[150px]`}
                         onClick={() => handleSort("hhid")}
                       >
                         <div className="flex items-center justify-start">
@@ -1194,7 +1243,7 @@ const BeneficiariesPage = () => {
                         </div>
                       </TableHead>
                       <TableHead 
-                        className={`font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden md:table-cell sticky z-30 bg-stone-100 dark:bg-slate-800/50 border-r dark:border-slate-700 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${isAdmin ? "left-[200px] w-[120px]" : "left-[150px] w-[120px]"}`}
+                        className={`font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden md:table-cell w-[120px]`}
                         onClick={() => handleSort("pkno")}
                       >
                         <div className="flex items-center justify-center">
@@ -1202,7 +1251,7 @@ const BeneficiariesPage = () => {
                         </div>
                       </TableHead>
                       <TableHead 
-                        className={`font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center sticky z-30 bg-stone-100 dark:bg-slate-800/50 border-r dark:border-slate-700 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] w-[200px] ${isAdmin ? "left-[200px] md:left-[320px]" : "left-[150px] md:left-[270px]"}`}
+                        className={`font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center w-[200px]`}
                         onClick={() => handleSort("last_name")}
                       >
                         <div className="flex items-center justify-center">
@@ -1270,7 +1319,7 @@ const BeneficiariesPage = () => {
                     {sortedBeneficiaries.map((b) => (
                       <TableRow key={b.id} className="group border-b dark:border-slate-800 hover:bg-stone-50 dark:hover:bg-slate-800/30">
                         {isAdmin && (
-                          <TableCell className="sticky left-0 z-20 bg-white dark:bg-slate-900 group-hover:bg-stone-50 dark:group-hover:bg-slate-800/30 border-r dark:border-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] w-[50px]">
+                          <TableCell className="w-[50px]">
                             <Checkbox 
                               checked={selectedIds.includes(b.id)}
                               onCheckedChange={(checked) => handleSelectOne(b.id, checked)}
@@ -1278,13 +1327,13 @@ const BeneficiariesPage = () => {
                             />
                           </TableCell>
                         )}
-                        <TableCell className={`font-mono text-sm dark:text-slate-300 text-left pl-6 sticky z-20 bg-white dark:bg-slate-900 group-hover:bg-stone-50 dark:group-hover:bg-slate-800/30 border-r dark:border-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${isAdmin ? "left-[50px] w-[150px]" : "left-0 w-[150px]"}`}>
+                        <TableCell className={`font-mono text-sm dark:text-slate-300 text-left pl-6 w-[150px]`}>
                           {b.hhid}
                         </TableCell>
-                        <TableCell className={`font-mono text-sm dark:text-slate-300 text-center hidden md:table-cell sticky z-20 bg-white dark:bg-slate-900 group-hover:bg-stone-50 dark:group-hover:bg-slate-800/30 border-r dark:border-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${isAdmin ? "left-[200px] w-[120px]" : "left-[150px] w-[120px]"}`}>
+                        <TableCell className={`font-mono text-sm dark:text-slate-300 text-center hidden md:table-cell w-[120px]`}>
                           {b.pkno}
                         </TableCell>
-                        <TableCell className={`dark:text-slate-300 text-center sticky z-20 bg-white dark:bg-slate-900 group-hover:bg-stone-50 dark:group-hover:bg-slate-800/30 border-r dark:border-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] w-[200px] ${isAdmin ? "left-[200px] md:left-[320px]" : "left-[150px] md:left-[270px]"}`}>
+                        <TableCell className={`dark:text-slate-300 text-center w-[200px]`}>
                           {b.last_name}, {b.first_name} {b.middle_name}
                         </TableCell>
                         <TableCell className="dark:text-slate-300 text-center hidden lg:table-cell">
@@ -1368,41 +1417,37 @@ const BeneficiariesPage = () => {
               </div>
 
               {/* Pagination */}
-              {totalPages > 1 && (
+              {totalPages > 1 && itemsPerPage !== "all" && (
                 <div className="flex items-center justify-center gap-2 py-4">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => paginate(currentPage - 1)}
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                     disabled={currentPage === 1}
                     className="dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
                   >
                     Previous
                   </Button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter(page => {
-                      // Show first, last, and pages around current
-                      return page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1;
-                    })
-                    .map((page, index, array) => (
-                      <div key={page} className="flex items-center">
-                        {index > 0 && array[index - 1] !== page - 1 && (
-                          <span className="px-2 text-slate-400 dark:text-slate-600">...</span>
-                        )}
+                  {getPaginationRange().map((page, index) => (
+                    <div key={index} className="flex items-center">
+                      {page === "..." ? (
+                        <span className="px-2 text-slate-400 dark:text-slate-600">...</span>
+                      ) : (
                         <Button
                           variant={currentPage === page ? "default" : "outline"}
                           size="sm"
-                          onClick={() => paginate(page)}
+                          onClick={() => setCurrentPage(page)}
                           className={`w-8 ${currentPage === page ? 'dark:bg-emerald-600 dark:text-white' : 'dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800'}`}
                         >
                           {page}
                         </Button>
-                      </div>
-                    ))}
+                      )}
+                    </div>
+                  ))}
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => paginate(currentPage + 1)}
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                     disabled={currentPage === totalPages}
                     className="dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
                   >

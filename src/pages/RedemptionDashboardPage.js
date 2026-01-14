@@ -45,8 +45,8 @@ const RedemptionDashboardPage = () => {
   const { api, user } = useAuth();
   const [stats, setStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
-  const [selectedMonth, setSelectedMonth] = useState(new Date().toLocaleString("default", { month: "long" }));
+  const [frmSchedules, setFrmSchedules] = useState([]);
+  const [selectedPeriod, setSelectedPeriod] = useState("");
   const [municipalityProvinceFilter, setMunicipalityProvinceFilter] = useState("all");
   const [sortConfigs, setSortConfigs] = useState({
     period: { key: 'period', direction: 'desc' },
@@ -55,8 +55,53 @@ const RedemptionDashboardPage = () => {
   });
 
   useEffect(() => {
-    fetchData();
-  }, [selectedYear, selectedMonth]);
+    fetchFrmSchedules();
+  }, []);
+
+  useEffect(() => {
+    if (selectedPeriod) {
+      fetchData();
+    }
+  }, [selectedPeriod]);
+
+  const fetchFrmSchedules = async () => {
+    try {
+      const response = await api.get("/system-configs/frm_schedules");
+      if (response.data && response.data.value) {
+        const schedules = response.data.value;
+        setFrmSchedules(schedules);
+        
+        // Find current period based on date
+        const now = new Date();
+        const current = schedules.find(s => {
+          const start = new Date(s.startDate);
+          const end = new Date(s.endDate);
+          start.setHours(0, 0, 0, 0);
+          end.setHours(23, 59, 59, 999);
+          return now >= start && now <= end;
+        });
+
+        if (current) {
+          setSelectedPeriod(current.name);
+        } else if (schedules.length > 0) {
+          // Fallback to the latest period if none matches current date
+          const sorted = [...schedules].sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime());
+          setSelectedPeriod(sorted[0].name);
+        } else {
+          // Final fallback to monthly if no custom schedules exist
+          const fallback = `${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
+          setSelectedPeriod(fallback);
+        }
+      } else {
+        const now = new Date();
+        setSelectedPeriod(`${MONTHS[now.getMonth()]} ${now.getFullYear()}`);
+      }
+    } catch (error) {
+      console.error("Failed to fetch FRM schedules:", error);
+      const now = new Date();
+      setSelectedPeriod(`${MONTHS[now.getMonth()]} ${now.getFullYear()}`);
+    }
+  };
 
   const handleSort = (table, key) => {
     setSortConfigs(prev => ({
@@ -82,14 +127,26 @@ const RedemptionDashboardPage = () => {
       }
       
       if (typeof aVal === 'number' && typeof bVal === 'number') {
-        return config.direction === 'asc' ? aVal - bVal : bVal - aVal;
+        if (aVal !== bVal) {
+          return config.direction === 'asc' ? aVal - bVal : bVal - aVal;
+        }
+      } else {
+        aVal = String(aVal || '').toLowerCase();
+        bVal = String(bVal || '').toLowerCase();
+        
+        if (aVal !== bVal) {
+          if (aVal < bVal) return config.direction === 'asc' ? -1 : 1;
+          if (aVal > bVal) return config.direction === 'asc' ? 1 : -1;
+        }
       }
       
-      aVal = String(aVal || '').toLowerCase();
-      bVal = String(bVal || '').toLowerCase();
+      // Secondary sort for stability (e.g., by name if primary values are equal)
+      const secondaryKey = a.municipality ? 'municipality' : 'province';
+      const aSec = String(a[secondaryKey] || '').toLowerCase();
+      const bSec = String(b[secondaryKey] || '').toLowerCase();
       
-      if (aVal < bVal) return config.direction === 'asc' ? -1 : 1;
-      if (aVal > bVal) return config.direction === 'asc' ? 1 : -1;
+      if (aSec < bSec) return -1;
+      if (aSec > bSec) return 1;
       return 0;
     });
   };
@@ -107,8 +164,7 @@ const RedemptionDashboardPage = () => {
       setIsLoading(true);
       const res = await api.get("/dashboard/redemption-stats", {
         params: {
-          year: selectedYear,
-          month: selectedMonth
+          period: selectedPeriod
         }
       });
       setStats(res.data);
@@ -149,25 +205,20 @@ const RedemptionDashboardPage = () => {
         </div>
 
         <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-md border border-slate-200 dark:border-slate-800 shadow-sm">
-          <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-[100px] h-8 text-[11px] font-medium border-none shadow-none focus:ring-0">
-              <SelectValue placeholder="Year" />
+          <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+            <SelectTrigger className="w-full sm:w-48 h-8 text-[11px] font-medium border-none shadow-none focus:ring-0">
+              <SelectValue placeholder="Select FRM Period" />
             </SelectTrigger>
-            <SelectContent>
-              {YEARS.map(year => (
-                <SelectItem key={year} value={year}>{year}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="w-px h-4 bg-slate-200 dark:bg-slate-800" />
-          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-[120px] h-8 text-[11px] font-medium border-none shadow-none focus:ring-0">
-              <SelectValue placeholder="Month" />
-            </SelectTrigger>
-            <SelectContent>
-              {MONTHS.map(month => (
-                <SelectItem key={month} value={month}>{month}</SelectItem>
-              ))}
+            <SelectContent className="dark:bg-slate-900 dark:border-slate-800 max-h-[300px]">
+              {frmSchedules && frmSchedules.length > 0 ? (
+                frmSchedules.map((s) => (
+                  <SelectItem key={s.name} value={s.name}>
+                    {s.name}
+                  </SelectItem>
+                ))
+              ) : selectedPeriod ? (
+                <SelectItem value={selectedPeriod}>{selectedPeriod}</SelectItem>
+              ) : null}
             </SelectContent>
           </Select>
         </div>
@@ -466,7 +517,7 @@ const RedemptionDashboardPage = () => {
                 Municipality Monitoring
               </CardTitle>
               <CardDescription className="text-sm dark:text-slate-400 mt-1">
-                Redemption progress per municipality for {selectedMonth} {selectedYear}
+                Redemption progress per municipality for {selectedPeriod}
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">

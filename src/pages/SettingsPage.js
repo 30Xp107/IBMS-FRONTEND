@@ -1,17 +1,94 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Save, User, Mail, Lock, ShieldCheck, Eye, EyeOff } from "lucide-react";
+import { Save, User, Mail, Lock, ShieldCheck, Eye, EyeOff, Calendar as CalendarIcon, Plus, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { format } from "date-fns";
 
 const SettingsPage = () => {
-  const { user, api, refreshUser } = useAuth();
+  const { user, api, refreshUser, isAdmin } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [isFrmLoading, setIsFrmLoading] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [frmSchedules, setFrmSchedules] = useState([]);
+  const [isFrmDialogOpen, setIsFrmDialogOpen] = useState(false);
+  const [currentFrm, setCurrentFrm] = useState({
+    name: "",
+    startDate: "",
+    endDate: "",
+  });
+
+  const fetchFrmSchedules = useCallback(async () => {
+    if (!isAdmin) return;
+    try {
+      const response = await api.get("/system-configs/frm_schedules");
+      if (response.data && response.data.value) {
+        setFrmSchedules(response.data.value);
+      }
+    } catch (error) {
+      console.error("Failed to fetch FRM schedules:", error);
+    }
+  }, [api, isAdmin]);
+
+  useEffect(() => {
+    fetchFrmSchedules();
+  }, [fetchFrmSchedules]);
+
+  const handleSaveFrmSchedule = async () => {
+    if (!currentFrm.name || !currentFrm.startDate || !currentFrm.endDate) {
+      return toast.error("Please fill in all fields");
+    }
+
+    setIsFrmLoading(true);
+    try {
+      const existingScheduleIndex = frmSchedules.findIndex(s => s.name === currentFrm.name);
+      let newSchedules;
+      
+      if (existingScheduleIndex > -1) {
+        newSchedules = [...frmSchedules];
+        newSchedules[existingScheduleIndex] = currentFrm;
+      } else {
+        newSchedules = [...frmSchedules, currentFrm].sort((a, b) => {
+          const numA = parseInt(a.name.replace(/\D/g, ''));
+          const numB = parseInt(b.name.replace(/\D/g, ''));
+          return numA - numB;
+        });
+      }
+
+      await api.put("/system-configs/frm_schedules", {
+        value: newSchedules,
+        description: "Custom FRM schedules with date ranges"
+      });
+      
+      setFrmSchedules(newSchedules);
+      setIsFrmDialogOpen(false);
+      setCurrentFrm({ name: "", startDate: "", endDate: "" });
+      toast.success("FRM schedule saved successfully");
+    } catch (error) {
+      toast.error("Failed to save FRM schedule");
+    } finally {
+      setIsFrmLoading(false);
+    }
+  };
+
+  const deleteFrmSchedule = async (name) => {
+    const newSchedules = frmSchedules.filter(s => s.name !== name);
+    try {
+      await api.put("/system-configs/frm_schedules", {
+        value: newSchedules
+      });
+      setFrmSchedules(newSchedules);
+      toast.success("FRM schedule removed");
+    } catch (error) {
+      toast.error("Failed to remove FRM schedule");
+    }
+  };
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -218,6 +295,126 @@ const SettingsPage = () => {
               </form>
             </CardContent>
           </Card>
+
+          {isAdmin && (
+            <Card className="border-stone-200 dark:border-slate-800 shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <CalendarIcon className="w-5 h-5 text-indigo-600" />
+                    FRM Schedules
+                  </CardTitle>
+                  <CardDescription>Set custom date ranges for FRM periods</CardDescription>
+                </div>
+                <Button 
+                  size="sm" 
+                  onClick={() => {
+                    setCurrentFrm({ name: `FRM ${frmSchedules.length + 1}`, startDate: "", endDate: "" });
+                    setIsFrmDialogOpen(true);
+                  }}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add FRM
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {frmSchedules.length === 0 ? (
+                    <div className="text-center py-6 text-slate-500 dark:text-slate-400 text-sm border-2 border-dashed rounded-lg">
+                      No custom FRM schedules defined. Using default monthly system.
+                    </div>
+                  ) : (
+                    <div className="grid gap-3">
+                      {frmSchedules.map((schedule) => (
+                        <div key={schedule.name} className="flex items-center justify-between p-3 rounded-lg border dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-sm text-slate-900 dark:text-slate-100">{schedule.name}</span>
+                            <span className="text-xs text-slate-500 dark:text-slate-400">
+                              {format(new Date(schedule.startDate), "PPP")} - {format(new Date(schedule.endDate), "PPP")}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-slate-400 hover:text-indigo-600"
+                              onClick={() => {
+                                setCurrentFrm(schedule);
+                                setIsFrmDialogOpen(true);
+                              }}
+                            >
+                              <Save className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-slate-400 hover:text-rose-600"
+                              onClick={() => deleteFrmSchedule(schedule.name)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <Dialog open={isFrmDialogOpen} onOpenChange={setIsFrmDialogOpen}>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Set FRM Schedule</DialogTitle>
+                <DialogDescription>
+                  Define the start and end dates for this FRM period.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="frm-name">FRM Name</Label>
+                  <Input 
+                    id="frm-name" 
+                    placeholder="e.g. FRM 1" 
+                    value={currentFrm.name}
+                    onChange={(e) => setCurrentFrm({ ...currentFrm, name: e.target.value })}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="start-date">Start Date</Label>
+                    <Input 
+                      id="start-date" 
+                      type="date" 
+                      value={currentFrm.startDate}
+                      onChange={(e) => setCurrentFrm({ ...currentFrm, startDate: e.target.value })}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="end-date">End Date</Label>
+                    <Input 
+                      id="end-date" 
+                      type="date" 
+                      value={currentFrm.endDate}
+                      onChange={(e) => setCurrentFrm({ ...currentFrm, endDate: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsFrmDialogOpen(false)}>Cancel</Button>
+                <Button 
+                  onClick={handleSaveFrmSchedule} 
+                  disabled={isFrmLoading}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                >
+                  {isFrmLoading ? "Saving..." : "Save Schedule"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* Sidebar Info */}

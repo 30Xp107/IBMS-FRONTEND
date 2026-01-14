@@ -41,10 +41,10 @@ const RedemptionPage = () => {
   const [beneficiaries, setBeneficiaries] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   
-  const now = new Date();
-  const [monthFilter, setMonthFilter] = useState(MONTHS[now.getMonth()]);
-  const [yearFilter, setYearFilter] = useState(String(now.getFullYear()));
+  const [frmSchedules, setFrmSchedules] = useState([]);
+  const [selectedPeriod, setSelectedPeriod] = useState("");
   
   const [attendanceFilter, setAttendanceFilter] = useState("all");
   
@@ -61,12 +61,71 @@ const RedemptionPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalBeneficiaries, setTotalBeneficiaries] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Reset to page 1 when filters or search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, regionFilter, provinceFilter, municipalityFilter, barangayFilter, attendanceFilter, itemsPerPage]);
 
   useEffect(() => {
-    fetchData();
+    fetchFrmSchedules();
+  }, []);
+
+  const fetchFrmSchedules = async () => {
+    try {
+      const response = await api.get("/system-configs/frm_schedules");
+      if (response.data && response.data.value) {
+        const schedules = response.data.value;
+        setFrmSchedules(schedules);
+        
+        // Find current period based on date
+        const now = new Date();
+        const current = schedules.find(s => {
+          const start = new Date(s.startDate);
+          const end = new Date(s.endDate);
+          start.setHours(0, 0, 0, 0);
+          end.setHours(23, 59, 59, 999);
+          return now >= start && now <= end;
+        });
+
+        if (current) {
+          setSelectedPeriod(current.name);
+        } else if (schedules.length > 0) {
+          // Fallback to latest schedule if none matches current date
+          const sorted = [...schedules].sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime());
+          setSelectedPeriod(sorted[0].name);
+        } else {
+          // Fallback to monthly format if no schedules defined
+          const fallback = `${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
+          setSelectedPeriod(fallback);
+        }
+      } else {
+        // Fallback to monthly format if no config
+        const now = new Date();
+        setSelectedPeriod(`${MONTHS[now.getMonth()]} ${now.getFullYear()}`);
+      }
+    } catch (error) {
+      console.error("Failed to fetch FRM schedules:", error);
+      const now = new Date();
+      setSelectedPeriod(`${MONTHS[now.getMonth()]} ${now.getFullYear()}`);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedPeriod) {
+      fetchData();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, search, monthFilter, yearFilter, attendanceFilter, regionFilter, provinceFilter, municipalityFilter, barangayFilter, sortConfig]);
+  }, [currentPage, debouncedSearch, selectedPeriod, attendanceFilter, regionFilter, provinceFilter, municipalityFilter, barangayFilter, sortConfig, itemsPerPage]);
 
   useEffect(() => {
     fetchAreas("region");
@@ -116,11 +175,34 @@ const RedemptionPage = () => {
     return sortConfig.direction === "asc" ? <ArrowUp className="w-3 h-3 ml-1" /> : <ArrowDown className="w-3 h-3 ml-1" />;
   };
 
+  const getPaginationRange = () => {
+    const delta = 1;
+    const range = [];
+    const left = currentPage - delta;
+    const right = currentPage + delta;
+    let l;
+
+    for (let i = 1; i <= totalPages; i++) {
+      if (i === 1 || i === totalPages || (i >= left && i <= right)) {
+        if (l) {
+          if (i - l === 2) {
+            range.push(l + 1);
+          } else if (i - l !== 1) {
+            range.push("...");
+          }
+        }
+        range.push(i);
+        l = i;
+      }
+    }
+    return range;
+  };
+
   const fetchData = async () => {
     setIsLoading(true);
     try {
       let benQuery = `?page=${currentPage}&limit=${itemsPerPage}&sort=${sortConfig.key}&order=${sortConfig.direction}&status=Active`;
-      if (search) benQuery += `&search=${encodeURIComponent(search)}`;
+      if (debouncedSearch) benQuery += `&search=${encodeURIComponent(debouncedSearch)}`;
       if (regionFilter !== "all") benQuery += `&region=${encodeURIComponent(regionFilter)}`;
       if (provinceFilter !== "all") benQuery += `&province=${encodeURIComponent(provinceFilter)}`;
       if (municipalityFilter !== "all") benQuery += `&municipality=${encodeURIComponent(municipalityFilter)}`;
@@ -140,7 +222,7 @@ const RedemptionPage = () => {
             setTotalPages(data.totalPages || 1);
             
             if (benIds.length > 0) {
-              const redResponse = await api.get(`/redemptions?frm_period=${encodeURIComponent(`${monthFilter} ${yearFilter}`)}&beneficiary_ids=${benIds.join(",")}`);
+              const redResponse = await api.get(`/redemptions?frm_period=${encodeURIComponent(selectedPeriod)}&beneficiary_ids=${benIds.join(",")}`);
               const redData = Array.isArray(redResponse.data) ? redResponse.data : (redResponse.data.redemptions || []);
               setRedemptions(redData.filter(r => r).map(r => ({
                 ...r,
@@ -195,7 +277,7 @@ const RedemptionPage = () => {
           return [...prev, {
             beneficiary_id: beneficiary.id,
             hhid: beneficiary.hhid,
-            frm_period: `${monthFilter} ${yearFilter}`,
+            frm_period: selectedPeriod,
             attendance: field === "attendance" ? value : "none",
             reason: "",
             action: field === "action" ? value : "",
@@ -209,7 +291,7 @@ const RedemptionPage = () => {
       const updateData = {
         beneficiary_id: beneficiary.id,
         hhid: beneficiary.hhid,
-        frm_period: `${monthFilter} ${yearFilter}`,
+        frm_period: selectedPeriod,
         attendance: field === "attendance" ? value : (currentRedemption?.attendance || "none"),
         reason: field === "reason" ? value : (currentRedemption?.reason || ""),
         action: field === "attendance" ? "" : (field === "action" ? value : (currentRedemption?.action || "")),
@@ -258,8 +340,8 @@ const RedemptionPage = () => {
       const toastId = toast.loading("Preparing export...");
       
       // Fetch all beneficiaries for the current filter
-      let benQuery = `?limit=all&status=Active`;
-      if (search) benQuery += `&search=${encodeURIComponent(search)}`;
+      let benQuery = `?limit=all&status=Active&sort=${sortConfig.key}&order=${sortConfig.direction}`;
+      if (debouncedSearch) benQuery += `&search=${encodeURIComponent(debouncedSearch)}`;
       if (regionFilter !== "all") benQuery += `&region=${encodeURIComponent(regionFilter)}`;
       if (provinceFilter !== "all") benQuery += `&province=${encodeURIComponent(provinceFilter)}`;
       if (municipalityFilter !== "all") benQuery += `&municipality=${encodeURIComponent(municipalityFilter)}`;
@@ -278,7 +360,7 @@ const RedemptionPage = () => {
       }
 
       // Fetch all redemptions for the current FRM period
-      const redResponse = await api.get(`/redemptions?limit=all&frm_period=${encodeURIComponent(`${monthFilter} ${yearFilter}`)}`);
+      const redResponse = await api.get(`/redemptions?limit=all&frm_period=${encodeURIComponent(selectedPeriod)}`);
       const allRedemptions = (redResponse.data.redemptions || []).map(r => ({
         ...r,
         beneficiary_id: r.beneficiary_id ? (typeof r.beneficiary_id === "object" ? String(r.beneficiary_id?._id || r.beneficiary_id?.id) : String(r.beneficiary_id)) : ""
@@ -294,7 +376,7 @@ const RedemptionPage = () => {
           "Province": b.province,
           "Municipality": b.municipality,
           "Barangay": b.barangay,
-          "FRM Period": `${monthFilter} ${yearFilter}`,
+          "FRM Period": selectedPeriod,
           "Attendance": redemption?.attendance || "none",
           "Reason": redemption?.reason || "",
           "Remarks": redemption?.action || "",
@@ -314,7 +396,7 @@ const RedemptionPage = () => {
         { wch: 20 }, // Province
         { wch: 20 }, // Municipality
         { wch: 20 }, // Barangay
-        { wch: 15 }, // FRM Period
+        { wch: 20 }, // FRM Period
         { wch: 15 }, // Attendance
         { wch: 30 }, // Reason
         { wch: 25 }, // Remarks
@@ -322,7 +404,7 @@ const RedemptionPage = () => {
       ];
       worksheet["!cols"] = wscols;
 
-      XLSX.writeFile(workbook, `redemptions_${monthFilter}_${yearFilter}_${new Date().toISOString().split('T')[0]}.xlsx`);
+      XLSX.writeFile(workbook, `redemptions_${selectedPeriod.replace(/\s+/g, "_")}_${new Date().toISOString().split('T')[0]}.xlsx`);
       toast.dismiss(toastId);
       toast.success(`Exported ${allBeneficiaries.length} records`);
     } catch (error) {
@@ -380,8 +462,6 @@ const RedemptionPage = () => {
 
   const currentItems = filteredBeneficiaries;
 
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
-
   const currentYear = new Date().getFullYear();
   const years = [currentYear + 1, currentYear, currentYear - 1, currentYear - 2, currentYear - 3];
   
@@ -423,37 +503,24 @@ const RedemptionPage = () => {
                 />
               </div>
               <div className="flex items-center gap-2">
-                <Label className="whitespace-nowrap dark:text-slate-300">Month:</Label>
-                <Select value={monthFilter} onValueChange={(v) => {
-                  setMonthFilter(v);
+                <Label className="whitespace-nowrap dark:text-slate-300">FRM Period:</Label>
+                <Select value={selectedPeriod} onValueChange={(v) => {
+                  setSelectedPeriod(v);
                   setCurrentPage(1);
                 }}>
-                  <SelectTrigger className="w-full sm:w-32 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
-                    <SelectValue placeholder="Month" />
+                  <SelectTrigger className="w-full sm:w-48 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                    <SelectValue placeholder="Select FRM Period" />
                   </SelectTrigger>
                   <SelectContent className="dark:bg-slate-900 dark:border-slate-800 max-h-[300px]">
-                    {MONTHS.map((month) => (
-                      <SelectItem key={month} value={month}>
-                        {month}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Label className="whitespace-nowrap dark:text-slate-300 ml-2">Year:</Label>
-                <Select value={yearFilter} onValueChange={(v) => {
-                  setYearFilter(v);
-                  setCurrentPage(1);
-                }}>
-                  <SelectTrigger className="w-full sm:w-28 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
-                    <SelectValue placeholder="Year" />
-                  </SelectTrigger>
-                  <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
-                    {years.map((year) => (
-                      <SelectItem key={year} value={String(year)}>
-                        {year}
-                      </SelectItem>
-                    ))}
+                    {frmSchedules && frmSchedules.length > 0 ? (
+                      frmSchedules.map((s) => (
+                        <SelectItem key={s.name} value={s.name}>
+                          {s.name}
+                        </SelectItem>
+                      ))
+                    ) : selectedPeriod ? (
+                      <SelectItem value={selectedPeriod}>{selectedPeriod}</SelectItem>
+                    ) : null}
                   </SelectContent>
                 </Select>
               </div>
@@ -559,6 +626,19 @@ const RedemptionPage = () => {
                   {getBarangays().map(b => (
                     <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={itemsPerPage.toString()} onValueChange={(v) => setItemsPerPage(v === "all" ? "all" : parseInt(v))}>
+                <SelectTrigger className="w-full sm:w-32 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                  <SelectValue placeholder="Rows" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10 rows</SelectItem>
+                  <SelectItem value="20">20 rows</SelectItem>
+                  <SelectItem value="50">50 rows</SelectItem>
+                  <SelectItem value="100">100 rows</SelectItem>
+                  <SelectItem value="all">Show All</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -693,7 +773,7 @@ const RedemptionPage = () => {
                                   return [...prev, { 
                                     beneficiary_id: b.id, 
                                     hhid: b.hhid,
-                                    frm_period: `${monthFilter} ${yearFilter}`,
+                                    frm_period: selectedPeriod,
                                     attendance: "none",
                                     reason: newVal,
                                     date_recorded: new Date().toISOString().split("T")[0]
@@ -804,41 +884,41 @@ const RedemptionPage = () => {
       </Card>
 
       {/* Pagination */}
-      {totalPages > 1 && (
+      {totalPages > 1 && itemsPerPage !== "all" && (
         <div className="flex items-center justify-center gap-2 py-4">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => paginate(currentPage - 1)}
+            onClick={() => setCurrentPage(currentPage - 1)}
             disabled={currentPage === 1}
             className="dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
           >
             Previous
           </Button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1)
-            .filter(page => {
-              // Show first, last, and pages around current
-              return page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1;
-            })
-            .map((page, index, array) => (
-              <div key={page} className="flex items-center">
-                {index > 0 && array[index - 1] !== page - 1 && (
-                  <span className="px-2 text-slate-400 dark:text-slate-600">...</span>
-                )}
+          {getPaginationRange().map((page, index) => (
+            <div key={index} className="flex items-center gap-1">
+              {page === "..." ? (
+                <span className="px-2 text-slate-400 dark:text-slate-600">...</span>
+              ) : (
                 <Button
                   variant={currentPage === page ? "default" : "outline"}
                   size="sm"
-                  onClick={() => paginate(page)}
-                  className={`w-8 ${currentPage === page ? 'dark:bg-emerald-600 dark:text-white' : 'dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800'}`}
+                  onClick={() => setCurrentPage(page)}
+                  className={`h-8 w-8 text-xs p-0 ${
+                    currentPage === page 
+                    ? "bg-emerald-600 hover:bg-emerald-700 text-white" 
+                    : "dark:bg-slate-900 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
+                  }`}
                 >
                   {page}
                 </Button>
-              </div>
-            ))}
+              )}
+            </div>
+          ))}
           <Button
             variant="outline"
             size="sm"
-            onClick={() => paginate(currentPage + 1)}
+            onClick={() => setCurrentPage(currentPage + 1)}
             disabled={currentPage === totalPages}
             className="dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
           >

@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Trash2, MapPin, Building, Home, ArrowUpDown, ArrowUp, ArrowDown, Search, Globe } from "lucide-react";
+import { Plus, Trash2, MapPin, Building, Home, ArrowUpDown, ArrowUp, ArrowDown, Search, Globe, ChevronLeft, ChevronRight } from "lucide-react";
 
 const AreasPage = () => {
   const { api } = useAuth();
@@ -40,11 +40,25 @@ const AreasPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalAreas, setTotalAreas] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const limit = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Reset to page 1 when filters or search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, typeFilter, itemsPerPage]);
 
   useEffect(() => {
     fetchAreas();
-  }, [currentPage, typeFilter, search, sortConfig]);
+  }, [currentPage, typeFilter, debouncedSearch, sortConfig, itemsPerPage]);
 
   const handleSort = (key) => {
     setSortConfig((prev) => {
@@ -59,12 +73,35 @@ const AreasPage = () => {
     return sortConfig.direction === "asc" ? <ArrowUp className="w-3 h-3 ml-1" /> : <ArrowDown className="w-3 h-3 ml-1" />;
   };
 
+  const getPaginationRange = () => {
+    const delta = 1;
+    const range = [];
+    const left = currentPage - delta;
+    const right = currentPage + delta;
+    let l;
+
+    for (let i = 1; i <= totalPages; i++) {
+      if (i === 1 || i === totalPages || (i >= left && i <= right)) {
+        if (l) {
+          if (i - l === 2) {
+            range.push(l + 1);
+          } else if (i - l !== 1) {
+            range.push("...");
+          }
+        }
+        range.push(i);
+        l = i;
+      }
+    }
+    return range;
+  };
+
   const fetchAreas = async () => {
     setIsLoading(true);
     try {
-      let query = `?page=${currentPage}&limit=${limit}`;
+      let query = `?page=${currentPage}&limit=${itemsPerPage}`;
       if (typeFilter) query += `&type=${typeFilter}`;
-      if (search) query += `&search=${search}`;
+      if (debouncedSearch) query += `&search=${encodeURIComponent(debouncedSearch)}`;
       if (sortConfig.key) {
         query += `&sort=${sortConfig.key}&order=${sortConfig.direction}`;
       }
@@ -94,8 +131,6 @@ const AreasPage = () => {
       setIsLoading(false);
     }
   };
-
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
   const handleSearchChange = (e) => {
     setSearch(e.target.value);
@@ -185,18 +220,32 @@ const AreasPage = () => {
                 className="pl-10 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
               />
             </div>
-            <Select value={typeFilter || "all"} onValueChange={handleTypeChange}>
-              <SelectTrigger className="w-full sm:w-48 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
-                <SelectValue placeholder="All Types" />
-              </SelectTrigger>
-              <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="region">Region</SelectItem>
-                <SelectItem value="province">Province</SelectItem>
-                <SelectItem value="municipality">City/Municipality</SelectItem>
-                <SelectItem value="barangay">Barangay</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex flex-col sm:flex-row gap-4 items-center">
+              <Select value={typeFilter || "all"} onValueChange={handleTypeChange}>
+                <SelectTrigger className="w-full sm:w-48 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                  <SelectValue placeholder="All Types" />
+                </SelectTrigger>
+                <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="region">Region</SelectItem>
+                  <SelectItem value="province">Province</SelectItem>
+                  <SelectItem value="municipality">City/Municipality</SelectItem>
+                  <SelectItem value="barangay">Barangay</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={itemsPerPage.toString()} onValueChange={(v) => setItemsPerPage(v === "all" ? "all" : parseInt(v))}>
+                <SelectTrigger className="w-full sm:w-32 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                  <SelectValue placeholder="Rows" />
+                </SelectTrigger>
+                <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
+                  <SelectItem value="10">10 rows</SelectItem>
+                  <SelectItem value="20">20 rows</SelectItem>
+                  <SelectItem value="50">50 rows</SelectItem>
+                  <SelectItem value="100">100 rows</SelectItem>
+                  <SelectItem value="all">Show All</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -302,46 +351,66 @@ const AreasPage = () => {
               </Table>
               
               {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-2 py-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => paginate(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className="dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
-                  >
-                    Previous
-                  </Button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter(page => {
-                      // Show first, last, and pages around current
-                      return page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1;
-                    })
-                    .map((page, index, array) => (
-                      <div key={page} className="flex items-center">
-                        {index > 0 && array[index - 1] !== page - 1 && (
-                          <span className="px-2 text-slate-400 dark:text-slate-600">...</span>
-                        )}
-                        <Button
-                          variant={currentPage === page ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => paginate(page)}
-                          className={`w-8 ${currentPage === page ? 'dark:bg-emerald-600 dark:text-white' : 'dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800'}`}
-                        >
-                          {page}
-                        </Button>
+              {totalAreas > 0 && (
+                <div className="px-6 py-4 border-t dark:border-slate-800 bg-stone-50/50 dark:bg-slate-800/20 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                    {itemsPerPage === "all" ? (
+                      <span>Showing all <span className="font-medium text-slate-700 dark:text-slate-200">{totalAreas}</span> areas</span>
+                    ) : (
+                      <>
+                        Showing <span className="font-medium text-slate-700 dark:text-slate-200">{(currentPage - 1) * itemsPerPage + 1}</span> to{" "}
+                        <span className="font-medium text-slate-700 dark:text-slate-200">{Math.min(currentPage * itemsPerPage, totalAreas)}</span> of{" "}
+                        <span className="font-medium text-slate-700 dark:text-slate-200">{totalAreas}</span> areas
+                      </>
+                    )}
+                  </div>
+
+                  {itemsPerPage !== "all" && totalPages > 1 && (
+                    <div className="flex items-center gap-1 sm:gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 dark:bg-slate-900 dark:border-slate-700"
+                        onClick={() => setCurrentPage(currentPage - 1)}
+                        disabled={currentPage === 1}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+
+                      <div className="flex items-center gap-1">
+                        {getPaginationRange().map((page, index) => (
+                          <div key={index} className="flex items-center gap-1">
+                            {page === "..." ? (
+                              <span className="px-2 text-slate-400 dark:text-slate-600">...</span>
+                            ) : (
+                              <Button
+                                variant={currentPage === page ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setCurrentPage(page)}
+                                className={`h-8 w-8 text-xs p-0 ${
+                                  currentPage === page 
+                                  ? "bg-emerald-600 hover:bg-emerald-700 text-white" 
+                                  : "dark:bg-slate-900 dark:border-slate-700"
+                                }`}
+                              >
+                                {page}
+                              </Button>
+                            )}
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => paginate(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className="dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
-                  >
-                    Next
-                  </Button>
+
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 dark:bg-slate-900 dark:border-slate-700"
+                        onClick={() => setCurrentPage(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

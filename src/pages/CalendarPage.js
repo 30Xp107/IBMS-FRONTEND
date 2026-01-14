@@ -52,6 +52,13 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 
+const EVENT_TYPE_COLORS = {
+  event: '#3b82f6',
+  task: '#8b5cf6',
+  meeting: '#10b981',
+  deadline: '#f59e0b',
+};
+
 const CalendarPage = () => {
   const { api, user } = useAuth();
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -71,7 +78,7 @@ const CalendarPage = () => {
     start: new Date(),
     end: addDays(new Date(), 1),
     allDay: false,
-    color: "#3b82f6"
+    color: EVENT_TYPE_COLORS.event
   });
 
   // Filter states
@@ -81,6 +88,16 @@ const CalendarPage = () => {
     meeting: true,
     deadline: true
   });
+
+  const allSelected = Object.values(filters).every(v => v);
+
+  const toggleAllFilters = (checked) => {
+    const newState = Object.keys(filters).reduce((acc, key) => {
+      acc[key] = !!checked;
+      return acc;
+    }, {});
+    setFilters(newState);
+  };
 
   const fetchEvents = useCallback(async () => {
     try {
@@ -152,7 +169,7 @@ const CalendarPage = () => {
       start: startDate,
       end: endDate,
       allDay: false,
-      color: "#3b82f6"
+      color: EVENT_TYPE_COLORS.event
     });
     setIsEventDialogOpen(true);
   };
@@ -167,7 +184,7 @@ const CalendarPage = () => {
       start: new Date(event.start),
       end: event.end ? new Date(event.end) : new Date(new Date(event.start).getTime() + 3600000),
       allDay: event.allDay,
-      color: event.color
+      color: EVENT_TYPE_COLORS[event.type] || event.color
     });
     setIsEventDialogOpen(true);
   };
@@ -703,11 +720,25 @@ const CalendarPage = () => {
               <Plus className="w-3 h-3 text-slate-400 cursor-pointer hover:text-indigo-600 transition-colors" onClick={handleAddEvent} />
             </div>
             <div className="space-y-2">
+              <div className="flex items-center gap-2.5 px-1 group border-b dark:border-slate-800 pb-2 mb-2">
+                <Checkbox 
+                  id="all" 
+                  checked={allSelected} 
+                  onCheckedChange={toggleAllFilters}
+                  className="h-3.5 w-3.5 border-slate-300 dark:border-slate-700 data-[state=checked]:bg-indigo-600"
+                />
+                <Label 
+                  htmlFor="all" 
+                  className="text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer flex-1 group-hover:text-slate-900 dark:group-hover:text-slate-200 transition-colors"
+                >
+                  All Categories
+                </Label>
+              </div>
               {[
-                { id: 'event', label: 'Events', color: '#3b82f6' },
-                { id: 'task', label: 'Tasks', color: '#8b5cf6' },
-                { id: 'meeting', label: 'Meetings', color: '#10b981' },
-                { id: 'deadline', label: 'Deadlines', color: '#f59e0b' },
+                { id: 'event', label: 'Events', color: EVENT_TYPE_COLORS.event },
+                { id: 'task', label: 'Tasks', color: EVENT_TYPE_COLORS.task },
+                { id: 'meeting', label: 'Meetings', color: EVENT_TYPE_COLORS.meeting },
+                { id: 'deadline', label: 'Deadlines', color: EVENT_TYPE_COLORS.deadline },
               ].map((item) => (
                 <div key={item.id} className="flex items-center gap-2.5 px-1 group">
                   <Checkbox 
@@ -747,8 +778,8 @@ const CalendarPage = () => {
       {/* Event Dialog */}
       <Dialog open={isEventDialogOpen} onOpenChange={setIsEventDialogOpen}>
         <DialogContent className="max-w-[95vw] sm:max-w-[500px] rounded-[24px] bg-[#0f172a] border-slate-800 text-slate-100 p-0 shadow-2xl overflow-hidden">
-          <form onSubmit={handleSubmitEvent}>
-            <div className="p-6 pb-0">
+          <form onSubmit={handleSubmitEvent} className="flex flex-col max-h-[90vh]">
+            <div className="p-6 pb-0 shrink-0">
               <DialogHeader className="space-y-1">
                 <div className="flex items-center justify-between">
                   <DialogTitle className="text-lg sm:text-xl font-bold tracking-tight text-white">
@@ -759,7 +790,9 @@ const CalendarPage = () => {
                   Schedule something for {format(eventFormData.start, "MMMM d, yyyy")}
                 </DialogDescription>
               </DialogHeader>
+            </div>
 
+            <ScrollArea className="flex-1 px-6">
               <div className="space-y-4 py-6">
                 <div className="space-y-1.5">
                   <Label htmlFor="title" className="text-xs font-semibold text-slate-400 uppercase tracking-wider ml-1">Event Title</Label>
@@ -786,80 +819,81 @@ const CalendarPage = () => {
 
                 <div className="space-y-3">
                   <Label className="text-xs font-semibold text-slate-400 uppercase tracking-wider ml-1">Timeline</Label>
-                  <div className="grid grid-cols-1 sm:grid-cols-[1fr,auto,1fr] items-center gap-2 p-3 rounded-2xl bg-[#1e293b] border border-slate-700/50 group focus-within:border-indigo-500/50 transition-all">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-slate-800/50 flex items-center justify-center text-slate-400 group-focus-within:text-indigo-400 shrink-0">
-                        <CalendarIcon className="w-4 h-4" />
+                  <div className="space-y-3">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center gap-4 p-4 rounded-2xl bg-[#1e293b] border border-slate-700/50 group focus-within:border-indigo-500/50 transition-all">
+                        <div className="w-10 h-10 rounded-xl bg-slate-800/50 flex items-center justify-center text-slate-400 group-focus-within:text-indigo-400 shrink-0">
+                          <CalendarIcon className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight mb-1">Start Date & Time</p>
+                          <Input
+                            type={eventFormData.allDay ? "date" : "datetime-local"}
+                            className="h-7 bg-transparent border-none text-[14px] text-white focus-visible:ring-0 p-0 font-medium w-full [color-scheme:dark]"
+                            value={eventFormData.allDay ? format(eventFormData.start, "yyyy-MM-dd") : getDateTimeString(eventFormData.start)}
+                            onChange={(e) => handleDateChange('start', e.target.value)}
+                          />
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <Input
-                          type={eventFormData.allDay ? "date" : "datetime-local"}
-                          className="h-8 bg-transparent border-none text-[13px] text-white focus-visible:ring-0 p-0 font-medium w-full [color-scheme:dark]"
-                          value={eventFormData.allDay ? format(eventFormData.start, "yyyy-MM-dd") : getDateTimeString(eventFormData.start)}
-                          onChange={(e) => handleDateChange('start', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    
-                    <ChevronRight className="w-4 h-4 text-slate-600 hidden sm:block shrink-0" />
-                    <div className="w-full h-[1px] bg-slate-800 sm:hidden" />
-                    
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-slate-800/50 flex items-center justify-center text-slate-400 group-focus-within:text-indigo-400 shrink-0">
-                        <Clock className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <Input
-                          type={eventFormData.allDay ? "date" : "datetime-local"}
-                          className="h-8 bg-transparent border-none text-[13px] text-white focus-visible:ring-0 p-0 font-medium w-full [color-scheme:dark]"
-                          value={eventFormData.allDay ? format(eventFormData.end, "yyyy-MM-dd") : getDateTimeString(eventFormData.end)}
-                          onChange={(e) => handleDateChange('end', e.target.value)}
-                        />
+
+                      <div className="flex items-center gap-4 p-4 rounded-2xl bg-[#1e293b] border border-slate-700/50 group focus-within:border-indigo-500/50 transition-all">
+                        <div className="w-10 h-10 rounded-xl bg-slate-800/50 flex items-center justify-center text-slate-400 group-focus-within:text-indigo-400 shrink-0">
+                          <Clock className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight mb-1">End Date & Time</p>
+                          <Input
+                            type={eventFormData.allDay ? "date" : "datetime-local"}
+                            className="h-7 bg-transparent border-none text-[14px] text-white focus-visible:ring-0 p-0 font-medium w-full [color-scheme:dark]"
+                            value={eventFormData.allDay ? format(eventFormData.end, "yyyy-MM-dd") : getDateTimeString(eventFormData.end)}
+                            onChange={(e) => handleDateChange('end', e.target.value)}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="type" className="text-xs font-semibold text-slate-400 uppercase tracking-wider ml-1">Type</Label>
-                    <Select 
-                      value={eventFormData.type} 
-                      onValueChange={(value) => setEventFormData({ ...eventFormData, type: value })}
-                    >
-                      <SelectTrigger className="rounded-xl bg-[#1e293b] border-slate-700/50 h-10 text-sm text-white focus:ring-1 focus:ring-indigo-500 transition-all">
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-[#1e293b] border-slate-700 text-white">
-                        <SelectItem value="event">Event</SelectItem>
-                        <SelectItem value="task">Task</SelectItem>
-                        <SelectItem value="meeting">Meeting</SelectItem>
-                        <SelectItem value="deadline">Deadline</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-slate-400 uppercase tracking-wider ml-1">Label Color</Label>
-                    <div className="flex items-center gap-2 pt-0.5">
-                      {["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"].map(c => (
-                        <div 
-                          key={c}
-                          onClick={() => setEventFormData({ ...eventFormData, color: c })}
-                          className={`w-7 h-7 rounded-full cursor-pointer transition-all duration-200 relative ${
-                            eventFormData.color === c 
-                              ? 'scale-110 ring-2 ring-white/50 ring-offset-2 ring-offset-[#0f172a]' 
-                              : 'hover:scale-105 opacity-80 hover:opacity-100'
-                          }`}
-                          style={{ backgroundColor: c }}
-                        >
-                          {eventFormData.color === c && (
-                            <div className="absolute inset-0 rounded-full border-2 border-white/20" />
-                          )}
+                <div className="space-y-1.5">
+                  <Label htmlFor="type" className="text-xs font-semibold text-slate-400 uppercase tracking-wider ml-1">Type</Label>
+                  <Select 
+                    value={eventFormData.type} 
+                    onValueChange={(value) => setEventFormData({ 
+                      ...eventFormData, 
+                      type: value,
+                      color: EVENT_TYPE_COLORS[value] || eventFormData.color
+                    })}
+                  >
+                    <SelectTrigger className="rounded-xl bg-[#1e293b] border-slate-700/50 h-10 text-sm text-white focus:ring-1 focus:ring-indigo-500 transition-all">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#1e293b] border-slate-700 text-white">
+                      <SelectItem value="event">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: EVENT_TYPE_COLORS.event }} />
+                          <span>Event</span>
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                      </SelectItem>
+                      <SelectItem value="task">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: EVENT_TYPE_COLORS.task }} />
+                          <span>Task</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="meeting">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: EVENT_TYPE_COLORS.meeting }} />
+                          <span>Meeting</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="deadline">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: EVENT_TYPE_COLORS.deadline }} />
+                          <span>Deadline</span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="flex items-center gap-3 pt-1">
@@ -882,10 +916,10 @@ const CalendarPage = () => {
                   <Label htmlFor="allDay" className="text-xs font-semibold text-slate-400 cursor-pointer select-none">All day event</Label>
                 </div>
               </div>
-            </div>
+            </ScrollArea>
 
-            <DialogFooter className="flex items-center justify-between gap-4 p-6 pt-2 bg-[#1e293b]/30 border-t border-slate-800/50">
-              <div className="flex-1">
+            <DialogFooter className="flex items-center justify-between gap-4 p-6 shrink-0 bg-[#1e293b]/30 border-t border-slate-800/50">
+              <div className="flex-1 flex justify-start">
                 {editingEvent && (
                   <Button 
                     type="button" 
@@ -899,7 +933,7 @@ const CalendarPage = () => {
                 )}
               </div>
               
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <Button 
                   type="button" 
                   variant="ghost" 
@@ -910,7 +944,7 @@ const CalendarPage = () => {
                 </Button>
                 <Button 
                   type="submit" 
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl h-10 px-6 text-xs font-bold shadow-lg shadow-indigo-600/20 transition-all active:scale-95 disabled:opacity-50"
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl h-10 px-6 text-xs font-bold shadow-lg shadow-indigo-600/20 transition-all active:scale-95 disabled:opacity-50 whitespace-nowrap"
                   disabled={isSubmittingEvent}
                 >
                   {isSubmittingEvent ? 'Saving...' : (editingEvent ? 'Save Changes' : 'Create Event')}
