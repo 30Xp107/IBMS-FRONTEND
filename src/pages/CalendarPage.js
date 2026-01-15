@@ -107,7 +107,7 @@ const CalendarPage = () => {
     setFilters(newState);
   };
 
-  const canEdit = !editingEvent || editingEvent.userId?._id === user?._id;
+  const canEdit = !editingEvent || editingEvent.userId?._id === user?.id;
 
   const fetchEvents = useCallback(async () => {
     try {
@@ -510,7 +510,7 @@ const CalendarPage = () => {
                       {event.userId?.name?.charAt(0)}
                     </div>
                     <span className="text-[10px] text-slate-400">
-                      Created by: <span className="text-indigo-400 font-semibold">{event.userId?._id === user?._id ? "You" : event.userId?.name}</span>
+                      Created by: <span className="text-indigo-400 font-semibold">{event.userId?._id === user?.id ? "You" : event.userId?.name}</span>
                     </span>
                   </div>
                 </div>
@@ -584,7 +584,7 @@ const CalendarPage = () => {
                           <p className={`text-xs sm:text-sm font-medium leading-tight ${event.status === 'completed' ? 'line-through opacity-50' : ''}`}>
                             {event.title}
                           </p>
-                          {event.userId && event.userId._id !== user?._id && (
+                          {event.userId && event.userId._id !== user?.id && (
                             <p className="text-[8px] sm:text-[9px] font-medium opacity-60 mt-0.5 truncate">
                               By: {event.userId.name}
                             </p>
@@ -606,7 +606,7 @@ const CalendarPage = () => {
                               {event.userId?.name?.charAt(0)}
                             </div>
                             <span className="text-[10px] text-slate-400">
-                              Created by: <span className="text-indigo-400 font-semibold">{event.userId?._id === user?._id ? "You" : event.userId?.name}</span>
+                              Created by: <span className="text-indigo-400 font-semibold">{event.userId?._id === user?.id ? "You" : event.userId?.name}</span>
                             </span>
                           </div>
                         </div>
@@ -701,7 +701,7 @@ const CalendarPage = () => {
                               {event.userId.name?.charAt(0)}
                             </div>
                             <span className="text-[10px] sm:text-xs font-medium text-slate-400">
-                              {event.userId._id === user?._id ? "You" : event.userId.name}
+                              {event.userId._id === user?.id ? "You" : event.userId.name}
                               {event.isShared && user?.role === 'admin' && (
                                 <span className="ml-2 text-[10px] text-emerald-500 font-semibold uppercase tracking-wider bg-emerald-500/10 px-1.5 py-0.5 rounded">Shared</span>
                               )}
@@ -711,7 +711,7 @@ const CalendarPage = () => {
                       </div>
 
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {event.userId?._id === user?._id && (
+                        {event.userId?._id === user?.id && (
                           <Button 
                             variant="ghost" 
                             size="icon" 
@@ -721,7 +721,7 @@ const CalendarPage = () => {
                             <Pencil className="w-4 h-4" />
                           </Button>
                         )}
-                        {(event.userId?._id === user?._id || user?.role === 'admin') && (
+                        {(event.userId?._id === user?.id || user?.role === 'admin') && (
                           <Button 
                             variant="ghost" 
                             size="icon" 
@@ -749,7 +749,7 @@ const CalendarPage = () => {
                           {event.userId?.name?.charAt(0)}
                         </div>
                         <span className="text-[10px] text-slate-400">
-                          Created by: <span className="text-indigo-400 font-semibold">{event.userId?._id === user?._id ? "You" : event.userId?.name}</span>
+                          Created by: <span className="text-indigo-400 font-semibold">{event.userId?._id === user?.id ? "You" : event.userId?.name}</span>
                         </span>
                       </div>
                     </div>
@@ -1044,7 +1044,7 @@ const CalendarPage = () => {
 
               <DialogFooter className="flex items-center justify-between gap-4 p-6 shrink-0 bg-[#1e293b]/30 border-t border-slate-800/50">
                 <div className="flex-1 flex justify-start">
-                  {editingEvent && (editingEvent.userId?._id === user?._id || user?.role === 'admin') && (
+                  {editingEvent && (editingEvent.userId?._id === user?.id || user?.role === 'admin') && (
                     <Button 
                       type="button" 
                       variant="ghost" 
@@ -1066,7 +1066,7 @@ const CalendarPage = () => {
                   >
                     Cancel
                   </Button>
-                  {( !editingEvent || editingEvent.userId?._id === user?._id) && (
+                  {( !editingEvent || editingEvent.userId?._id === user?.id) && (
                     <Button 
                       type="submit" 
                       className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl h-10 px-6 text-xs font-bold shadow-lg shadow-indigo-600/20 transition-all active:scale-95 disabled:opacity-50 whitespace-nowrap"
