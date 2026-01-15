@@ -52,6 +52,13 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
 const EVENT_TYPE_COLORS = {
   event: '#3b82f6',
   task: '#8b5cf6',
@@ -100,7 +107,7 @@ const CalendarPage = () => {
     setFilters(newState);
   };
 
-  const canEdit = !editingEvent || user?.role === 'admin' || editingEvent.userId?._id === user?._id;
+  const canEdit = !editingEvent || editingEvent.userId?._id === user?._id;
 
   const fetchEvents = useCallback(async () => {
     try {
@@ -459,33 +466,56 @@ const CalendarPage = () => {
           const isContinuingEnd = end > weekEnd;
 
           return (
-            <div
-              key={event._id}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleEditEvent(event, e);
-              }}
-              className={`absolute h-[16px] sm:h-[22px] text-[9px] sm:text-[12px] font-semibold flex items-center px-1 sm:px-2 cursor-pointer pointer-events-auto transition-all hover:brightness-110 active:scale-[0.98] shadow-sm ${
-                isContinuingStart ? "" : "rounded-l-md sm:rounded-l-lg ml-0.5 sm:ml-1"
-              } ${isContinuingEnd ? "" : "rounded-r-md sm:rounded-r-lg mr-0.5 sm:mr-1"}`}
-              style={{
-                left: `${(startIdx / 7) * 100}%`,
-                width: `calc(${(span / 7) * 100}% - ${isContinuingStart ? 0 : 2}px - ${isContinuingEnd ? 0 : 2}px)`,
-                backgroundColor: event.color || '#3b82f6',
-                color: '#fff',
-                zIndex: 10,
-                border: '1px solid rgba(255,255,255,0.1)'
-              }}
-            >
-              {(startIdx === 0 || isSameDay(start, weekDays[startIdx]) || (startIdx === 0 && isContinuingStart)) && (
-                <div className="flex items-center gap-1 sm:gap-1.5 w-full overflow-hidden">
-                  {!event.allDay && <div className="w-0.5 h-0.5 sm:w-1 sm:h-1 rounded-full bg-white shrink-0" />}
-                  <span className="truncate drop-shadow-sm">
-                    {event.title}
-                  </span>
+            <Tooltip key={event._id}>
+              <TooltipTrigger asChild>
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEditEvent(event, e);
+                  }}
+                  className={`absolute h-[16px] sm:h-[22px] text-[9px] sm:text-[12px] font-semibold flex items-center px-1 sm:px-2 cursor-pointer pointer-events-auto transition-all hover:brightness-110 active:scale-[0.98] shadow-sm ${
+                    isContinuingStart ? "" : "rounded-l-md sm:rounded-l-lg ml-0.5 sm:ml-1"
+                  } ${isContinuingEnd ? "" : "rounded-r-md sm:rounded-r-lg mr-0.5 sm:mr-1"}`}
+                  style={{
+                    left: `${(startIdx / 7) * 100}%`,
+                    width: `calc(${(span / 7) * 100}% - ${isContinuingStart ? 0 : 2}px - ${isContinuingEnd ? 0 : 2}px)`,
+                    backgroundColor: event.color || '#3b82f6',
+                    color: '#fff',
+                    zIndex: 10,
+                    border: '1px solid rgba(255,255,255,0.1)'
+                  }}
+                >
+                  {(startIdx === 0 || isSameDay(start, weekDays[startIdx]) || (startIdx === 0 && isContinuingStart)) && (
+                    <div className="flex items-center gap-1 sm:gap-1.5 w-full overflow-hidden">
+                      {!event.allDay && <div className="w-0.5 h-0.5 sm:w-1 sm:h-1 rounded-full bg-white shrink-0" />}
+                      <span className="truncate drop-shadow-sm">
+                        {event.title}
+                      </span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="bg-slate-900 border-slate-800 p-3 shadow-xl max-w-[250px]">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: event.color }} />
+                    <span className="font-bold text-white text-xs uppercase tracking-wider">{event.type}</span>
+                  </div>
+                  <p className="font-semibold text-white text-sm">{event.title}</p>
+                  {event.description && (
+                    <p className="text-slate-400 text-[11px] leading-relaxed line-clamp-3 italic">"{event.description}"</p>
+                  )}
+                  <div className="pt-2 border-t border-slate-800 flex items-center gap-2">
+                    <div className="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-bold text-indigo-400">
+                      {event.userId?.name?.charAt(0)}
+                    </div>
+                    <span className="text-[10px] text-slate-400">
+                      Created by: <span className="text-indigo-400 font-semibold">{event.userId?._id === user?._id ? "You" : event.userId?.name}</span>
+                    </span>
+                  </div>
+                </div>
+              </TooltipContent>
+            </Tooltip>
           );
         })}
       </div>
@@ -534,31 +564,54 @@ const CalendarPage = () => {
                 </div>
                 <div className="space-y-1">
                   {dayEvents.map((event) => (
-                    <div
-                      key={event._id}
-                      onClick={(e) => handleEditEvent(event, e)}
-                      className="p-1.5 sm:p-2 rounded-lg border shadow-sm transition-all"
-                      style={{ 
-                        backgroundColor: `${event.color}10`, 
-                        color: event.color,
-                        borderColor: `${event.color}20`
-                      }}
-                    >
-                      <div className="flex items-center gap-1 sm:gap-1.5 mb-0.5">
-                        <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full" style={{ backgroundColor: event.color }} />
-                        <span className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider opacity-60">
-                          {event.type}
-                        </span>
-                      </div>
-                      <p className={`text-xs sm:text-sm font-medium leading-tight ${event.status === 'completed' ? 'line-through opacity-50' : ''}`}>
-                        {event.title}
-                      </p>
-                      {event.userId && event.userId._id !== user?._id && (
-                        <p className="text-[8px] sm:text-[9px] font-medium opacity-60 mt-0.5 truncate">
-                          By: {event.userId.name}
-                        </p>
-                      )}
-                    </div>
+                    <Tooltip key={event._id}>
+                      <TooltipTrigger asChild>
+                        <div
+                          onClick={(e) => handleEditEvent(event, e)}
+                          className="p-1.5 sm:p-2 rounded-lg border shadow-sm transition-all cursor-pointer"
+                          style={{ 
+                            backgroundColor: `${event.color}10`, 
+                            color: event.color,
+                            borderColor: `${event.color}20`
+                          }}
+                        >
+                          <div className="flex items-center gap-1 sm:gap-1.5 mb-0.5">
+                            <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full" style={{ backgroundColor: event.color }} />
+                            <span className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider opacity-60">
+                              {event.type}
+                            </span>
+                          </div>
+                          <p className={`text-xs sm:text-sm font-medium leading-tight ${event.status === 'completed' ? 'line-through opacity-50' : ''}`}>
+                            {event.title}
+                          </p>
+                          {event.userId && event.userId._id !== user?._id && (
+                            <p className="text-[8px] sm:text-[9px] font-medium opacity-60 mt-0.5 truncate">
+                              By: {event.userId.name}
+                            </p>
+                          )}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="bg-slate-900 border-slate-800 p-3 shadow-xl max-w-[250px]">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: event.color }} />
+                            <span className="font-bold text-white text-xs uppercase tracking-wider">{event.type}</span>
+                          </div>
+                          <p className="font-semibold text-white text-sm">{event.title}</p>
+                          {event.description && (
+                            <p className="text-slate-400 text-[11px] leading-relaxed line-clamp-3 italic">"{event.description}"</p>
+                          )}
+                          <div className="pt-2 border-t border-slate-800 flex items-center gap-2">
+                            <div className="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-bold text-indigo-400">
+                              {event.userId?.name?.charAt(0)}
+                            </div>
+                            <span className="text-[10px] text-slate-400">
+                              Created by: <span className="text-indigo-400 font-semibold">{event.userId?._id === user?._id ? "You" : event.userId?.name}</span>
+                            </span>
+                          </div>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
                   ))}
                 </div>
               </div>
@@ -604,79 +657,102 @@ const CalendarPage = () => {
           <div className="grid gap-3">
             {dayEvents.length > 0 ? (
               dayEvents.map((event) => (
-                <div
-                  key={event._id}
-                  onClick={(e) => handleEditEvent(event, e)}
-                  className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:border-indigo-200 dark:hover:border-indigo-900 transition-all cursor-pointer group flex items-start gap-4"
-                >
-                  {!event.allDay ? (
-                    <div className="text-center min-w-[50px] pt-0.5">
-                      <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                        {format(new Date(event.start), "HH:mm")}
-                      </p>
-                      <p className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                        Start
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="text-center min-w-[50px] pt-0.5">
-                      <p className="text-[10px] sm:text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
-                        All Day
-                      </p>
-                    </div>
-                  )}
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: event.color }} />
-                      <span className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                        {event.type}
-                      </span>
-                    </div>
-                    <h4 className={`text-base font-semibold text-slate-900 dark:text-white mb-1 truncate ${event.status === 'completed' ? 'line-through opacity-50' : ''}`}>
-                      {event.title}
-                    </h4>
-                    {event.description && (
-                      <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 line-clamp-1">
-                        {event.description}
-                      </p>
-                    )}
-                    {event.userId && (
-                      <div className="flex items-center gap-1.5 mt-2">
-                        <div className="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-500">
-                          {event.userId.name?.charAt(0)}
+                <Tooltip key={event._id}>
+                  <TooltipTrigger asChild>
+                    <div
+                      onClick={(e) => handleEditEvent(event, e)}
+                      className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:border-indigo-200 dark:hover:border-indigo-900 transition-all cursor-pointer group flex items-start gap-4"
+                    >
+                      {!event.allDay ? (
+                        <div className="text-center min-w-[50px] pt-0.5">
+                          <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                            {format(new Date(event.start), "HH:mm")}
+                          </p>
+                          <p className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                            Start
+                          </p>
                         </div>
-                        <span className="text-[10px] sm:text-xs font-medium text-slate-400">
-                          {event.userId._id === user?._id ? "You" : event.userId.name}
-                          {event.isShared && user?.role === 'admin' && (
-                            <span className="ml-2 text-[10px] text-emerald-500 font-semibold uppercase tracking-wider bg-emerald-500/10 px-1.5 py-0.5 rounded">Shared</span>
-                          )}
+                      ) : (
+                        <div className="text-center min-w-[50px] pt-0.5">
+                          <p className="text-[10px] sm:text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
+                            All Day
+                          </p>
+                        </div>
+                      )}
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: event.color }} />
+                          <span className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                            {event.type}
+                          </span>
+                        </div>
+                        <h4 className={`text-base font-semibold text-slate-900 dark:text-white mb-1 truncate ${event.status === 'completed' ? 'line-through opacity-50' : ''}`}>
+                          {event.title}
+                        </h4>
+                        {event.description && (
+                          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 line-clamp-1">
+                            {event.description}
+                          </p>
+                        )}
+                        {event.userId && (
+                          <div className="flex items-center gap-1.5 mt-2">
+                            <div className="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-500">
+                              {event.userId.name?.charAt(0)}
+                            </div>
+                            <span className="text-[10px] sm:text-xs font-medium text-slate-400">
+                              {event.userId._id === user?._id ? "You" : event.userId.name}
+                              {event.isShared && user?.role === 'admin' && (
+                                <span className="ml-2 text-[10px] text-emerald-500 font-semibold uppercase tracking-wider bg-emerald-500/10 px-1.5 py-0.5 rounded">Shared</span>
+                              )}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {event.userId?._id === user?._id && (
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400"
+                            onClick={(e) => handleEditEvent(event, e)}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-slate-400 hover:text-rose-600"
+                            onClick={(e) => handleDeleteEvent(event._id, e)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="bg-slate-900 border-slate-800 p-3 shadow-xl max-w-[250px]">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: event.color }} />
+                        <span className="font-bold text-white text-xs uppercase tracking-wider">{event.type}</span>
+                      </div>
+                      <p className="font-semibold text-white text-sm">{event.title}</p>
+                      {event.description && (
+                        <p className="text-slate-400 text-[11px] leading-relaxed line-clamp-3 italic">"{event.description}"</p>
+                      )}
+                      <div className="pt-2 border-t border-slate-800 flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-bold text-indigo-400">
+                          {event.userId?.name?.charAt(0)}
+                        </div>
+                        <span className="text-[10px] text-slate-400">
+                          Created by: <span className="text-indigo-400 font-semibold">{event.userId?._id === user?._id ? "You" : event.userId?.name}</span>
                         </span>
                       </div>
-                    )}
-                  </div>
-
-                  {(user?.role === 'admin' || event.userId?._id === user?._id) && (
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-8 w-8 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400"
-                        onClick={(e) => handleEditEvent(event, e)}
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-8 w-8 text-slate-400 hover:text-rose-600"
-                        onClick={(e) => handleDeleteEvent(event._id, e)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
                     </div>
-                  )}
-                </div>
+                  </TooltipContent>
+                </Tooltip>
               ))
             ) : (
               <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800">
@@ -790,218 +866,220 @@ const CalendarPage = () => {
   };
 
   return (
-    <div className="h-[calc(100vh-1rem)] sm:h-[calc(100vh-2rem)] flex bg-white dark:bg-slate-950 rounded-xl sm:rounded-3xl overflow-hidden shadow-2xl border dark:border-slate-800">
-      {renderSidebar()}
-      
-      <div className="flex-1 flex flex-col min-w-0">
-        {renderHeader()}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {renderDays()}
-          {renderCells()}
+    <TooltipProvider>
+      <div className="h-[calc(100vh-1rem)] sm:h-[calc(100vh-2rem)] flex bg-white dark:bg-slate-950 rounded-xl sm:rounded-3xl overflow-hidden shadow-2xl border dark:border-slate-800">
+        {renderSidebar()}
+        
+        <div className="flex-1 flex flex-col min-w-0">
+          {renderHeader()}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {renderDays()}
+            {renderCells()}
+          </div>
         </div>
-      </div>
 
-      {/* Event Dialog */}
-      <Dialog open={isEventDialogOpen} onOpenChange={setIsEventDialogOpen}>
-        <DialogContent className="max-w-[95vw] sm:max-w-[500px] rounded-[24px] bg-[#0f172a] border-slate-800 text-slate-100 p-0 shadow-2xl overflow-hidden">
-          <form onSubmit={handleSubmitEvent} className="flex flex-col max-h-[90vh]">
-            <div className="p-6 pb-0 shrink-0">
-              <DialogHeader className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <DialogTitle className="text-lg sm:text-xl font-bold tracking-tight text-white">
-                    {editingEvent ? 'Edit Event' : 'Add Event'}
-                  </DialogTitle>
-                </div>
-                <DialogDescription className="text-slate-400 text-xs sm:text-sm">
-                  Schedule something for {format(eventFormData.start, "MMMM d, yyyy")}
-                </DialogDescription>
-              </DialogHeader>
-            </div>
+        {/* Event Dialog */}
+        <Dialog open={isEventDialogOpen} onOpenChange={setIsEventDialogOpen}>
+          <DialogContent className="max-w-[95vw] sm:max-w-[500px] rounded-[24px] bg-[#0f172a] border-slate-800 text-slate-100 p-0 shadow-2xl overflow-hidden">
+            <form onSubmit={handleSubmitEvent} className="flex flex-col max-h-[90vh]">
+              <div className="p-6 pb-0 shrink-0">
+                <DialogHeader className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <DialogTitle className="text-lg sm:text-xl font-bold tracking-tight text-white">
+                      {editingEvent ? 'Edit Event' : 'Add Event'}
+                    </DialogTitle>
+                  </div>
+                  <DialogDescription className="text-slate-400 text-xs sm:text-sm">
+                    Schedule something for {format(eventFormData.start, "MMMM d, yyyy")}
+                  </DialogDescription>
+                </DialogHeader>
+              </div>
 
-            <ScrollArea className="flex-1 px-6">
-              <div className="space-y-4 py-6">
-                <div className="space-y-1.5">
-                  <Label htmlFor="title" className="text-xs font-semibold text-slate-400 uppercase tracking-wider ml-1">Event Title</Label>
-                  <Input
-                    id="title"
-                    placeholder="What's happening?"
-                    className="rounded-xl bg-[#1e293b] border-slate-700/50 h-10 text-sm text-white placeholder:text-slate-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-                    value={eventFormData.title}
-                    onChange={(e) => setEventFormData({ ...eventFormData, title: e.target.value })}
-                    required
-                    disabled={!canEdit}
-                  />
-                </div>
+              <ScrollArea className="flex-1 px-6">
+                <div className="space-y-4 py-6">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="title" className="text-xs font-semibold text-slate-400 uppercase tracking-wider ml-1">Event Title</Label>
+                    <Input
+                      id="title"
+                      placeholder="What's happening?"
+                      className="rounded-xl bg-[#1e293b] border-slate-700/50 h-10 text-sm text-white placeholder:text-slate-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                      value={eventFormData.title}
+                      onChange={(e) => setEventFormData({ ...eventFormData, title: e.target.value })}
+                      required
+                      disabled={!canEdit}
+                    />
+                  </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="description" className="text-xs font-semibold text-slate-400 uppercase tracking-wider ml-1">Description</Label>
-                  <Textarea
-                    id="description"
-                    placeholder="Add more details..."
-                    className="rounded-xl bg-[#1e293b] border-slate-700/50 min-h-[80px] text-sm text-white placeholder:text-slate-500 focus:ring-1 focus:ring-indigo-500 transition-all resize-none"
-                    value={eventFormData.description}
-                    onChange={(e) => setEventFormData({ ...eventFormData, description: e.target.value })}
-                    disabled={!canEdit}
-                  />
-                </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="description" className="text-xs font-semibold text-slate-400 uppercase tracking-wider ml-1">Description</Label>
+                    <Textarea
+                      id="description"
+                      placeholder="Add more details..."
+                      className="rounded-xl bg-[#1e293b] border-slate-700/50 min-h-[80px] text-sm text-white placeholder:text-slate-500 focus:ring-1 focus:ring-indigo-500 transition-all resize-none"
+                      value={eventFormData.description}
+                      onChange={(e) => setEventFormData({ ...eventFormData, description: e.target.value })}
+                      disabled={!canEdit}
+                    />
+                  </div>
 
-                <div className="space-y-3">
-                  <Label className="text-xs font-semibold text-slate-400 uppercase tracking-wider ml-1">Timeline</Label>
                   <div className="space-y-3">
-                    <div className="flex flex-col gap-3">
-                      <div className="flex items-center gap-4 p-4 rounded-2xl bg-[#1e293b] border border-slate-700/50 group focus-within:border-indigo-500/50 transition-all">
-                        <div className="w-10 h-10 rounded-xl bg-slate-800/50 flex items-center justify-center text-slate-400 group-focus-within:text-indigo-400 shrink-0">
-                          <CalendarIcon className="w-5 h-5" />
+                    <Label className="text-xs font-semibold text-slate-400 uppercase tracking-wider ml-1">Timeline</Label>
+                    <div className="space-y-3">
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-center gap-4 p-4 rounded-2xl bg-[#1e293b] border border-slate-700/50 group focus-within:border-indigo-500/50 transition-all">
+                          <div className="w-10 h-10 rounded-xl bg-slate-800/50 flex items-center justify-center text-slate-400 group-focus-within:text-indigo-400 shrink-0">
+                            <CalendarIcon className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight mb-1">Start Date & Time</p>
+                            <Input
+                              type={eventFormData.allDay ? "date" : "datetime-local"}
+                              className="h-7 bg-transparent border-none text-[14px] text-white focus-visible:ring-0 p-0 font-medium w-full [color-scheme:dark]"
+                              value={eventFormData.allDay ? format(eventFormData.start, "yyyy-MM-dd") : getDateTimeString(eventFormData.start)}
+                              onChange={(e) => handleDateChange('start', e.target.value)}
+                              disabled={!canEdit}
+                            />
+                          </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight mb-1">Start Date & Time</p>
-                          <Input
-                            type={eventFormData.allDay ? "date" : "datetime-local"}
-                            className="h-7 bg-transparent border-none text-[14px] text-white focus-visible:ring-0 p-0 font-medium w-full [color-scheme:dark]"
-                            value={eventFormData.allDay ? format(eventFormData.start, "yyyy-MM-dd") : getDateTimeString(eventFormData.start)}
-                            onChange={(e) => handleDateChange('start', e.target.value)}
-                            disabled={!canEdit}
-                          />
-                        </div>
-                      </div>
 
-                      <div className="flex items-center gap-4 p-4 rounded-2xl bg-[#1e293b] border border-slate-700/50 group focus-within:border-indigo-500/50 transition-all">
-                        <div className="w-10 h-10 rounded-xl bg-slate-800/50 flex items-center justify-center text-slate-400 group-focus-within:text-indigo-400 shrink-0">
-                          <Clock className="w-5 h-5" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight mb-1">End Date & Time</p>
-                          <Input
-                            type={eventFormData.allDay ? "date" : "datetime-local"}
-                            className="h-7 bg-transparent border-none text-[14px] text-white focus-visible:ring-0 p-0 font-medium w-full [color-scheme:dark]"
-                            value={eventFormData.allDay ? format(eventFormData.end, "yyyy-MM-dd") : getDateTimeString(eventFormData.end)}
-                            onChange={(e) => handleDateChange('end', e.target.value)}
-                            disabled={!canEdit}
-                          />
+                        <div className="flex items-center gap-4 p-4 rounded-2xl bg-[#1e293b] border border-slate-700/50 group focus-within:border-indigo-500/50 transition-all">
+                          <div className="w-10 h-10 rounded-xl bg-slate-800/50 flex items-center justify-center text-slate-400 group-focus-within:text-indigo-400 shrink-0">
+                            <Clock className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight mb-1">End Date & Time</p>
+                            <Input
+                              type={eventFormData.allDay ? "date" : "datetime-local"}
+                              className="h-7 bg-transparent border-none text-[14px] text-white focus-visible:ring-0 p-0 font-medium w-full [color-scheme:dark]"
+                              value={eventFormData.allDay ? format(eventFormData.end, "yyyy-MM-dd") : getDateTimeString(eventFormData.end)}
+                              onChange={(e) => handleDateChange('end', e.target.value)}
+                              disabled={!canEdit}
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="type" className="text-xs font-semibold text-slate-400 uppercase tracking-wider ml-1">Type</Label>
-                  <Select 
-                    value={eventFormData.type} 
-                    onValueChange={(value) => setEventFormData({ 
-                      ...eventFormData, 
-                      type: value,
-                      color: EVENT_TYPE_COLORS[value] || eventFormData.color
-                    })}
-                    disabled={!canEdit}
-                  >
-                    <SelectTrigger className="rounded-xl bg-[#1e293b] border-slate-700/50 h-10 text-sm text-white focus:ring-1 focus:ring-indigo-500 transition-all">
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-[#1e293b] border-slate-700 text-white">
-                      <SelectItem value="event">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: EVENT_TYPE_COLORS.event }} />
-                          <span>Event</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="task">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: EVENT_TYPE_COLORS.task }} />
-                          <span>Task</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="meeting">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: EVENT_TYPE_COLORS.meeting }} />
-                          <span>Meeting</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="deadline">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: EVENT_TYPE_COLORS.deadline }} />
-                          <span>Deadline</span>
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="type" className="text-xs font-semibold text-slate-400 uppercase tracking-wider ml-1">Type</Label>
+                    <Select 
+                      value={eventFormData.type} 
+                      onValueChange={(value) => setEventFormData({ 
+                        ...eventFormData, 
+                        type: value,
+                        color: EVENT_TYPE_COLORS[value] || eventFormData.color
+                      })}
+                      disabled={!canEdit}
+                    >
+                      <SelectTrigger className="rounded-xl bg-[#1e293b] border-slate-700/50 h-10 text-sm text-white focus:ring-1 focus:ring-indigo-500 transition-all">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#1e293b] border-slate-700 text-white">
+                        <SelectItem value="event">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: EVENT_TYPE_COLORS.event }} />
+                            <span>Event</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="task">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: EVENT_TYPE_COLORS.task }} />
+                            <span>Task</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="meeting">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: EVENT_TYPE_COLORS.meeting }} />
+                            <span>Meeting</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="deadline">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: EVENT_TYPE_COLORS.deadline }} />
+                            <span>Deadline</span>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <div className="flex items-center gap-3 pt-1">
-                  <Checkbox 
-                    id="allDay" 
-                    checked={eventFormData.allDay} 
-                    onCheckedChange={(checked) => {
-                      const isAllDay = !!checked;
-                      setEventFormData(prev => {
-                        const updated = { ...prev, allDay: isAllDay };
-                        if (isAllDay) {
-                          updated.start = startOfDay(prev.start);
-                          updated.end = endOfDay(prev.end || prev.start);
-                        }
-                        return updated;
-                      });
-                    }}
-                    className="rounded-md border-slate-600 bg-[#1e293b] data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
-                    disabled={!canEdit}
-                  />
-                  <Label htmlFor="allDay" className="text-xs font-semibold text-slate-400 cursor-pointer select-none">All day event</Label>
-                </div>
-
-                {user?.role === 'admin' && (
                   <div className="flex items-center gap-3 pt-1">
                     <Checkbox 
-                      id="isShared" 
-                      checked={eventFormData.isShared} 
-                      onCheckedChange={(checked) => setEventFormData({ ...eventFormData, isShared: !!checked })}
-                      className="rounded-md border-slate-600 bg-[#1e293b] data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
+                      id="allDay" 
+                      checked={eventFormData.allDay} 
+                      onCheckedChange={(checked) => {
+                        const isAllDay = !!checked;
+                        setEventFormData(prev => {
+                          const updated = { ...prev, allDay: isAllDay };
+                          if (isAllDay) {
+                            updated.start = startOfDay(prev.start);
+                            updated.end = endOfDay(prev.end || prev.start);
+                          }
+                          return updated;
+                        });
+                      }}
+                      className="rounded-md border-slate-600 bg-[#1e293b] data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
                       disabled={!canEdit}
                     />
-                    <Label htmlFor="isShared" className="text-xs font-semibold text-slate-400 cursor-pointer select-none">Share with all users</Label>
+                    <Label htmlFor="allDay" className="text-xs font-semibold text-slate-400 cursor-pointer select-none">All day event</Label>
                   </div>
-                )}
-              </div>
-            </ScrollArea>
 
-            <DialogFooter className="flex items-center justify-between gap-4 p-6 shrink-0 bg-[#1e293b]/30 border-t border-slate-800/50">
-              <div className="flex-1 flex justify-start">
-                {editingEvent && (user?.role === 'admin' || editingEvent.userId?._id === user?._id) && (
+                  {user?.role === 'admin' && (
+                    <div className="flex items-center gap-3 pt-1">
+                      <Checkbox 
+                        id="isShared" 
+                        checked={eventFormData.isShared} 
+                        onCheckedChange={(checked) => setEventFormData({ ...eventFormData, isShared: !!checked })}
+                        className="rounded-md border-slate-600 bg-[#1e293b] data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
+                        disabled={!canEdit}
+                      />
+                      <Label htmlFor="isShared" className="text-xs font-semibold text-slate-400 cursor-pointer select-none">Share with all users</Label>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+
+              <DialogFooter className="flex items-center justify-between gap-4 p-6 shrink-0 bg-[#1e293b]/30 border-t border-slate-800/50">
+                <div className="flex-1 flex justify-start">
+                  {editingEvent && editingEvent.userId?._id === user?._id && (
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      className="text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl h-10 px-3 text-xs font-bold group transition-all"
+                      onClick={(e) => handleDeleteEvent(editingEvent._id, e)}
+                    >
+                      <Trash2 className="w-3.5 h-3.5 mr-2 group-hover:scale-110 transition-transform" />
+                      Delete
+                    </Button>
+                  )}
+                </div>
+                
+                <div className="flex items-center gap-2">
                   <Button 
                     type="button" 
                     variant="ghost" 
-                    className="text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl h-10 px-3 text-xs font-bold group transition-all"
-                    onClick={(e) => handleDeleteEvent(editingEvent._id, e)}
+                    className="rounded-xl h-10 px-4 text-xs text-slate-300 hover:text-white hover:bg-slate-800 font-bold transition-all"
+                    onClick={() => setIsEventDialogOpen(false)}
                   >
-                    <Trash2 className="w-3.5 h-3.5 mr-2 group-hover:scale-110 transition-transform" />
-                    Delete
+                    Cancel
                   </Button>
-                )}
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <Button 
-                  type="button" 
-                  variant="ghost" 
-                  className="rounded-xl h-10 px-4 text-xs text-slate-300 hover:text-white hover:bg-slate-800 font-bold transition-all"
-                  onClick={() => setIsEventDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                {( !editingEvent || user?.role === 'admin' || editingEvent.userId?._id === user?._id) && (
-                  <Button 
-                    type="submit" 
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl h-10 px-6 text-xs font-bold shadow-lg shadow-indigo-600/20 transition-all active:scale-95 disabled:opacity-50 whitespace-nowrap"
-                    disabled={isSubmittingEvent}
-                  >
-                    {isSubmittingEvent ? 'Saving...' : (editingEvent ? 'Save Changes' : 'Create Event')}
-                  </Button>
-                )}
-              </div>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </div>
+                  {( !editingEvent || editingEvent.userId?._id === user?._id) && (
+                    <Button 
+                      type="submit" 
+                      className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl h-10 px-6 text-xs font-bold shadow-lg shadow-indigo-600/20 transition-all active:scale-95 disabled:opacity-50 whitespace-nowrap"
+                      disabled={isSubmittingEvent}
+                    >
+                      {isSubmittingEvent ? 'Saving...' : (editingEvent ? 'Save Changes' : 'Create Event')}
+                    </Button>
+                  )}
+                </div>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </TooltipProvider>
   );
 };
 
