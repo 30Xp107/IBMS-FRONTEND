@@ -216,7 +216,11 @@ const AuditLogPage = () => {
       users: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800/30 dark:text-slate-400 dark:border-slate-700",
       areas: "bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-900/30 dark:text-pink-400 dark:border-pink-800",
       calendar: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800",
+      calendar_events: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800",
+      system_configs: "bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800",
       system_config: "bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800",
+      performance: "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800",
+      related_info: "bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-400 dark:border-cyan-800",
     };
     return (
       <Badge variant="outline" className={colors[module] || "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800/30 dark:text-slate-400 dark:border-slate-700"}>
@@ -245,43 +249,29 @@ const AuditLogPage = () => {
   const renderChanges = (log) => {
     const isJson = (str) => {
       try {
-        JSON.parse(str);
-        return true;
+        if (!str || typeof str !== 'string') return false;
+        const parsed = JSON.parse(str);
+        return typeof parsed === 'object' && parsed !== null;
       } catch (e) {
         return false;
       }
     };
 
-    if (log.field_name && !["All Fields (Initial)", "All Fields (Deleted)", "Modified Fields"].includes(log.field_name)) {
-      return (
-        <div className="text-sm">
-          <div className="font-medium text-slate-700 dark:text-slate-300">{log.field_name}</div>
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-rose-600 dark:text-rose-400 line-through">
-              {log.old_value || "(empty)"}
-            </span>
-            <ArrowRight className="w-3 h-3 text-slate-400 dark:text-slate-600" />
-            <span className="text-emerald-600 dark:text-emerald-400">
-              {log.new_value || "(empty)"}
-            </span>
-          </div>
-        </div>
-      );
-    }
-
-    // Handle cases where field_name is missing or is one of our default ones
     if (log.action === "CREATE") {
       return <span className="text-emerald-600 dark:text-emerald-400 text-xs font-medium">New Record Created</span>;
     }
     if (log.action === "DELETE") {
       return <span className="text-rose-600 dark:text-rose-400 text-xs font-medium">Record Removed</span>;
     }
+
     if (log.action === "UPDATE") {
       try {
-        const oldVal = isJson(log.old_value) ? JSON.parse(log.old_value) : null;
-        const newVal = isJson(log.new_value) ? JSON.parse(log.new_value) : null;
+        const isOldJson = isJson(log.old_value);
+        const isNewJson = isJson(log.new_value);
         
-        if (oldVal && newVal) {
+        if (isOldJson && isNewJson) {
+          const oldVal = JSON.parse(log.old_value);
+          const newVal = JSON.parse(log.new_value);
           const changedFields = Object.keys(newVal).filter(key => 
             JSON.stringify(oldVal[key]) !== JSON.stringify(newVal[key])
           );
@@ -295,13 +285,32 @@ const AuditLogPage = () => {
           }
         }
       } catch (e) {}
+
+      // Fallback for single field updates that might not be JSON
+      if (log.field_name && !["All Fields (Initial)", "All Fields (Deleted)", "Modified Fields"].includes(log.field_name)) {
+        return (
+          <div className="text-sm">
+            <div className="font-medium text-slate-700 dark:text-slate-300">{log.field_name}</div>
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-rose-600 dark:text-rose-400 line-through truncate max-w-[80px]">
+                {log.old_value || "(empty)"}
+              </span>
+              <ArrowRight className="w-3 h-3 text-slate-400 dark:text-slate-600 flex-shrink-0" />
+              <span className="text-emerald-600 dark:text-emerald-400 truncate max-w-[80px]">
+                {log.new_value || "(empty)"}
+              </span>
+            </div>
+          </div>
+        );
+      }
+
       return <span className="text-sky-600 dark:text-sky-400 text-xs font-medium">Record Updated</span>;
     }
 
     return <span className="text-slate-400 dark:text-slate-600">-</span>;
   };
 
-  const knownModules = ["beneficiaries", "redemptions", "nes", "users", "areas", "calendar", "system_config"];
+  const knownModules = ["beneficiaries", "redemptions", "nes", "users", "areas", "calendar", "calendar_events", "system_configs", "system_config", "performance", "related_info"];
   const uniqueModules = [...new Set([...knownModules, ...logs.map((log) => log.module)])];
 
   return (
@@ -579,34 +588,22 @@ const AuditLogPage = () => {
               <div className="space-y-3">
                 <p className="text-sm font-medium text-slate-500 dark:text-slate-400 border-b dark:border-slate-800 pb-1">Data Changes</p>
                 
-                {selectedLog.field_name && !["All Fields (Initial)", "All Fields (Deleted)", "Modified Fields"].includes(selectedLog.field_name) ? (
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700">
-                      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-2">{selectedLog.field_name}</p>
-                      <div className="flex flex-col gap-3">
-                        <div className="space-y-1">
-                          <span className="text-[10px] font-bold text-rose-500 dark:text-rose-400 uppercase tracking-wider">Old Value</span>
-                          <p className="text-sm text-slate-600 dark:text-slate-400 bg-rose-50/50 dark:bg-rose-900/20 p-2 rounded border border-rose-100 dark:border-rose-800/30 line-through italic">
-                            {selectedLog.old_value || "(empty)"}
-                          </p>
-                        </div>
-                        <div className="flex justify-center">
-                          <ArrowRight className="w-4 h-4 text-slate-300 dark:text-slate-600" />
-                        </div>
-                        <div className="space-y-1">
-                          <span className="text-[10px] font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-wider">New Value</span>
-                          <p className="text-sm text-slate-900 dark:text-slate-200 bg-emerald-50/50 dark:bg-emerald-900/20 p-2 rounded border border-emerald-100 dark:border-emerald-800/30 font-medium">
-                            {selectedLog.new_value || "(empty)"}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {(() => {
-                      if (selectedLog.action === "UPDATE") {
-                        try {
+                <div className="space-y-4">
+                  {(() => {
+                    // Helper to check if string is JSON object
+                    const isJsonObject = (str) => {
+                      try {
+                        if (!str || typeof str !== 'string') return false;
+                        const parsed = JSON.parse(str);
+                        return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed);
+                      } catch (e) {
+                        return false;
+                      }
+                    };
+
+                    if (selectedLog.action === "UPDATE") {
+                      try {
+                        if (isJsonObject(selectedLog.old_value) && isJsonObject(selectedLog.new_value)) {
                           const oldData = JSON.parse(selectedLog.old_value);
                           const newData = JSON.parse(selectedLog.new_value);
                           const changedFields = Object.keys(newData).filter(key => 
@@ -622,13 +619,13 @@ const AuditLogPage = () => {
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
                                       <div className="space-y-1">
                                         <span className="text-[10px] font-bold text-rose-500 dark:text-rose-400 uppercase tracking-wider">From</span>
-                                        <p className="text-sm text-slate-600 dark:text-slate-400 bg-rose-50/50 dark:bg-rose-900/20 p-2 rounded border border-rose-100 dark:border-rose-800/30 line-through italic">
+                                        <p className="text-sm text-slate-600 dark:text-slate-400 bg-rose-50/50 dark:bg-rose-900/20 p-2 rounded border border-rose-100 dark:border-rose-800/30 line-through italic break-words">
                                           {String(oldData[field]) || "(empty)"}
                                         </p>
                                       </div>
                                       <div className="space-y-1">
                                         <span className="text-[10px] font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-wider">To</span>
-                                        <p className="text-sm text-slate-900 dark:text-slate-200 bg-emerald-50/50 dark:bg-emerald-900/20 p-2 rounded border border-emerald-100 dark:border-emerald-800/30 font-medium">
+                                        <p className="text-sm text-slate-900 dark:text-slate-200 bg-emerald-50/50 dark:bg-emerald-900/20 p-2 rounded border border-emerald-100 dark:border-emerald-800/30 font-medium break-words">
                                           {String(newData[field]) || "(empty)"}
                                         </p>
                                       </div>
@@ -638,44 +635,72 @@ const AuditLogPage = () => {
                               </div>
                             );
                           }
-                        } catch (e) {}
+                        }
+                      } catch (e) {
+                        console.error("Error parsing update JSON:", e);
                       }
-                      
-                      return (
-                        <>
-                          {selectedLog.old_value && (
-                            <div className="space-y-1">
-                              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Original Data</span>
-                              <pre className="text-xs bg-slate-900 dark:bg-black text-slate-100 p-4 rounded-lg overflow-x-auto font-mono">
-                                {(() => {
-                                  try {
-                                    return JSON.stringify(JSON.parse(selectedLog.old_value), null, 2);
-                                  } catch (e) {
-                                    return selectedLog.old_value;
-                                  }
-                                })()}
-                              </pre>
+
+                      // Fallback for single field updates that might not be JSON but have field_name
+                      if (selectedLog.field_name && !["All Fields (Initial)", "All Fields (Deleted)", "Modified Fields"].includes(selectedLog.field_name)) {
+                        return (
+                          <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700">
+                            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-2">{selectedLog.field_name.replace(/_/g, ' ')}</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+                              <div className="space-y-1">
+                                <span className="text-[10px] font-bold text-rose-500 dark:text-rose-400 uppercase tracking-wider">From</span>
+                                <p className="text-sm text-slate-600 dark:text-slate-400 bg-rose-50/50 dark:bg-rose-900/20 p-2 rounded border border-rose-100 dark:border-rose-800/30 line-through italic break-words">
+                                  {selectedLog.old_value || "(empty)"}
+                                </p>
+                              </div>
+                              <div className="space-y-1">
+                                <span className="text-[10px] font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-wider">To</span>
+                                <p className="text-sm text-slate-900 dark:text-slate-200 bg-emerald-50/50 dark:bg-emerald-900/20 p-2 rounded border border-emerald-100 dark:border-emerald-800/30 font-medium break-words">
+                                  {selectedLog.new_value || "(empty)"}
+                                </p>
+                              </div>
                             </div>
-                          )}
-                          {selectedLog.new_value && (
-                            <div className="space-y-1">
-                              <span className="text-[10px] font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-wider">Updated Data</span>
-                              <pre className="text-xs bg-slate-900 dark:bg-black text-emerald-50 dark:text-emerald-200 p-4 rounded-lg overflow-x-auto font-mono border-l-4 border-emerald-500">
-                                {(() => {
-                                  try {
-                                    return JSON.stringify(JSON.parse(selectedLog.new_value), null, 2);
-                                  } catch (e) {
-                                    return selectedLog.new_value;
-                                  }
-                                })()}
-                              </pre>
-                            </div>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </div>
-                )}
+                          </div>
+                        );
+                      }
+                    }
+                    
+                    // Fallback for CREATE, DELETE, or cases where UPDATE parsing failed
+                    return (
+                      <>
+                        {selectedLog.old_value && (
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Original Data</span>
+                            <pre className="text-xs bg-slate-900 dark:bg-black text-slate-100 p-4 rounded-lg overflow-x-auto font-mono">
+                              {(() => {
+                                try {
+                                  const parsed = JSON.parse(selectedLog.old_value);
+                                  return JSON.stringify(parsed, null, 2);
+                                } catch (e) {
+                                  return selectedLog.old_value;
+                                }
+                              })()}
+                            </pre>
+                          </div>
+                        )}
+                        {selectedLog.new_value && (
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-wider">Updated Data</span>
+                            <pre className="text-xs bg-slate-900 dark:bg-black text-emerald-50 dark:text-emerald-200 p-4 rounded-lg overflow-x-auto font-mono border-l-4 border-emerald-500">
+                              {(() => {
+                                try {
+                                  const parsed = JSON.parse(selectedLog.new_value);
+                                  return JSON.stringify(parsed, null, 2);
+                                } catch (e) {
+                                  return selectedLog.new_value;
+                                }
+                              })()}
+                            </pre>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
             </div>
           )}

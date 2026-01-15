@@ -336,6 +336,36 @@ const DashboardPage = () => {
                                 {" "}{log.action.toLowerCase()}d a record in{" "}
                                 <span className="font-medium text-slate-900 dark:text-slate-100">{log.module}</span>
                               </p>
+                              
+                              {log.action === "UPDATE" && (() => {
+                                try {
+                                  const isJson = (str) => {
+                                    try {
+                                      if (!str || typeof str !== 'string') return false;
+                                      const parsed = JSON.parse(str);
+                                      return typeof parsed === 'object' && parsed !== null;
+                                    } catch (e) { return false; }
+                                  };
+
+                                  if (isJson(log.old_value) && isJson(log.new_value)) {
+                                    const oldVal = JSON.parse(log.old_value);
+                                    const newVal = JSON.parse(log.new_value);
+                                    const changedFields = Object.keys(newVal).filter(key => 
+                                      JSON.stringify(oldVal[key]) !== JSON.stringify(newVal[key])
+                                    );
+                                    
+                                    if (changedFields.length > 0) {
+                                      return (
+                                        <p className="text-[9px] text-slate-500 dark:text-slate-400 italic truncate">
+                                          Changed: {changedFields.join(", ")}
+                                        </p>
+                                      );
+                                    }
+                                  }
+                                } catch (e) {}
+                                return null;
+                              })()}
+
                               <div className="flex items-center gap-1 text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500">
                                 <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                                 {(() => {
