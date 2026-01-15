@@ -78,6 +78,7 @@ const CalendarPage = () => {
     start: new Date(),
     end: addDays(new Date(), 1),
     allDay: false,
+    isShared: false,
     color: EVENT_TYPE_COLORS.event
   });
 
@@ -98,6 +99,8 @@ const CalendarPage = () => {
     }, {});
     setFilters(newState);
   };
+
+  const canEdit = !editingEvent || user?.role === 'admin' || editingEvent.userId?._id === user?._id;
 
   const fetchEvents = useCallback(async () => {
     try {
@@ -169,6 +172,7 @@ const CalendarPage = () => {
       start: startDate,
       end: endDate,
       allDay: false,
+      isShared: false,
       color: EVENT_TYPE_COLORS.event
     });
     setIsEventDialogOpen(true);
@@ -184,6 +188,7 @@ const CalendarPage = () => {
       start: new Date(event.start),
       end: event.end ? new Date(event.end) : new Date(new Date(event.start).getTime() + 3600000),
       allDay: event.allDay,
+      isShared: event.isShared || false,
       color: EVENT_TYPE_COLORS[event.type] || event.color
     });
     setIsEventDialogOpen(true);
@@ -223,6 +228,7 @@ const CalendarPage = () => {
       setIsSubmittingEvent(true);
       const payload = {
         ...eventFormData,
+        isShared: user?.role === 'admin' ? eventFormData.isShared : false,
         start: eventFormData.start.toISOString(),
         end: eventFormData.end.toISOString()
       };
@@ -547,6 +553,11 @@ const CalendarPage = () => {
                       <p className={`text-xs sm:text-sm font-medium leading-tight ${event.status === 'completed' ? 'line-through opacity-50' : ''}`}>
                         {event.title}
                       </p>
+                      {event.userId && event.userId._id !== user?._id && (
+                        <p className="text-[8px] sm:text-[9px] font-medium opacity-60 mt-0.5 truncate">
+                          By: {event.userId.name}
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -630,26 +641,41 @@ const CalendarPage = () => {
                         {event.description}
                       </p>
                     )}
+                    {event.userId && (
+                      <div className="flex items-center gap-1.5 mt-2">
+                        <div className="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-500">
+                          {event.userId.name?.charAt(0)}
+                        </div>
+                        <span className="text-[10px] sm:text-xs font-medium text-slate-400">
+                          {event.userId._id === user?._id ? "You" : event.userId.name}
+                          {event.isShared && user?.role === 'admin' && (
+                            <span className="ml-2 text-[10px] text-emerald-500 font-semibold uppercase tracking-wider bg-emerald-500/10 px-1.5 py-0.5 rounded">Shared</span>
+                          )}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-8 w-8 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400"
-                      onClick={(e) => handleEditEvent(event, e)}
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-8 w-8 text-slate-400 hover:text-rose-600"
-                      onClick={(e) => handleDeleteEvent(event._id, e)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
+                  {(user?.role === 'admin' || event.userId?._id === user?._id) && (
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400"
+                        onClick={(e) => handleEditEvent(event, e)}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-slate-400 hover:text-rose-600"
+                        onClick={(e) => handleDeleteEvent(event._id, e)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ))
             ) : (
@@ -803,6 +829,7 @@ const CalendarPage = () => {
                     value={eventFormData.title}
                     onChange={(e) => setEventFormData({ ...eventFormData, title: e.target.value })}
                     required
+                    disabled={!canEdit}
                   />
                 </div>
 
@@ -814,6 +841,7 @@ const CalendarPage = () => {
                     className="rounded-xl bg-[#1e293b] border-slate-700/50 min-h-[80px] text-sm text-white placeholder:text-slate-500 focus:ring-1 focus:ring-indigo-500 transition-all resize-none"
                     value={eventFormData.description}
                     onChange={(e) => setEventFormData({ ...eventFormData, description: e.target.value })}
+                    disabled={!canEdit}
                   />
                 </div>
 
@@ -832,6 +860,7 @@ const CalendarPage = () => {
                             className="h-7 bg-transparent border-none text-[14px] text-white focus-visible:ring-0 p-0 font-medium w-full [color-scheme:dark]"
                             value={eventFormData.allDay ? format(eventFormData.start, "yyyy-MM-dd") : getDateTimeString(eventFormData.start)}
                             onChange={(e) => handleDateChange('start', e.target.value)}
+                            disabled={!canEdit}
                           />
                         </div>
                       </div>
@@ -847,6 +876,7 @@ const CalendarPage = () => {
                             className="h-7 bg-transparent border-none text-[14px] text-white focus-visible:ring-0 p-0 font-medium w-full [color-scheme:dark]"
                             value={eventFormData.allDay ? format(eventFormData.end, "yyyy-MM-dd") : getDateTimeString(eventFormData.end)}
                             onChange={(e) => handleDateChange('end', e.target.value)}
+                            disabled={!canEdit}
                           />
                         </div>
                       </div>
@@ -863,6 +893,7 @@ const CalendarPage = () => {
                       type: value,
                       color: EVENT_TYPE_COLORS[value] || eventFormData.color
                     })}
+                    disabled={!canEdit}
                   >
                     <SelectTrigger className="rounded-xl bg-[#1e293b] border-slate-700/50 h-10 text-sm text-white focus:ring-1 focus:ring-indigo-500 transition-all">
                       <SelectValue placeholder="Select type" />
@@ -912,15 +943,29 @@ const CalendarPage = () => {
                       });
                     }}
                     className="rounded-md border-slate-600 bg-[#1e293b] data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
+                    disabled={!canEdit}
                   />
                   <Label htmlFor="allDay" className="text-xs font-semibold text-slate-400 cursor-pointer select-none">All day event</Label>
                 </div>
+
+                {user?.role === 'admin' && (
+                  <div className="flex items-center gap-3 pt-1">
+                    <Checkbox 
+                      id="isShared" 
+                      checked={eventFormData.isShared} 
+                      onCheckedChange={(checked) => setEventFormData({ ...eventFormData, isShared: !!checked })}
+                      className="rounded-md border-slate-600 bg-[#1e293b] data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
+                      disabled={!canEdit}
+                    />
+                    <Label htmlFor="isShared" className="text-xs font-semibold text-slate-400 cursor-pointer select-none">Share with all users</Label>
+                  </div>
+                )}
               </div>
             </ScrollArea>
 
             <DialogFooter className="flex items-center justify-between gap-4 p-6 shrink-0 bg-[#1e293b]/30 border-t border-slate-800/50">
               <div className="flex-1 flex justify-start">
-                {editingEvent && (
+                {editingEvent && (user?.role === 'admin' || editingEvent.userId?._id === user?._id) && (
                   <Button 
                     type="button" 
                     variant="ghost" 
@@ -942,13 +987,15 @@ const CalendarPage = () => {
                 >
                   Cancel
                 </Button>
-                <Button 
-                  type="submit" 
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl h-10 px-6 text-xs font-bold shadow-lg shadow-indigo-600/20 transition-all active:scale-95 disabled:opacity-50 whitespace-nowrap"
-                  disabled={isSubmittingEvent}
-                >
-                  {isSubmittingEvent ? 'Saving...' : (editingEvent ? 'Save Changes' : 'Create Event')}
-                </Button>
+                {( !editingEvent || user?.role === 'admin' || editingEvent.userId?._id === user?._id) && (
+                  <Button 
+                    type="submit" 
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl h-10 px-6 text-xs font-bold shadow-lg shadow-indigo-600/20 transition-all active:scale-95 disabled:opacity-50 whitespace-nowrap"
+                    disabled={isSubmittingEvent}
+                  >
+                    {isSubmittingEvent ? 'Saving...' : (editingEvent ? 'Save Changes' : 'Create Event')}
+                  </Button>
+                )}
               </div>
             </DialogFooter>
           </form>
