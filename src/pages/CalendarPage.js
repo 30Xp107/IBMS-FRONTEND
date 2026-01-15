@@ -710,8 +710,8 @@ const CalendarPage = () => {
                         )}
                       </div>
 
-                      {event.userId?._id === user?._id && (
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {event.userId?._id === user?._id && (
                           <Button 
                             variant="ghost" 
                             size="icon" 
@@ -720,6 +720,8 @@ const CalendarPage = () => {
                           >
                             <Pencil className="w-4 h-4" />
                           </Button>
+                        )}
+                        {(event.userId?._id === user?._id || user?.role === 'admin') && (
                           <Button 
                             variant="ghost" 
                             size="icon" 
@@ -728,8 +730,8 @@ const CalendarPage = () => {
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </TooltipTrigger>
                   <TooltipContent side="right" className="bg-slate-900 border-slate-800 p-3 shadow-xl max-w-[250px]">
@@ -1042,7 +1044,7 @@ const CalendarPage = () => {
 
               <DialogFooter className="flex items-center justify-between gap-4 p-6 shrink-0 bg-[#1e293b]/30 border-t border-slate-800/50">
                 <div className="flex-1 flex justify-start">
-                  {editingEvent && editingEvent.userId?._id === user?._id && (
+                  {editingEvent && (editingEvent.userId?._id === user?._id || user?.role === 'admin') && (
                     <Button 
                       type="button" 
                       variant="ghost" 
