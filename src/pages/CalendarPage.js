@@ -1047,7 +1047,7 @@ const CalendarPage = () => {
                     <Textarea
                       id="description"
                       placeholder="Add more details..."
-                      className="rounded-xl bg-[#1e293b] border-slate-700/50 min-h-[80px] text-sm text-white placeholder:text-slate-500 focus:ring-1 focus:ring-indigo-500 transition-all resize-none"
+                      className="rounded-xl bg-[#1e293b] border-slate-700/50 min-h-[80px] text-sm text-white placeholder:text-slate-500 focus:ring-1 focus:ring-indigo-500 transition-all resize-y"
                       value={eventFormData.description}
                       onChange={(e) => setEventFormData({ ...eventFormData, description: e.target.value })}
                       disabled={!canEdit}
