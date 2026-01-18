@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { areaCache } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -146,6 +147,7 @@ const AreasPage = () => {
     if (!window.confirm("Are you sure you want to delete this area?")) return;
     try {
       await api.delete(`/areas/${areaId}`);
+      areaCache.clear();
       toast.success("Area deleted");
       fetchAreas();
     } catch (error) {

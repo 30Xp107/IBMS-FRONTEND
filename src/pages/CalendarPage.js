@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { 
   format, 
@@ -73,11 +73,92 @@ const CalendarPage = () => {
   const [events, setEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [view, setView] = useState("month");
-  
+  const eventCache = useRef({}); // Simple cache for months
+
+  // Filter states
+  const [filters, setFilters] = useState({
+    task: true,
+    event: true,
+    meeting: true,
+    deadline: true
+  });
+
+  // Memoized calendar range and days
+  const calendarData = useMemo(() => {
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(monthStart);
+    const startDate = startOfWeek(monthStart);
+    const endDate = endOfWeek(monthEnd);
+    const days = eachDayOfInterval({ start: startDate, end: endDate });
+    
+    const weeks = [];
+    for (let i = 0; i < days.length; i += 7) {
+      weeks.push(days.slice(i, i + 7));
+    }
+    
+    return { monthStart, monthEnd, startDate, endDate, days, weeks };
+  }, [currentMonth]);
+
+  // Memoized filtered events
+  const filteredEvents = useMemo(() => {
+    return events.filter(event => filters[event.type]);
+  }, [events, filters]);
+
+  // Memoized lane calculation for all weeks in current view
+  const weekLanes = useMemo(() => {
+    const { weeks } = calendarData;
+    return weeks.map(weekDays => {
+      const weekStart = startOfDay(weekDays[0]);
+      const weekEnd = endOfDay(weekDays[6]);
+
+      const weekEvents = filteredEvents.filter(event => {
+        const start = new Date(event.start);
+        const end = event.end ? new Date(event.end) : start;
+        return (start <= weekEnd && end >= weekStart);
+      }).sort((a, b) => {
+        const startA = new Date(a.start);
+        const startB = new Date(b.start);
+        if (startA.getTime() !== startB.getTime()) return startA - startB;
+        const durA = (a.end ? new Date(a.end) : startA) - startA;
+        const durB = (b.end ? new Date(b.end) : startB) - startB;
+        return durB - durA;
+      });
+
+      const lanes = [];
+      weekEvents.forEach(event => {
+        const start = new Date(event.start);
+        const end = event.end ? new Date(event.end) : start;
+        
+        const startIdx = Math.max(0, weekDays.findIndex(d => isSameDay(d, start < weekStart ? weekStart : start)));
+        const endIdx = Math.max(0, weekDays.findIndex(d => isSameDay(d, end > weekEnd ? weekEnd : end)));
+        
+        let laneIdx = lanes.findIndex(lane => {
+          return !lane.some(e => {
+            const eStart = new Date(e.start);
+            const eEnd = e.end ? new Date(e.end) : eStart;
+            const eStartIdx = Math.max(0, weekDays.findIndex(d => isSameDay(d, eStart < weekStart ? weekStart : eStart)));
+            const eEndIdx = Math.max(0, weekDays.findIndex(d => isSameDay(d, eEnd > weekEnd ? weekEnd : eEnd)));
+            return (startIdx <= eEndIdx && endIdx >= eStartIdx);
+          });
+        });
+
+        if (laneIdx === -1) {
+          laneIdx = lanes.length;
+          lanes.push([event]);
+        } else {
+          lanes[laneIdx].push(event);
+        }
+      });
+      return lanes;
+    });
+  }, [calendarData, filteredEvents]);
+
   // Dialog states
   const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
   const [isSubmittingEvent, setIsSubmittingEvent] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
+  const [isDayEventsDialogOpen, setIsDayEventsDialogOpen] = useState(false);
+  const [dayEventsToView, setDayEventsToView] = useState({ date: null, events: [] });
   const [eventFormData, setEventFormData] = useState({
     title: "",
     description: "",
@@ -87,14 +168,6 @@ const CalendarPage = () => {
     allDay: false,
     isShared: false,
     color: EVENT_TYPE_COLORS.event
-  });
-
-  // Filter states
-  const [filters, setFilters] = useState({
-    task: true,
-    event: true,
-    meeting: true,
-    deadline: true
   });
 
   const allSelected = Object.values(filters).every(v => v);
@@ -109,29 +182,39 @@ const CalendarPage = () => {
 
   const canEdit = !editingEvent || editingEvent.userId?._id === user?.id;
 
-  const fetchEvents = useCallback(async () => {
+  const fetchEvents = useCallback(async (forceRefresh = false) => {
+    let start, end;
+    
+    if (view === "month") {
+      start = startOfMonth(currentMonth);
+      end = endOfMonth(currentMonth);
+    } else if (view === "week") {
+      start = startOfWeek(currentMonth);
+      end = endOfWeek(currentMonth);
+    } else {
+      start = startOfDay(currentMonth);
+      end = endOfDay(currentMonth);
+    }
+
+    const cacheKey = `${view}-${start.toISOString()}-${end.toISOString()}`;
+    
+    if (!forceRefresh && eventCache.current[cacheKey]) {
+      setEvents(eventCache.current[cacheKey]);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       setIsLoading(true);
-      let start, end;
-      
-      if (view === "month") {
-        start = startOfMonth(currentMonth);
-        end = endOfMonth(currentMonth);
-      } else if (view === "week") {
-        start = startOfWeek(currentMonth);
-        end = endOfWeek(currentMonth);
-      } else {
-        start = startOfDay(currentMonth);
-        end = endOfDay(currentMonth);
-      }
-      
       const res = await api.get("/calendar-events", {
         params: {
           start: start.toISOString(),
           end: end.toISOString()
         }
       });
-      setEvents(res.data.events || []);
+      const fetchedEvents = res.data.events || [];
+      setEvents(fetchedEvents);
+      eventCache.current[cacheKey] = fetchedEvents;
     } catch (error) {
       console.error("Failed to fetch events:", error);
       toast.error("Failed to load events");
@@ -143,6 +226,10 @@ const CalendarPage = () => {
   useEffect(() => {
     fetchEvents();
   }, [fetchEvents]);
+
+  const clearCache = () => {
+    eventCache.current = {};
+  };
 
   const nextMonth = () => {
     if (view === "month") setCurrentMonth(addMonths(currentMonth, 1));
@@ -163,6 +250,21 @@ const CalendarPage = () => {
 
   const handleDayClick = (day) => {
     setSelectedDate(day);
+    if (view === "month") {
+      const dayEvents = events.filter(event => {
+        const start = new Date(event.start);
+        const end = event.end ? new Date(event.end) : start;
+        return isWithinInterval(day, { 
+          start: startOfDay(start), 
+          end: endOfDay(end) 
+        }) && filters[event.type];
+      });
+      
+      if (dayEvents.length > 0) {
+        setDayEventsToView({ date: day, events: dayEvents });
+        setIsDayEventsDialogOpen(true);
+      }
+    }
   };
 
   const handleAddEvent = () => {
@@ -243,10 +345,12 @@ const CalendarPage = () => {
       if (editingEvent) {
         const res = await api.put(`/calendar-events/${editingEvent._id}`, payload);
         setEvents(events.map(ev => ev._id === editingEvent._id ? res.data.event : ev));
+        clearCache();
         toast.success("Event updated successfully");
       } else {
         const res = await api.post("/calendar-events", payload);
         setEvents([...events, res.data.event]);
+        clearCache();
         toast.success("Event created successfully");
       }
       setIsEventDialogOpen(false);
@@ -263,6 +367,8 @@ const CalendarPage = () => {
     try {
       await api.delete(`/calendar-events/${id}`);
       setEvents(events.filter(e => e._id !== id));
+      clearCache();
+      setIsEventDialogOpen(false);
       toast.success("Event deleted successfully");
     } catch (error) {
       toast.error("Failed to delete event");
@@ -354,16 +460,7 @@ const CalendarPage = () => {
   };
 
   const renderMonthView = () => {
-    const monthStart = startOfMonth(currentMonth);
-    const monthEnd = endOfMonth(monthStart);
-    const startDate = startOfWeek(monthStart);
-    const endDate = endOfWeek(monthEnd);
-
-    const calendarDays = eachDayOfInterval({ start: startDate, end: endDate });
-    const weeks = [];
-    for (let i = 0; i < calendarDays.length; i += 7) {
-      weeks.push(calendarDays.slice(i, i + 7));
-    }
+    const { monthStart, weeks } = calendarData;
 
     return (
       <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-[#0a0f1c]">
@@ -401,8 +498,8 @@ const CalendarPage = () => {
             </div>
 
             {/* Events Layer */}
-            <div className="flex-1 relative z-10 px-0 pb-1 space-y-0.5 sm:space-y-1 overflow-hidden pointer-events-none">
-              {renderEventsForWeek(weekDays)}
+            <div className="flex-1 relative z-10 px-0 pb-1 space-y-0.5 sm:space-y-1 overflow-y-auto max-h-[60px] sm:max-h-[80px] scrollbar-hide pointer-events-auto">
+              {renderEventsForWeek(weekDays, weekIdx)}
             </div>
           </div>
         ))}
@@ -410,50 +507,12 @@ const CalendarPage = () => {
     );
   };
 
-  const renderEventsForWeek = (weekDays) => {
+  const renderEventsForWeek = (weekDays, weekIdx) => {
+    const lanes = weekLanes[weekIdx] || [];
     const weekStart = startOfDay(weekDays[0]);
     const weekEnd = endOfDay(weekDays[6]);
 
-    const weekEvents = events.filter(event => {
-      const start = new Date(event.start);
-      const end = event.end ? new Date(event.end) : start;
-      return (start <= weekEnd && end >= weekStart) && filters[event.type];
-    }).sort((a, b) => {
-      const startA = new Date(a.start);
-      const startB = new Date(b.start);
-      if (startA.getTime() !== startB.getTime()) return startA - startB;
-      const durA = (a.end ? new Date(a.end) : startA) - startA;
-      const durB = (b.end ? new Date(b.end) : startB) - startB;
-      return durB - durA;
-    });
-
-    const lanes = [];
-    weekEvents.forEach(event => {
-      const start = new Date(event.start);
-      const end = event.end ? new Date(event.end) : start;
-      
-      const startIdx = Math.max(0, weekDays.findIndex(d => isSameDay(d, start < weekStart ? weekStart : start)));
-      const endIdx = Math.max(0, weekDays.findIndex(d => isSameDay(d, end > weekEnd ? weekEnd : end)));
-      
-      let laneIdx = lanes.findIndex(lane => {
-        return !lane.some(e => {
-          const eStart = new Date(e.start);
-          const eEnd = e.end ? new Date(e.end) : eStart;
-          const eStartIdx = Math.max(0, weekDays.findIndex(d => isSameDay(d, eStart < weekStart ? weekStart : eStart)));
-          const eEndIdx = Math.max(0, weekDays.findIndex(d => isSameDay(d, eEnd > weekEnd ? weekEnd : eEnd)));
-          return (startIdx <= eEndIdx && endIdx >= eStartIdx);
-        });
-      });
-
-      if (laneIdx === -1) {
-        laneIdx = lanes.length;
-        lanes.push([event]);
-      } else {
-        lanes[laneIdx].push(event);
-      }
-    });
-
-    return lanes.slice(0, 3).map((lane, laneIdx) => (
+    return lanes.map((lane, laneIdx) => (
       <div key={laneIdx} className="relative h-4 sm:h-5">
         {lane.map(event => {
           const start = new Date(event.start);
@@ -523,21 +582,19 @@ const CalendarPage = () => {
   };
 
   const renderWeekView = () => {
-    const startDate = startOfWeek(currentMonth);
-    const endDate = endOfWeek(currentMonth);
-    const calendarDays = eachDayOfInterval({ start: startDate, end: endDate });
+    const { days: calendarDays } = calendarData;
 
     return (
       <div className="flex-1 flex flex-col overflow-y-auto">
         <div className="grid grid-cols-1 sm:grid-cols-7 h-full">
           {calendarDays.map((day) => {
-            const dayEvents = events.filter(event => {
+            const dayEvents = filteredEvents.filter(event => {
               const start = new Date(event.start);
               const end = event.end ? new Date(event.end) : start;
               return isWithinInterval(day, { 
                 start: startOfDay(start), 
                 end: endOfDay(end) 
-              }) && filters[event.type];
+              });
             });
 
             return (
@@ -624,13 +681,13 @@ const CalendarPage = () => {
 
   const renderDayView = () => {
     const day = currentMonth;
-    const dayEvents = events.filter(event => {
+    const dayEvents = filteredEvents.filter(event => {
       const start = new Date(event.start);
       const end = event.end ? new Date(event.end) : start;
       return isWithinInterval(day, { 
         start: startOfDay(start), 
         end: endOfDay(end) 
-      }) && filters[event.type];
+      });
     });
 
     return (
@@ -769,12 +826,7 @@ const CalendarPage = () => {
   };
 
   const renderSidebar = () => {
-    const miniCalendarStart = startOfWeek(startOfMonth(currentMonth));
-    const miniCalendarEnd = endOfWeek(endOfMonth(currentMonth));
-    const miniCalendarDays = eachDayOfInterval({
-      start: miniCalendarStart,
-      end: miniCalendarEnd
-    });
+    const { days: miniCalendarDays } = calendarData;
 
     return (
       <div className="w-64 border-r dark:border-slate-800 bg-white dark:bg-[#0a0f1c] hidden xl:flex flex-col">
@@ -879,6 +931,84 @@ const CalendarPage = () => {
             {renderCells()}
           </div>
         </div>
+
+        {/* Day Events Dialog */}
+        <Dialog open={isDayEventsDialogOpen} onOpenChange={setIsDayEventsDialogOpen}>
+          <DialogContent className="max-w-[95vw] sm:max-w-[450px] rounded-[24px] bg-[#0f172a] border-slate-800 text-slate-100 p-0 shadow-2xl overflow-hidden">
+            <DialogHeader className="p-6 pb-2 shrink-0">
+              <DialogTitle className="text-lg sm:text-xl font-bold tracking-tight text-white flex items-center gap-3">
+                <CalendarIcon className="w-5 h-5 text-indigo-400" />
+                {dayEventsToView.date && format(dayEventsToView.date, "MMMM d, yyyy")}
+              </DialogTitle>
+              <DialogDescription className="text-slate-400 text-xs sm:text-sm">
+                Showing all events and tasks for this day
+              </DialogDescription>
+            </DialogHeader>
+
+            <ScrollArea className="max-h-[60vh] px-6 py-4">
+              <div className="space-y-3">
+                {dayEventsToView.events.map((event) => (
+                  <div
+                    key={event._id}
+                    onClick={(e) => {
+                      setIsDayEventsDialogOpen(false);
+                      handleEditEvent(event, e);
+                    }}
+                    className="p-4 rounded-xl bg-[#1e293b] border border-slate-700/50 hover:border-indigo-500/50 transition-all cursor-pointer group flex items-start gap-3"
+                  >
+                    <div className="w-1.5 h-full rounded-full shrink-0 mt-1" style={{ backgroundColor: event.color }} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{event.type}</span>
+                        {!event.allDay && (
+                          <span className="text-[10px] font-medium text-slate-400">
+                            {format(new Date(event.start), "HH:mm")}
+                          </span>
+                        )}
+                      </div>
+                      <h4 className="text-sm font-semibold text-white truncate group-hover:text-indigo-400 transition-colors">
+                        {event.title}
+                      </h4>
+                      {event.description && (
+                        <p className="text-xs text-slate-400 line-clamp-2 mt-1 italic">
+                          "{event.description}"
+                        </p>
+                      )}
+                      <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-700/50">
+                        <div className="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-bold text-indigo-400 shrink-0">
+                          {event.userId?.name?.charAt(0)}
+                        </div>
+                        <span className="text-[10px] text-slate-500 truncate">
+                          By: <span className="text-slate-300">{event.userId?._id === user?.id ? "You" : event.userId?.name}</span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+
+            <DialogFooter className="p-4 bg-[#1e293b]/30 border-t border-slate-800/50 flex gap-2">
+              <Button 
+                variant="ghost" 
+                className="flex-1 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 font-bold"
+                onClick={() => setIsDayEventsDialogOpen(false)}
+              >
+                Close
+              </Button>
+              <Button 
+                className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold"
+                onClick={() => {
+                  setIsDayEventsDialogOpen(false);
+                  handleAddEvent();
+                }}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Event
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Event Dialog */}
         <Dialog open={isEventDialogOpen} onOpenChange={setIsEventDialogOpen}>

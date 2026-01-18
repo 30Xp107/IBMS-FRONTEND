@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { areaCache } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -110,6 +111,18 @@ const UsersPage = () => {
       // Don't fetch if all are null to avoid loading all 40,000+ areas
       if (!type && !parentId && !parentCode) return;
 
+      const cacheKey = `areas-${type || 'all'}-${parentId || 'none'}-${parentCode || 'none'}`;
+      const cachedData = areaCache.get(cacheKey);
+      
+      if (cachedData) {
+        setAreas(prev => {
+          const existingIds = new Set(prev.map(a => a.id));
+          const newData = cachedData.filter(a => !existingIds.has(a.id));
+          return [...prev, ...newData];
+        });
+        return cachedData;
+      }
+
       let query = `?limit=500`; // Use a large enough limit for any single level
       if (type) query += `&type=${type}`;
       if (parentId) query += `&parent_id=${parentId}`;
@@ -125,6 +138,8 @@ const UsersPage = () => {
         parent_id: area.parent_id ? (typeof area.parent_id === "object" ? String(area.parent_id?._id || area.parent_id?.id) : String(area.parent_id)) : ""
       }));
       
+      areaCache.set(cacheKey, normalizedData);
+
       setAreas(prev => {
         const existingIds = new Set(prev.map(a => a.id));
         const newData = normalizedData.filter(a => !existingIds.has(a.id));
