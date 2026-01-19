@@ -222,11 +222,27 @@ const RedemptionPage = () => {
       if (provinceFilter !== "all") benQuery += `&province=${encodeURIComponent(provinceFilter)}`;
       if (municipalityFilter !== "all") benQuery += `&municipality=${encodeURIComponent(municipalityFilter)}`;
       if (barangayFilter !== "all") benQuery += `&barangay=${encodeURIComponent(barangayFilter)}`;
+      
+      // Add redemption status filtering
+      if (attendanceFilter !== "all") {
+        benQuery += `&redemption_status=${attendanceFilter}`;
+        benQuery += `&frm_period=${encodeURIComponent(selectedPeriod)}`;
+      }
 
       const response = await api.get(`/beneficiaries${benQuery}`);
       const data = response.data;
       const benList = (data.beneficiaries || []).filter(b => b);
       const benIds = benList.map(b => String(b._id || b.id || ""));
+
+      // Extract current redemptions from beneficiaries if provided by server
+      const serverRedemptions = benList
+        .filter(b => b.current_redemption)
+        .map(b => ({
+          ...b.current_redemption,
+          id: String(b.current_redemption._id || b.current_redemption.id || ""),
+          beneficiary_id: String(b._id || b.id || ""),
+          type: b.current_redemption.type || 'redemption' // Default to redemption if not specified
+        }));
 
       setBeneficiaries(benList.map(b => ({
               ...b,
@@ -236,8 +252,10 @@ const RedemptionPage = () => {
             setTotalBeneficiaries(data.total || 0);
             setTotalPages(data.totalPages || 1);
             
-            if (benIds.length > 0) {
-              const redResponse = await api.get(`/redemptions?frm_period=${encodeURIComponent(selectedPeriod)}&beneficiary_ids=${benIds.join(",")}`);
+            if (serverRedemptions.length > 0) {
+              setRedemptions(serverRedemptions);
+            } else if (benIds.length > 0) {
+              const redResponse = await api.get(`/redemptions?limit=all&frm_period=${encodeURIComponent(selectedPeriod)}&beneficiary_ids=${benIds.join(",")}`);
               const redData = Array.isArray(redResponse.data) ? redResponse.data : (redResponse.data.redemptions || []);
               setRedemptions(redData.filter(r => r).map(r => ({
                 ...r,
@@ -258,16 +276,27 @@ const RedemptionPage = () => {
     if (!beneficiary || !beneficiary.id) return;
     
     // Optimistic update for local state
-    const currentRedemption = redemptions.find(r => r && r.beneficiary_id === beneficiary.id);
+    const currentRedemption = redemptions.find(r => 
+      r && (
+        (r.beneficiary_id && r.beneficiary_id === beneficiary.id) || 
+        (r.hhid && beneficiary.hhid && beneficiary.hhid !== "0" && beneficiary.hhid !== "" && r.hhid === beneficiary.hhid)
+      )
+    );
     
     if (field === "attendance" && value === "none") {
       if (currentRedemption && currentRedemption.id) {
         try {
-          await api.delete(`/redemptions/${currentRedemption.id}`);
-          setRedemptions(prev => prev.filter(r => r.beneficiary_id !== beneficiary.id));
+          const endpoint = currentRedemption.type === 'nes' ? '/nes' : '/redemptions';
+          await api.delete(`${endpoint}/${currentRedemption.id}`);
+          setRedemptions(prev => prev.filter(r => 
+            r.id !== currentRedemption.id && 
+            r.beneficiary_id !== beneficiary.id
+          ));
           toast.success("Record cleared");
         } catch (error) {
-          toast.error("Failed to clear record");
+          console.error("Delete error:", error);
+          const message = error.response?.data?.message || "Failed to clear record";
+          toast.error(message);
         }
       }
       return;
@@ -276,10 +305,14 @@ const RedemptionPage = () => {
     // Optimistically update the status if it's an attendance or action change
     if (field === "attendance" || field === "action") {
       setRedemptions(prev => {
-        const exists = prev.some(r => r.beneficiary_id === beneficiary.id);
+        const exists = prev.some(r => 
+          (r.beneficiary_id && r.beneficiary_id === beneficiary.id) || 
+          (r.hhid && beneficiary.hhid && beneficiary.hhid !== "0" && beneficiary.hhid !== "" && r.hhid === beneficiary.hhid)
+        );
         if (exists) {
           return prev.map(r => {
-            if (r.beneficiary_id === beneficiary.id) {
+            if ((r.beneficiary_id && r.beneficiary_id === beneficiary.id) || 
+                (r.hhid && beneficiary.hhid && beneficiary.hhid !== "0" && beneficiary.hhid !== "" && r.hhid === beneficiary.hhid)) {
               // Clear action if attendance changes
               if (field === "attendance") {
                 return { ...r, attendance: value, action: "" };
@@ -464,18 +497,7 @@ const RedemptionPage = () => {
   };
 
   // Sorting is now handled on the server side
-  const sortedBeneficiaries = beneficiaries;
-
-  const filteredBeneficiaries = sortedBeneficiaries.filter(b => {
-    if (attendanceFilter === "all") return true;
-    
-    const redemption = redemptions.find(r => r && r.beneficiary_id === b.id);
-    const status = redemption?.attendance || "none";
-    
-    return status === attendanceFilter;
-  });
-
-  const currentItems = filteredBeneficiaries;
+  const currentItems = beneficiaries;
 
   const currentYear = new Date().getFullYear();
   const years = [currentYear + 1, currentYear, currentYear - 1, currentYear - 2, currentYear - 3];
@@ -687,11 +709,11 @@ const RedemptionPage = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {isLoading && filteredBeneficiaries.length === 0 ? (
+          {isLoading && currentItems.length === 0 ? (
             <div className="flex items-center justify-center h-64">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
             </div>
-          ) : filteredBeneficiaries.length === 0 ? (
+          ) : currentItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-slate-500 dark:text-slate-400">
               <FileText className="w-16 h-16 mb-4 opacity-20" />
               <p className="text-lg font-medium">No records found</p>
@@ -734,7 +756,12 @@ const RedemptionPage = () => {
                 </TableHeader>
                 <TableBody>
                   {currentItems.map((b) => {
-                    const redemption = redemptions.find(r => r && r.beneficiary_id === b.id);
+                    const redemption = redemptions.find(r => 
+                      r && (
+                        (r.beneficiary_id && r.beneficiary_id === b.id) || 
+                        (r.hhid && b.hhid && b.hhid !== "0" && b.hhid !== "" && r.hhid === b.hhid)
+                      )
+                    );
                     return (
                       <TableRow key={b.id} className="border-b dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
                         <TableCell className="font-medium text-slate-700 dark:text-slate-300 text-left pl-6 hidden sm:table-cell">{b.hhid}</TableCell>
@@ -781,9 +808,15 @@ const RedemptionPage = () => {
                             onChange={(e) => {
                               const newVal = e.target.value;
                               setRedemptions(prev => {
-                                const exists = prev.some(r => r.beneficiary_id === b.id);
+                                const exists = prev.some(r => 
+                                  (r.beneficiary_id && r.beneficiary_id === b.id) || 
+                                  (r.hhid && b.hhid && b.hhid !== "0" && b.hhid !== "" && r.hhid === b.hhid)
+                                );
                                 if (exists) {
-                                  return prev.map(r => r.beneficiary_id === b.id ? { ...r, reason: newVal } : r);
+                                  return prev.map(r => 
+                                    ((r.beneficiary_id && r.beneficiary_id === b.id) || 
+                                     (r.hhid && b.hhid && b.hhid !== "0" && b.hhid !== "" && r.hhid === b.hhid)) ? { ...r, reason: newVal } : r
+                                  );
                                 } else {
                                   return [...prev, { 
                                     beneficiary_id: b.id, 
