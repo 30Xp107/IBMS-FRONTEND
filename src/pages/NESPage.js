@@ -347,49 +347,22 @@ const NESPage = () => {
     try {
       const toastId = toast.loading("Preparing export...");
       
-      // Fetch all beneficiaries for the current filter
-      let benQuery = `?limit=all&status=Active&sort=${sortConfig.key}&order=${sortConfig.direction}`;
-      if (debouncedSearch) benQuery += `&search=${encodeURIComponent(debouncedSearch)}`;
-      if (regionFilter !== "all") benQuery += `&region=${encodeURIComponent(regionFilter)}`;
-      if (provinceFilter !== "all") benQuery += `&province=${encodeURIComponent(provinceFilter)}`;
-      if (municipalityFilter !== "all") benQuery += `&municipality=${encodeURIComponent(municipalityFilter)}`;
-      if (barangayFilter !== "all") benQuery += `&barangay=${encodeURIComponent(barangayFilter)}`;
+      let exportQuery = `?sort=${sortConfig.key}&order=${sortConfig.direction}&frm_period=${encodeURIComponent(selectedPeriod)}`;
+      if (debouncedSearch) exportQuery += `&search=${encodeURIComponent(debouncedSearch)}`;
+      if (regionFilter !== "all") exportQuery += `&region=${encodeURIComponent(regionFilter)}`;
+      if (provinceFilter !== "all") exportQuery += `&province=${encodeURIComponent(provinceFilter)}`;
+      if (municipalityFilter !== "all") exportQuery += `&municipality=${encodeURIComponent(municipalityFilter)}`;
+      if (barangayFilter !== "all") exportQuery += `&barangay=${encodeURIComponent(barangayFilter)}`;
+      if (attendanceFilter !== "all") exportQuery += `&redemption_status=${attendanceFilter}`;
 
-      const benResponse = await api.get(`/beneficiaries${benQuery}`);
-      const allBeneficiaries = (benResponse.data.beneficiaries || []).map(b => ({
-        ...b,
-        id: String(b._id || b.id)
-      }));
+      const response = await api.get(`/beneficiaries/export${exportQuery}`);
+      const exportData = response.data.data;
 
-      if (allBeneficiaries.length === 0) {
+      if (!exportData || exportData.length === 0) {
         toast.dismiss(toastId);
         toast.error("No data to export");
         return;
       }
-
-      // Fetch all NES records for the current FRM period
-      const nesResponse = await api.get(`/nes?limit=all&frm_period=${encodeURIComponent(selectedPeriod)}`);
-      const allNesRecords = (Array.isArray(nesResponse.data) ? nesResponse.data : (nesResponse.data.nesRecords || [])).map(r => ({
-        ...r,
-        beneficiary_id: r.beneficiary_id ? (typeof r.beneficiary_id === "object" ? String(r.beneficiary_id?._id || r.beneficiary_id?.id) : String(r.beneficiary_id)) : ""
-      }));
-
-      const exportData = allBeneficiaries.map(b => {
-        const nes = allNesRecords.find(r => r.beneficiary_id === b.id);
-        return {
-          "HHID": b.hhid,
-          "Last Name": b.last_name,
-          "First Name": b.first_name,
-          "Region": b.region,
-          "Province": b.province,
-          "Municipality": b.municipality,
-          "Barangay": b.barangay,
-          "FRM Period": selectedPeriod,
-          "Attendance": nes?.attendance || "none",
-          "Reason": nes?.reason || "",
-          "Date Recorded": nes?.date_recorded || ""
-        };
-      });
 
       const worksheet = XLSX.utils.json_to_sheet(exportData);
       const workbook = XLSX.utils.book_new();
@@ -399,12 +372,18 @@ const NESPage = () => {
         { wch: 15 }, // HHID
         { wch: 20 }, // Last Name
         { wch: 20 }, // First Name
+        { wch: 20 }, // Middle Name
         { wch: 20 }, // Region
         { wch: 20 }, // Province
         { wch: 20 }, // Municipality
         { wch: 20 }, // Barangay
+        { wch: 15 }, // Status
         { wch: 20 }, // FRM Period
-        { wch: 15 }, // Attendance
+        { wch: 20 }, // Redemption Status
+        { wch: 20 }, // Redemption Rate (%)
+        { wch: 20 }, // NES Attendance
+        { wch: 15 }, // NES Rate (%)
+        { wch: 25 }, // Remarks
         { wch: 30 }, // Reason
         { wch: 15 }, // Date Recorded
       ];
@@ -412,7 +391,7 @@ const NESPage = () => {
 
       XLSX.writeFile(workbook, `nes_records_${selectedPeriod.replace(/\s+/g, "_")}_${new Date().toISOString().split('T')[0]}.xlsx`);
       toast.dismiss(toastId);
-      toast.success(`Exported ${allBeneficiaries.length} records`);
+      toast.success(`Exported ${exportData.length} records`);
     } catch (error) {
       console.error("Export error:", error);
       toast.error("Failed to export data");

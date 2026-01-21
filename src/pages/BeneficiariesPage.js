@@ -46,6 +46,10 @@ const BeneficiariesPage = () => {
   const [municipalityFilter, setMunicipalityFilter] = useState("all");
   const [barangayFilter, setBarangayFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [is4psFilter, setIs4psFilter] = useState("all");
+  const [redemptionStatusFilter, setRedemptionStatusFilter] = useState("all");
+  const [frmPeriodFilter, setFrmPeriodFilter] = useState("all");
+  const [availablePeriods, setAvailablePeriods] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalBeneficiaries, setTotalBeneficiaries] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -65,7 +69,7 @@ const BeneficiariesPage = () => {
   // Reset to page 1 when filters or search change
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearch, regionFilter, provinceFilter, municipalityFilter, barangayFilter, statusFilter, itemsPerPage]);
+  }, [debouncedSearch, regionFilter, provinceFilter, municipalityFilter, barangayFilter, statusFilter, is4psFilter, redemptionStatusFilter, frmPeriodFilter, itemsPerPage]);
   const [isAllSelectedGlobally, setIsAllSelectedGlobally] = useState(false);
   const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
   const [duplicates, setDuplicates] = useState([]);
@@ -113,7 +117,11 @@ const BeneficiariesPage = () => {
             region: regionFilter,
             province: provinceFilter,
             municipality: municipalityFilter,
-            barangay: barangayFilter
+            barangay: barangayFilter,
+            status: statusFilter,
+            is4ps: is4psFilter,
+            redemption_status: redemptionStatusFilter,
+            frm_period: frmPeriodFilter
           }
         });
       } else {
@@ -161,11 +169,27 @@ const BeneficiariesPage = () => {
 
   useEffect(() => {
     fetchBeneficiaries();
-  }, [currentPage, debouncedSearch, regionFilter, provinceFilter, municipalityFilter, barangayFilter, statusFilter, sortConfig, itemsPerPage]);
+  }, [currentPage, debouncedSearch, regionFilter, provinceFilter, municipalityFilter, barangayFilter, statusFilter, is4psFilter, redemptionStatusFilter, frmPeriodFilter, sortConfig, itemsPerPage]);
 
   useEffect(() => {
     fetchAreas("region");
+    fetchAvailableFilters();
   }, []);
+
+  const fetchAvailableFilters = async () => {
+    try {
+      const response = await api.get("/beneficiaries/filters");
+      if (response.data.periods && response.data.periods.length > 0) {
+        setAvailablePeriods(response.data.periods);
+        // Default to latest period if none selected
+        if (frmPeriodFilter === "all") {
+          setFrmPeriodFilter(response.data.periods[0]);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch available filters:", error);
+    }
+  };
 
   const fetchAreas = async (type = null, parentId = null, parentCode = null) => {
     try {
@@ -231,6 +255,9 @@ const BeneficiariesPage = () => {
       if (municipalityFilter !== "all") query += `&municipality=${encodeURIComponent(municipalityFilter)}`;
       if (barangayFilter !== "all") query += `&barangay=${encodeURIComponent(barangayFilter)}`;
       if (statusFilter !== "all") query += `&status=${encodeURIComponent(statusFilter)}`;
+      if (is4psFilter !== "all") query += `&is4ps=${encodeURIComponent(is4psFilter)}`;
+      if (redemptionStatusFilter !== "all") query += `&redemption_status=${encodeURIComponent(redemptionStatusFilter)}`;
+      if (frmPeriodFilter !== "all") query += `&frm_period=${encodeURIComponent(frmPeriodFilter)}`;
 
       const response = await api.get(`/beneficiaries${query}`);
       const data = response.data;
@@ -618,6 +645,9 @@ const BeneficiariesPage = () => {
       if (municipalityFilter !== "all") query += `&municipality=${encodeURIComponent(municipalityFilter)}`;
       if (barangayFilter !== "all") query += `&barangay=${encodeURIComponent(barangayFilter)}`;
       if (statusFilter !== "all") query += `&status=${encodeURIComponent(statusFilter)}`;
+      if (is4psFilter !== "all") query += `&is4ps=${encodeURIComponent(is4psFilter)}`;
+      if (redemptionStatusFilter !== "all") query += `&redemption_status=${encodeURIComponent(redemptionStatusFilter)}`;
+      if (frmPeriodFilter !== "all") query += `&frm_period=${encodeURIComponent(frmPeriodFilter)}`;
       
       const response = await api.get(`/beneficiaries${query}`);
       const allBeneficiaries = response.data.beneficiaries || [];
@@ -646,7 +676,7 @@ const BeneficiariesPage = () => {
         "Unredeemed": b.redemption_stats?.unredeemed || 0,
         "Present (NES)": b.nes_stats?.present || 0,
         "Absent (NES)": b.nes_stats?.absent || 0,
-        "is4ps": b.is4ps ? "Yes" : "No"
+        "is4ps": b.is4ps || "No"
       }));
 
       // Create workbook and worksheet
@@ -1129,6 +1159,44 @@ const BeneficiariesPage = () => {
                 </SelectContent>
               </Select>
 
+              <Select value={is4psFilter} onValueChange={setIs4psFilter}>
+                <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                  <SelectValue placeholder="Is 4Ps" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All (4Ps)</SelectItem>
+                  <SelectItem value="Yes">4Ps Member</SelectItem>
+                  <SelectItem value="No">Non-4Ps</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={redemptionStatusFilter} onValueChange={setRedemptionStatusFilter}>
+                <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                  <SelectValue placeholder="Attendance" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Attendance</SelectItem>
+                  <SelectItem value="redeemed">Redeemed</SelectItem>
+                  <SelectItem value="unredeemed">Unredeemed</SelectItem>
+                  <SelectItem value="present">Present</SelectItem>
+                  <SelectItem value="absent">Absent</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {availablePeriods.length > 0 && (
+                <Select value={frmPeriodFilter} onValueChange={setFrmPeriodFilter}>
+                  <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                    <SelectValue placeholder="FRM Period" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Periods</SelectItem>
+                    {availablePeriods.map(period => (
+                      <SelectItem key={period} value={period}>{period}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
               <Select value={itemsPerPage.toString()} onValueChange={(v) => setItemsPerPage(v === "all" ? "all" : parseInt(v))}>
                 <SelectTrigger className="w-full sm:w-32 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
                   <SelectValue placeholder="Rows" />
@@ -1142,7 +1210,7 @@ const BeneficiariesPage = () => {
                 </SelectContent>
               </Select>
               
-              {(regionFilter !== "all" || provinceFilter !== "all" || municipalityFilter !== "all" || barangayFilter !== "all" || statusFilter !== "all") && (
+              {(regionFilter !== "all" || provinceFilter !== "all" || municipalityFilter !== "all" || barangayFilter !== "all" || statusFilter !== "all" || is4psFilter !== "all" || redemptionStatusFilter !== "all" || frmPeriodFilter !== "all") && (
                 <Button 
                   variant="ghost" 
                   size="sm" 
@@ -1152,6 +1220,9 @@ const BeneficiariesPage = () => {
                     setMunicipalityFilter("all");
                     setBarangayFilter("all");
                     setStatusFilter("all");
+                    setIs4psFilter("all");
+                    setRedemptionStatusFilter("all");
+                    setFrmPeriodFilter("all");
                   }}
                   className="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
                 >
