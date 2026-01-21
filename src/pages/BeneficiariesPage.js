@@ -1152,7 +1152,7 @@ const BeneficiariesPage = () => {
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="all">All</SelectItem>
                   <SelectItem value="Active">Active</SelectItem>
                   <SelectItem value="Inactive">Inactive</SelectItem>
                   <SelectItem value="Not for Recording">Not for Recording</SelectItem>
@@ -1164,7 +1164,7 @@ const BeneficiariesPage = () => {
                   <SelectValue placeholder="Is 4Ps" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All (4Ps)</SelectItem>
+                  <SelectItem value="all">All</SelectItem>
                   <SelectItem value="Yes">4Ps Member</SelectItem>
                   <SelectItem value="No">Non-4Ps</SelectItem>
                 </SelectContent>
@@ -1175,7 +1175,7 @@ const BeneficiariesPage = () => {
                   <SelectValue placeholder="Attendance" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Attendance</SelectItem>
+                  <SelectItem value="all">All</SelectItem>
                   <SelectItem value="redeemed">Redeemed</SelectItem>
                   <SelectItem value="unredeemed">Unredeemed</SelectItem>
                   <SelectItem value="present">Present</SelectItem>
@@ -1189,7 +1189,7 @@ const BeneficiariesPage = () => {
                     <SelectValue placeholder="FRM Period" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Periods</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
                     {availablePeriods.map(period => (
                       <SelectItem key={period} value={period}>{period}</SelectItem>
                     ))}
