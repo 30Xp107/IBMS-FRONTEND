@@ -1022,8 +1022,8 @@ const BeneficiariesPage = () => {
       {/* Search and Filters */}
       <Card className="border-stone-200 dark:border-slate-800 shadow-sm overflow-hidden">
         <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
+          <div className="flex flex-col gap-4">
+            <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input
                 placeholder="Search by HHID, PKNO, or Name..."
@@ -1032,203 +1032,214 @@ const BeneficiariesPage = () => {
                 className="pl-10 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
               />
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Select value={regionFilter} onValueChange={(val) => {
-                  setRegionFilter(val);
-                  setProvinceFilter("all");
-                  setMunicipalityFilter("all");
-                  setBarangayFilter("all");
-                  const regionObj = areas.find(a => a.name?.trim().toLowerCase() === val?.trim().toLowerCase() && a.type === "region");
-                  if (regionObj) fetchAreas("province", regionObj.id, regionObj.code);
-                }}>
-                <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
-                  <SelectValue placeholder="Region" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Regions</SelectItem>
-                  {areas
-                    .filter(a => a.type === "region")
-                    .map(r => (
-                      <SelectItem key={r.id} value={r.name}>{r.name}</SelectItem>
-                    ))
-                  }
-                </SelectContent>
-              </Select>
-
-              <Select 
-                value={provinceFilter} 
-                onValueChange={(val) => {
-                  setProvinceFilter(val);
-                  setMunicipalityFilter("all");
-                  setBarangayFilter("all");
-                  const regionObj = areas.find(a => a.name?.trim().toLowerCase() === regionFilter?.trim().toLowerCase() && a.type === "region");
-                  const provinceObj = areas.find(a => a.name?.trim().toLowerCase() === val?.trim().toLowerCase() && a.type === "province" && 
-                    (regionObj ? (a.parent_id === regionObj.id || a.parent_code === regionObj.code) : true));
-                  if (provinceObj) fetchAreas("municipality", provinceObj.id, provinceObj.code);
-                }}
-                disabled={regionFilter === "all"}
-              >
-                <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
-                  <SelectValue placeholder="Province" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Provinces</SelectItem>
-                  {areas
-                    .filter(a => a.type === "province" && (regionFilter !== "all" ? 
-                      (() => {
-                        const r = areas.find(area => area.name?.trim().toLowerCase() === regionFilter?.trim().toLowerCase() && area.type === "region");
-                        return r ? (a.parent_id === r.id || a.parent_code === r.code) : true;
-                      })() : true))
-                    .map(p => (
-                      <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
-                    ))
-                  }
-                </SelectContent>
-              </Select>
-
-              <Select 
-                value={municipalityFilter} 
-                onValueChange={(val) => {
-                  setMunicipalityFilter(val);
-                  setBarangayFilter("all");
-                  const regionObj = areas.find(a => a.name?.trim().toLowerCase() === regionFilter?.trim().toLowerCase() && a.type === "region");
-                  const provinceObj = areas.find(a => a.name?.trim().toLowerCase() === provinceFilter?.trim().toLowerCase() && a.type === "province" &&
-                    (regionObj ? (a.parent_id === regionObj.id || a.parent_code === regionObj.code) : true));
-                  const municipalityObj = areas.find(a => a.name?.trim().toLowerCase() === val?.trim().toLowerCase() && a.type === "municipality" && 
-                    (provinceObj ? (a.parent_id === provinceObj.id || a.parent_code === provinceObj.code) : true));
-                  if (municipalityObj) fetchAreas("barangay", municipalityObj.id, municipalityObj.code);
-                }}
-                disabled={provinceFilter === "all"}
-              >
-                <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
-                  <SelectValue placeholder="Municipality" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Municipalities</SelectItem>
-                  {areas
-                    .filter(a => a.type === "municipality" && (provinceFilter !== "all" ? 
-                      (() => {
-                        const r = areas.find(area => area.name?.trim().toLowerCase() === regionFilter?.trim().toLowerCase() && area.type === "region");
-                        const p = areas.find(area => area.name?.trim().toLowerCase() === provinceFilter?.trim().toLowerCase() && area.type === "province" &&
-                          (r ? (area.parent_id === r.id || area.parent_code === r.code) : true));
-                        return p ? (a.parent_id === p.id || a.parent_code === p.code) : true;
-                      })() : true))
-                    .map(m => (
-                      <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>
-                    ))
-                  }
-                </SelectContent>
-              </Select>
-
-              <Select 
-                value={barangayFilter} 
-                onValueChange={setBarangayFilter}
-                disabled={municipalityFilter === "all"}
-              >
-                <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
-                  <SelectValue placeholder="Barangay" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Barangays</SelectItem>
-                  {areas
-                    .filter(a => a.type === "barangay" && (municipalityFilter !== "all" ? 
-                      (() => {
-                        const r = areas.find(area => area.name?.trim().toLowerCase() === regionFilter?.trim().toLowerCase() && area.type === "region");
-                        const p = areas.find(area => area.name?.trim().toLowerCase() === provinceFilter?.trim().toLowerCase() && area.type === "province" &&
-                          (r ? (area.parent_id === r.id || area.parent_code === r.code) : true));
-                        const m = areas.find(area => area.name?.trim().toLowerCase() === municipalityFilter?.trim().toLowerCase() && area.type === "municipality" &&
-                          (p ? (area.parent_id === p.id || area.parent_code === p.code) : true));
-                        return m ? (a.parent_id === m.id || a.parent_code === m.code) : true;
-                      })() : true))
-                    .map(b => (
-                      <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
-                    ))
-                  }
-                </SelectContent>
-              </Select>
-
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Inactive">Inactive</SelectItem>
-                  <SelectItem value="Not for Recording">Not for Recording</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select value={is4psFilter} onValueChange={setIs4psFilter}>
-                <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
-                  <SelectValue placeholder="Is 4Ps" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="Yes">4Ps Member</SelectItem>
-                  <SelectItem value="No">Non-4Ps</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select value={redemptionStatusFilter} onValueChange={setRedemptionStatusFilter}>
-                <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
-                  <SelectValue placeholder="Attendance" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="redeemed">Redeemed</SelectItem>
-                  <SelectItem value="unredeemed">Unredeemed</SelectItem>
-                  <SelectItem value="present">Present</SelectItem>
-                  <SelectItem value="absent">Absent</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {availablePeriods.length > 0 && (
-                <Select value={frmPeriodFilter} onValueChange={setFrmPeriodFilter}>
-                  <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
-                    <SelectValue placeholder="FRM Period" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    {availablePeriods.map(period => (
-                      <SelectItem key={period} value={period}>{period}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-
-              <Select value={itemsPerPage.toString()} onValueChange={(v) => setItemsPerPage(v === "all" ? "all" : parseInt(v))}>
-                <SelectTrigger className="w-full sm:w-32 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
-                  <SelectValue placeholder="Rows" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="10">10 rows</SelectItem>
-                  <SelectItem value="20">20 rows</SelectItem>
-                  <SelectItem value="50">50 rows</SelectItem>
-                  <SelectItem value="100">100 rows</SelectItem>
-                  <SelectItem value="all">Show All</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              {(regionFilter !== "all" || provinceFilter !== "all" || municipalityFilter !== "all" || barangayFilter !== "all" || statusFilter !== "all" || is4psFilter !== "all" || redemptionStatusFilter !== "all" || frmPeriodFilter !== "all") && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => {
-                    setRegionFilter("all");
+            
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Select value={regionFilter} onValueChange={(val) => {
+                    setRegionFilter(val);
                     setProvinceFilter("all");
                     setMunicipalityFilter("all");
                     setBarangayFilter("all");
-                    setStatusFilter("all");
-                    setIs4psFilter("all");
-                    setRedemptionStatusFilter("all");
-                    setFrmPeriodFilter("all");
+                    const regionObj = areas.find(a => a.name?.trim().toLowerCase() === val?.trim().toLowerCase() && a.type === "region");
+                    if (regionObj) fetchAreas("province", regionObj.id, regionObj.code);
+                  }}>
+                  <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                    <SelectValue placeholder="Region" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Regions</SelectItem>
+                    {areas
+                      .filter(a => a.type === "region")
+                      .map(r => (
+                        <SelectItem key={r.id} value={r.name}>{r.name}</SelectItem>
+                      ))
+                    }
+                  </SelectContent>
+                </Select>
+
+                <Select 
+                  value={provinceFilter} 
+                  onValueChange={(val) => {
+                    setProvinceFilter(val);
+                    setMunicipalityFilter("all");
+                    setBarangayFilter("all");
+                    const regionObj = areas.find(a => a.name?.trim().toLowerCase() === regionFilter?.trim().toLowerCase() && a.type === "region");
+                    const provinceObj = areas.find(a => a.name?.trim().toLowerCase() === val?.trim().toLowerCase() && a.type === "province" && 
+                      (regionObj ? (a.parent_id === regionObj.id || a.parent_code === regionObj.code) : true));
+                    if (provinceObj) fetchAreas("municipality", provinceObj.id, provinceObj.code);
                   }}
-                  className="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+                  disabled={regionFilter === "all"}
                 >
-                  Clear
-                </Button>
-              )}
+                  <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                    <SelectValue placeholder="Province" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Provinces</SelectItem>
+                    {areas
+                      .filter(a => a.type === "province" && (regionFilter !== "all" ? 
+                        (() => {
+                          const r = areas.find(area => area.name?.trim().toLowerCase() === regionFilter?.trim().toLowerCase() && area.type === "region");
+                          return r ? (a.parent_id === r.id || a.parent_code === r.code) : true;
+                        })() : true))
+                      .map(p => (
+                        <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
+                      ))
+                    }
+                  </SelectContent>
+                </Select>
+
+                <Select 
+                  value={municipalityFilter} 
+                  onValueChange={(val) => {
+                    setMunicipalityFilter(val);
+                    setBarangayFilter("all");
+                    const regionObj = areas.find(a => a.name?.trim().toLowerCase() === regionFilter?.trim().toLowerCase() && a.type === "region");
+                    const provinceObj = areas.find(a => a.name?.trim().toLowerCase() === provinceFilter?.trim().toLowerCase() && a.type === "province" &&
+                      (regionObj ? (a.parent_id === regionObj.id || a.parent_code === regionObj.code) : true));
+                    const municipalityObj = areas.find(a => a.name?.trim().toLowerCase() === val?.trim().toLowerCase() && a.type === "municipality" && 
+                      (provinceObj ? (a.parent_id === provinceObj.id || a.parent_code === provinceObj.code) : true));
+                    if (municipalityObj) fetchAreas("barangay", municipalityObj.id, municipalityObj.code);
+                  }}
+                  disabled={provinceFilter === "all"}
+                >
+                  <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                    <SelectValue placeholder="Municipality" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Municipalities</SelectItem>
+                    {areas
+                      .filter(a => a.type === "municipality" && (provinceFilter !== "all" ? 
+                        (() => {
+                          const r = areas.find(area => area.name?.trim().toLowerCase() === regionFilter?.trim().toLowerCase() && area.type === "region");
+                          const p = areas.find(area => area.name?.trim().toLowerCase() === provinceFilter?.trim().toLowerCase() && area.type === "province" &&
+                            (r ? (area.parent_id === r.id || area.parent_code === r.code) : true));
+                          return p ? (a.parent_id === p.id || a.parent_code === p.code) : true;
+                        })() : true))
+                      .map(m => (
+                        <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>
+                      ))
+                    }
+                  </SelectContent>
+                </Select>
+
+                <Select 
+                  value={barangayFilter} 
+                  onValueChange={setBarangayFilter}
+                  disabled={municipalityFilter === "all"}
+                >
+                  <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                    <SelectValue placeholder="Barangay" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Barangays</SelectItem>
+                    {areas
+                      .filter(a => a.type === "barangay" && (municipalityFilter !== "all" ? 
+                        (() => {
+                          const r = areas.find(area => area.name?.trim().toLowerCase() === regionFilter?.trim().toLowerCase() && area.type === "region");
+                          const p = areas.find(area => area.name?.trim().toLowerCase() === provinceFilter?.trim().toLowerCase() && area.type === "province" &&
+                            (r ? (area.parent_id === r.id || area.parent_code === r.code) : true));
+                          const m = areas.find(area => area.name?.trim().toLowerCase() === municipalityFilter?.trim().toLowerCase() && area.type === "municipality" &&
+                            (p ? (area.parent_id === p.id || area.parent_code === p.code) : true));
+                          return m ? (a.parent_id === m.id || a.parent_code === m.code) : true;
+                        })() : true))
+                      .map(b => (
+                        <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
+                      ))
+                    }
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 hidden lg:block" />
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="Active">Active</SelectItem>
+                    <SelectItem value="Inactive">Inactive</SelectItem>
+                    <SelectItem value="Not for Recording">Not for Recording</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={is4psFilter} onValueChange={setIs4psFilter}>
+                  <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                    <SelectValue placeholder="Is 4Ps" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Members</SelectItem>
+                    <SelectItem value="Yes">4Ps Member</SelectItem>
+                    <SelectItem value="No">Non-4Ps</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={redemptionStatusFilter} onValueChange={setRedemptionStatusFilter}>
+                  <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                    <SelectValue placeholder="Attendance" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Activity</SelectItem>
+                    <SelectItem value="redeemed">Redeemed</SelectItem>
+                    <SelectItem value="unredeemed">Unredeemed</SelectItem>
+                    <SelectItem value="present">Present</SelectItem>
+                    <SelectItem value="absent">Absent</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {availablePeriods.length > 0 && (
+                  <Select value={frmPeriodFilter} onValueChange={setFrmPeriodFilter}>
+                    <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                      <SelectValue placeholder="FRM Period" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Periods</SelectItem>
+                      {availablePeriods.map(period => (
+                        <SelectItem key={period} value={period}>{period}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+
+              <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 hidden lg:block" />
+
+              <div className="flex items-center gap-2">
+                <Select value={itemsPerPage.toString()} onValueChange={(v) => setItemsPerPage(v === "all" ? "all" : parseInt(v))}>
+                  <SelectTrigger className="w-full sm:w-32 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                    <SelectValue placeholder="Rows" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10 rows</SelectItem>
+                    <SelectItem value="20">20 rows</SelectItem>
+                    <SelectItem value="50">50 rows</SelectItem>
+                    <SelectItem value="100">100 rows</SelectItem>
+                    <SelectItem value="all">Show All</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                {(regionFilter !== "all" || provinceFilter !== "all" || municipalityFilter !== "all" || barangayFilter !== "all" || statusFilter !== "all" || is4psFilter !== "all" || redemptionStatusFilter !== "all" || frmPeriodFilter !== "all") && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => {
+                      setRegionFilter("all");
+                      setProvinceFilter("all");
+                      setMunicipalityFilter("all");
+                      setBarangayFilter("all");
+                      setStatusFilter("all");
+                      setIs4psFilter("all");
+                      setRedemptionStatusFilter("all");
+                      setFrmPeriodFilter("all");
+                    }}
+                    className="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </CardContent>
