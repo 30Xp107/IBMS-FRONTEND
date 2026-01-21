@@ -637,8 +637,8 @@ const BeneficiariesPage = () => {
     try {
       const toastId = toast.loading("Preparing export...");
       
-      // Fetch all beneficiaries with current filters but no pagination
-      let query = `?limit=all&sort=${sortConfig.key}&order=${sortConfig.direction}`;
+      // Fetch only what is showing in the table (current page and limit)
+      let query = `?page=${currentPage}&limit=${itemsPerPage}&sort=${sortConfig.key}&order=${sortConfig.direction}`;
       if (debouncedSearch) query += `&search=${encodeURIComponent(debouncedSearch)}`;
       if (regionFilter !== "all") query += `&region=${encodeURIComponent(regionFilter)}`;
       if (provinceFilter !== "all") query += `&province=${encodeURIComponent(provinceFilter)}`;

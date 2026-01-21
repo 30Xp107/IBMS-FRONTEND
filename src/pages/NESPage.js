@@ -347,7 +347,8 @@ const NESPage = () => {
     try {
       const toastId = toast.loading("Preparing export...");
       
-      let exportQuery = `?sort=${sortConfig.key}&order=${sortConfig.direction}&frm_period=${encodeURIComponent(selectedPeriod)}`;
+      // Fetch only what is showing in the table (current page and limit)
+      let exportQuery = `?page=${currentPage}&limit=${itemsPerPage}&sort=${sortConfig.key}&order=${sortConfig.direction}&frm_period=${encodeURIComponent(selectedPeriod)}`;
       if (debouncedSearch) exportQuery += `&search=${encodeURIComponent(debouncedSearch)}`;
       if (regionFilter !== "all") exportQuery += `&region=${encodeURIComponent(regionFilter)}`;
       if (provinceFilter !== "all") exportQuery += `&province=${encodeURIComponent(provinceFilter)}`;

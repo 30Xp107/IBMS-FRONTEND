@@ -106,10 +106,10 @@ const AuditLogPage = () => {
     try {
       const toastId = toast.loading("Preparing export...");
       
-      // Fetch all logs with current filters but no pagination
-      let query = `?limit=all&sort=${sortConfig.key}&order=${sortConfig.direction}`;
+      // Fetch only logs currently showing in the table (current page and limit)
+      let query = `?page=${currentPage}&limit=${itemsPerPage}&sort=${sortConfig.key}&order=${sortConfig.direction}`;
       if (moduleFilter) query += `&module=${moduleFilter}`;
-      if (debouncedSearch) query += `&search=${debouncedSearch}`;
+      if (debouncedSearch) query += `&search=${encodeURIComponent(debouncedSearch)}`;
       
       const response = await api.get(`/audit-logs${query}`);
       const allLogs = response.data.logs || [];
