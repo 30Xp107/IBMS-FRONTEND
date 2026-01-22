@@ -53,7 +53,7 @@ import {
   Cell,
 } from "recharts";
 
-const COLORS = ["#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#6366f1"];
+const COLORS = ["#10b981", "#ef4444", "#6366f1"];
 
 const YEARS = ["2024", "2025", "2026"];
 const MONTHS = [
