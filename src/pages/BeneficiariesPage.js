@@ -236,10 +236,6 @@ const BeneficiariesPage = () => {
       const response = await api.get("/beneficiaries/filters");
       if (response.data.periods && response.data.periods.length > 0) {
         setAvailablePeriods(response.data.periods);
-        // Default to latest period if none selected
-        if (frmPeriodFilter === "all") {
-          setFrmPeriodFilter(response.data.periods[0]);
-        }
       }
     } catch (error) {
       console.error("Failed to fetch available filters:", error);
@@ -1520,12 +1516,13 @@ const BeneficiariesPage = () => {
             )}
           </div>
         </CardHeader>
-        <CardContent className="p-0">
-          {isLoading && beneficiaries.length === 0 ? (
-            <div className="flex items-center justify-center h-32">
+        <CardContent className="p-0 relative min-h-[200px]">
+          {isLoading && (
+            <div className="absolute inset-0 bg-white/50 dark:bg-slate-950/50 z-20 flex items-center justify-center backdrop-blur-[1px]">
               <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin" />
             </div>
-          ) : beneficiaries.length === 0 ? (
+          )}
+          {beneficiaries.length === 0 && !isLoading ? (
             <div className="text-center py-12 text-slate-500 dark:text-slate-400">
               <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
               <p>No beneficiaries found</p>

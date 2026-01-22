@@ -260,17 +260,18 @@ const AreasPage = () => {
             Areas ({totalAreas})
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-0">
-          {isLoading && areas.length === 0 ? (
-            <div className="flex items-center justify-center h-32">
-              <div className="spinner" />
+        <CardContent className="p-0 relative min-h-[200px]">
+          {isLoading && (
+            <div className="absolute inset-0 bg-white/50 dark:bg-slate-950/50 z-20 flex items-center justify-center backdrop-blur-[1px]">
+              <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin" />
             </div>
-          ) : areas.length === 0 ? (
+          )}
+          {areas.length === 0 && !isLoading ? (
             <div className="text-center py-12 text-slate-500 dark:text-slate-400">
               <MapPin className="w-12 h-12 mx-auto mb-4 opacity-50" />
               <p>No areas found</p>
             </div>
-          ) : (
+          ) : (areas.length > 0 || isLoading) && (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>

@@ -385,12 +385,18 @@ const AuditLogPage = () => {
             Audit Logs ({totalLogs})
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-0">
-          {isLoading && logs.length === 0 ? (
-            <div className="flex items-center justify-center h-32">
-              <div className="spinner" />
+        <CardContent className="p-0 relative min-h-[200px]">
+          {isLoading && (
+            <div className="absolute inset-0 bg-white/50 dark:bg-slate-950/50 z-20 flex items-center justify-center backdrop-blur-[1px]">
+              <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin" />
             </div>
-          ) : (
+          )}
+          {displayLogs.length === 0 && !isLoading ? (
+            <div className="text-center py-12 text-slate-500 dark:text-slate-400">
+              <ClipboardList className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>No audit logs found matching your criteria</p>
+            </div>
+          ) : (displayLogs.length > 0 || isLoading) && (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -439,19 +445,12 @@ const AuditLogPage = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {displayLogs.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-12 text-slate-500">
-                        No logs found matching your criteria.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    displayLogs.map((log) => (
-                      <TableRow 
-                        key={log.id || log._id} 
-                        className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors"
-                        onClick={() => handleRowClick(log)}
-                      >
+                  {displayLogs.map((log) => (
+                    <TableRow 
+                      key={log.id || log._id} 
+                      className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors"
+                      onClick={() => handleRowClick(log)}
+                    >
                         <TableCell className="py-3 text-left pl-6">
                           <div className="flex flex-col items-start">
                             <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
@@ -492,8 +491,7 @@ const AuditLogPage = () => {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
+                  ))}
                 </TableBody>
               </Table>
             </div>
