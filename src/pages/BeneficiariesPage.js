@@ -165,7 +165,43 @@ const BeneficiariesPage = () => {
     contact: "",
     is4ps: "No",
     status: "Active",
+    num_hh_0_18: 0,
+    num_hh_pregnant: 0,
+    num_hh_lactating: 0,
+    num_hh_pwd: 0,
+    pwd_types: [],
+    num_hh_60_above: 0,
+    num_hh_solo_parent: 0,
   });
+
+  const pwdTypesList = [
+    "Deaf or Hard of Hearing",
+    "Intellectual Disability",
+    "Learning Disability",
+    "Mental Disability",
+    "Physical Disability (Orthopedic)",
+    "Psychosocial Disability",
+    "Speech and Language Impairment",
+    "Visual Disability",
+    "Cancer (Special Category)",
+    "Rare Disease (Special Category)"
+  ];
+
+  const handleAddPwdType = (type) => {
+    if (!formData.pwd_types.includes(type)) {
+      setFormData(prev => ({
+        ...prev,
+        pwd_types: [...prev.pwd_types, type]
+      }));
+    }
+  };
+
+  const handleRemovePwdType = (type) => {
+    setFormData(prev => ({
+      ...prev,
+      pwd_types: prev.pwd_types.filter(t => t !== type)
+    }));
+  };
 
   useEffect(() => {
     fetchBeneficiaries();
@@ -278,8 +314,11 @@ const BeneficiariesPage = () => {
   };
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type } = e.target;
+    setFormData((prev) => ({ 
+      ...prev, 
+      [name]: type === 'number' ? (value === '' ? 0 : parseInt(value)) : value 
+    }));
   };
 
   const handleSelectChange = (name, value) => {
@@ -362,6 +401,13 @@ const BeneficiariesPage = () => {
       contact: "",
       is4ps: "No",
       status: "Active",
+      num_hh_0_18: 0,
+      num_hh_pregnant: 0,
+      num_hh_lactating: 0,
+      num_hh_pwd: 0,
+      pwd_types: [],
+      num_hh_60_above: 0,
+      num_hh_solo_parent: 0,
     });
     setEditingBeneficiary(null);
   };
@@ -417,6 +463,13 @@ const BeneficiariesPage = () => {
       contact: beneficiary.contact?.trim() || "",
       is4ps: beneficiary.is4ps || "No",
       status: beneficiary.status || "Active",
+      num_hh_0_18: beneficiary.num_hh_0_18 || 0,
+      num_hh_pregnant: beneficiary.num_hh_pregnant || 0,
+      num_hh_lactating: beneficiary.num_hh_lactating || 0,
+      num_hh_pwd: beneficiary.num_hh_pwd || 0,
+      pwd_types: beneficiary.pwd_types || [],
+      num_hh_60_above: beneficiary.num_hh_60_above || 0,
+      num_hh_solo_parent: beneficiary.num_hh_solo_parent || 0,
     };
     setFormData(initialData);
 
@@ -573,6 +626,13 @@ const BeneficiariesPage = () => {
             else if (header.includes('region')) b.region = val;
             else if (header.includes('contact')) b.contact = val;
             else if (header.includes('is4ps')) b.is4ps = val.toLowerCase() === 'yes' || val === 'true' || val === '1';
+            else if (header.includes('0-18')) b.num_hh_0_18 = parseInt(val) || 0;
+            else if (header.includes('pregnant')) b.num_hh_pregnant = parseInt(val) || 0;
+            else if (header.includes('lactating')) b.num_hh_lactating = parseInt(val) || 0;
+            else if (header.includes('pwd count')) b.num_hh_pwd = parseInt(val) || 0;
+            else if (header.includes('pwd type')) b.pwd_types = val.split(',').map(s => s.trim()).filter(s => !!s);
+            else if (header.includes('60 and above') || header.includes('60+')) b.num_hh_60_above = parseInt(val) || 0;
+            else if (header.includes('solo parent')) b.num_hh_solo_parent = parseInt(val) || 0;
           });
           return b;
         }).filter(b => b.first_name && b.last_name);
@@ -676,7 +736,14 @@ const BeneficiariesPage = () => {
         "Unredeemed": b.redemption_stats?.unredeemed || 0,
         "Present (NES)": b.nes_stats?.present || 0,
         "Absent (NES)": b.nes_stats?.absent || 0,
-        "is4ps": b.is4ps || "No"
+        "is4ps": b.is4ps || "No",
+        "HH 0-18 yrs": b.num_hh_0_18 || 0,
+        "HH Pregnant": b.num_hh_pregnant || 0,
+        "HH Lactating": b.num_hh_lactating || 0,
+        "HH PWD Count": b.num_hh_pwd || 0,
+        "HH PWD Types": (b.pwd_types || []).join(", "),
+        "HH 60+ yrs": b.num_hh_60_above || 0,
+        "HH Solo Parent": b.num_hh_solo_parent || 0
       }));
 
       // Create workbook and worksheet
@@ -703,6 +770,13 @@ const BeneficiariesPage = () => {
         { wch: 12 }, // Present (NES)
         { wch: 12 }, // Absent (NES)
         { wch: 10 }, // is4ps
+        { wch: 12 }, // HH 0-18 yrs
+        { wch: 12 }, // HH Pregnant
+        { wch: 12 }, // HH Lactating
+        { wch: 12 }, // HH PWD Count
+        { wch: 25 }, // HH PWD Types
+        { wch: 12 }, // HH 60+ yrs
+        { wch: 12 }, // HH Solo Parent
       ];
       worksheet['!cols'] = wscols;
 
@@ -1005,6 +1079,130 @@ const BeneficiariesPage = () => {
                     </Select>
                   </div>
                 </div>
+
+                {/* Sectoral Information Section */}
+                <div className="pt-4 border-t dark:border-slate-800">
+                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Sectoral Information</h3>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="num_hh_0_18" className="text-xs sm:text-sm">Number of HH member aging 0-18 years old</Label>
+                      <Input
+                        id="num_hh_0_18"
+                        name="num_hh_0_18"
+                        type="number"
+                        min="0"
+                        value={formData.num_hh_0_18}
+                        onChange={handleInputChange}
+                        className="h-9 sm:h-10 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="num_hh_pregnant" className="text-xs sm:text-sm">Number of HH member pregnant</Label>
+                      <Input
+                        id="num_hh_pregnant"
+                        name="num_hh_pregnant"
+                        type="number"
+                        min="0"
+                        value={formData.num_hh_pregnant}
+                        onChange={handleInputChange}
+                        className="h-9 sm:h-10 text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="num_hh_lactating" className="text-xs sm:text-sm">Number of HH member with lactating mother</Label>
+                      <Input
+                        id="num_hh_lactating"
+                        name="num_hh_lactating"
+                        type="number"
+                        min="0"
+                        value={formData.num_hh_lactating}
+                        onChange={handleInputChange}
+                        className="h-9 sm:h-10 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="num_hh_pwd" className="text-xs sm:text-sm">Number of HH member with PWD</Label>
+                      <Input
+                        id="num_hh_pwd"
+                        name="num_hh_pwd"
+                        type="number"
+                        min="0"
+                        value={formData.num_hh_pwd}
+                        onChange={handleInputChange}
+                        className="h-9 sm:h-10 text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 mt-4">
+                    <Label className="text-xs sm:text-sm">PWD Types</Label>
+                    <Select onValueChange={handleAddPwdType}>
+                      <SelectTrigger className="h-9 sm:h-10 text-sm">
+                        <SelectValue placeholder="Add PWD type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {pwdTypesList.map((type) => (
+                          <SelectItem key={type} value={type} disabled={formData.pwd_types.includes(type)}>
+                            {type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {formData.pwd_types.map((type) => (
+                        <div 
+                          key={type} 
+                          className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-xs dark:text-slate-300 border dark:border-slate-700"
+                        >
+                          <span>{type}</span>
+                          <button 
+                            type="button" 
+                            onClick={() => handleRemovePwdType(type)}
+                            className="text-slate-500 hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                      {formData.pwd_types.length === 0 && (
+                        <span className="text-xs text-slate-500 italic">No types added</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="num_hh_60_above" className="text-xs sm:text-sm">Number of HH member aging 60 and above</Label>
+                      <Input
+                        id="num_hh_60_above"
+                        name="num_hh_60_above"
+                        type="number"
+                        min="0"
+                        value={formData.num_hh_60_above}
+                        onChange={handleInputChange}
+                        className="h-9 sm:h-10 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="num_hh_solo_parent" className="text-xs sm:text-sm">Number of HH member Solo Parent</Label>
+                      <Input
+                        id="num_hh_solo_parent"
+                        name="num_hh_solo_parent"
+                        type="number"
+                        min="0"
+                        value={formData.num_hh_solo_parent}
+                        onChange={handleInputChange}
+                        className="h-9 sm:h-10 text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 pt-4">
                   <Button type="button" variant="outline" onClick={() => { setIsDialogOpen(false); resetForm(); }} className="h-9 sm:h-10">
                     Cancel
