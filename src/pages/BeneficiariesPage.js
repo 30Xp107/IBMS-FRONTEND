@@ -189,26 +189,36 @@ const BeneficiariesPage = () => {
 
   const handleAddPwdType = (type) => {
     if (!formData.pwd_types.find(t => t.type === type)) {
+      const newPwdTypes = [...formData.pwd_types, { type, count: 1 }];
+      const totalPwdCount = newPwdTypes.reduce((sum, item) => sum + item.count, 0);
       setFormData(prev => ({
         ...prev,
-        pwd_types: [...prev.pwd_types, { type, count: 1 }]
+        pwd_types: newPwdTypes,
+        num_hh_pwd: totalPwdCount
       }));
     }
   };
 
   const handleUpdatePwdTypeCount = (type, count) => {
+    const parsedCount = parseInt(count) || 0;
+    const newPwdTypes = formData.pwd_types.map(t => 
+      t.type === type ? { ...t, count: parsedCount } : t
+    );
+    const totalPwdCount = newPwdTypes.reduce((sum, item) => sum + item.count, 0);
     setFormData(prev => ({
       ...prev,
-      pwd_types: prev.pwd_types.map(t => 
-        t.type === type ? { ...t, count: parseInt(count) || 0 } : t
-      )
+      pwd_types: newPwdTypes,
+      num_hh_pwd: totalPwdCount
     }));
   };
 
   const handleRemovePwdType = (type) => {
+    const newPwdTypes = formData.pwd_types.filter(t => t.type !== type);
+    const totalPwdCount = newPwdTypes.reduce((sum, item) => sum + item.count, 0);
     setFormData(prev => ({
       ...prev,
-      pwd_types: prev.pwd_types.filter(t => t.type !== type)
+      pwd_types: newPwdTypes,
+      num_hh_pwd: totalPwdCount
     }));
   };
 
@@ -640,7 +650,7 @@ const BeneficiariesPage = () => {
             else if (header.includes('lactating')) b.num_hh_lactating = parseInt(val) || 0;
             else if (header.includes('pwd count')) b.num_hh_pwd = parseInt(val) || 0;
             else if (header.includes('pwd type')) {
-              b.pwd_types = val.split(',').map(s => {
+              const types = val.split(',').map(s => {
                 const item = s.trim();
                 const match = item.match(/(.+)\s*\((\d+)\)/);
                 if (match) {
@@ -648,6 +658,11 @@ const BeneficiariesPage = () => {
                 }
                 return { type: item, count: 1 };
               }).filter(t => !!t.type);
+              b.pwd_types = types;
+              // If we have types, they should be the source of truth for the total count
+              if (types.length > 0) {
+                b.num_hh_pwd = types.reduce((sum, t) => sum + t.count, 0);
+              }
             }
             else if (header.includes('60 and above') || header.includes('60+')) b.num_hh_60_above = parseInt(val) || 0;
             else if (header.includes('solo parent')) b.num_hh_solo_parent = parseInt(val) || 0;
@@ -1151,7 +1166,8 @@ const BeneficiariesPage = () => {
                         min="0"
                         value={formData.num_hh_pwd}
                         onChange={handleInputChange}
-                        className="h-9 sm:h-10 text-sm"
+                        disabled
+                        className="h-9 sm:h-10 text-sm bg-slate-50 dark:bg-slate-800/50 cursor-not-allowed"
                       />
                     </div>
                   </div>
