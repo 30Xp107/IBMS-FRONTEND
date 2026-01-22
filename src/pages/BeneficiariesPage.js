@@ -188,18 +188,27 @@ const BeneficiariesPage = () => {
   ];
 
   const handleAddPwdType = (type) => {
-    if (!formData.pwd_types.includes(type)) {
+    if (!formData.pwd_types.find(t => t.type === type)) {
       setFormData(prev => ({
         ...prev,
-        pwd_types: [...prev.pwd_types, type]
+        pwd_types: [...prev.pwd_types, { type, count: 1 }]
       }));
     }
+  };
+
+  const handleUpdatePwdTypeCount = (type, count) => {
+    setFormData(prev => ({
+      ...prev,
+      pwd_types: prev.pwd_types.map(t => 
+        t.type === type ? { ...t, count: parseInt(count) || 0 } : t
+      )
+    }));
   };
 
   const handleRemovePwdType = (type) => {
     setFormData(prev => ({
       ...prev,
-      pwd_types: prev.pwd_types.filter(t => t !== type)
+      pwd_types: prev.pwd_types.filter(t => t.type !== type)
     }));
   };
 
@@ -630,7 +639,16 @@ const BeneficiariesPage = () => {
             else if (header.includes('pregnant')) b.num_hh_pregnant = parseInt(val) || 0;
             else if (header.includes('lactating')) b.num_hh_lactating = parseInt(val) || 0;
             else if (header.includes('pwd count')) b.num_hh_pwd = parseInt(val) || 0;
-            else if (header.includes('pwd type')) b.pwd_types = val.split(',').map(s => s.trim()).filter(s => !!s);
+            else if (header.includes('pwd type')) {
+              b.pwd_types = val.split(',').map(s => {
+                const item = s.trim();
+                const match = item.match(/(.+)\s*\((\d+)\)/);
+                if (match) {
+                  return { type: match[1].trim(), count: parseInt(match[2]) || 1 };
+                }
+                return { type: item, count: 1 };
+              }).filter(t => !!t.type);
+            }
             else if (header.includes('60 and above') || header.includes('60+')) b.num_hh_60_above = parseInt(val) || 0;
             else if (header.includes('solo parent')) b.num_hh_solo_parent = parseInt(val) || 0;
           });
@@ -741,7 +759,7 @@ const BeneficiariesPage = () => {
         "HH Pregnant": b.num_hh_pregnant || 0,
         "HH Lactating": b.num_hh_lactating || 0,
         "HH PWD Count": b.num_hh_pwd || 0,
-        "HH PWD Types": (b.pwd_types || []).join(", "),
+        "HH PWD Types": (b.pwd_types || []).map(t => `${t.type} (${t.count})`).join(", "),
         "HH 60+ yrs": b.num_hh_60_above || 0,
         "HH Solo Parent": b.num_hh_solo_parent || 0
       }));
@@ -1146,27 +1164,39 @@ const BeneficiariesPage = () => {
                       </SelectTrigger>
                       <SelectContent>
                         {pwdTypesList.map((type) => (
-                          <SelectItem key={type} value={type} disabled={formData.pwd_types.includes(type)}>
+                          <SelectItem key={type} value={type} disabled={formData.pwd_types.find(t => t.type === type)}>
                             {type}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                     
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {formData.pwd_types.map((type) => (
+                    <div className="space-y-2 mt-2">
+                      {formData.pwd_types.map((item) => (
                         <div 
-                          key={type} 
-                          className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-xs dark:text-slate-300 border dark:border-slate-700"
+                          key={item.type} 
+                          className="flex items-center justify-between gap-3 bg-slate-100 dark:bg-slate-800 p-2 rounded text-xs dark:text-slate-300 border dark:border-slate-700"
                         >
-                          <span>{type}</span>
-                          <button 
-                            type="button" 
-                            onClick={() => handleRemovePwdType(type)}
-                            className="text-slate-500 hover:text-red-500 transition-colors"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
+                          <span className="flex-1 font-medium">{item.type}</span>
+                          <div className="flex items-center gap-2">
+                            <Label htmlFor={`count-${item.type}`} className="text-[10px] uppercase text-slate-500">Count:</Label>
+                            <Input
+                              id={`count-${item.type}`}
+                              type="number"
+                              min="1"
+                              value={item.count}
+                              onChange={(e) => handleUpdatePwdTypeCount(item.type, e.target.value)}
+                              className="w-16 h-7 text-xs px-2"
+                            />
+                            <button 
+                              type="button" 
+                              onClick={() => handleRemovePwdType(item.type)}
+                              className="text-slate-500 hover:text-red-500 transition-colors p-1"
+                              title="Remove"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       ))}
                       {formData.pwd_types.length === 0 && (
