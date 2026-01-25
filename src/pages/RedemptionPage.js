@@ -83,14 +83,46 @@ const RedemptionPage = () => {
 
   const fetchFrmSchedules = async () => {
     try {
+      // 1. Try to fetch official schedules from system config
       const response = await api.get("/system-configs/frm_schedules");
+      let schedules = [];
       if (response.data && response.data.value) {
-        const schedules = response.data.value;
-        setFrmSchedules(schedules);
-        
-        // Find current period based on date
+        schedules = response.data.value;
+      }
+
+      // 2. Fetch available periods from existing redemption data
+      const filterResponse = await api.get("/beneficiaries/filters");
+      const dbPeriods = filterResponse.data.periods || [];
+
+      // 3. Merge them - ensure periods from DB are available even if not in official schedules
+      const mergedSchedules = [...schedules];
+      dbPeriods.forEach(p => {
+        if (!mergedSchedules.find(s => s.name === p)) {
+          // Add DB period as a schedule-like object
+          mergedSchedules.push({ 
+            name: p, 
+            isFromDb: true,
+            // Use current date as fallback for sorting if no dates available
+            startDate: new Date().toISOString(),
+            endDate: new Date().toISOString()
+          });
+        }
+      });
+
+      // Sort schedules: newest first
+      const sortedSchedules = [...mergedSchedules].sort((a, b) => {
+        const dateA = a.endDate ? new Date(a.endDate).getTime() : 0;
+        const dateB = b.endDate ? new Date(b.endDate).getTime() : 0;
+        return dateB - dateA;
+      });
+
+      setFrmSchedules(sortedSchedules);
+      
+      if (sortedSchedules.length > 0) {
+        // Find current period based on date if possible
         const now = new Date();
-        const current = schedules.find(s => {
+        const current = sortedSchedules.find(s => {
+          if (!s.startDate || !s.endDate || s.isFromDb) return false;
           const start = new Date(s.startDate);
           const end = new Date(s.endDate);
           start.setHours(0, 0, 0, 0);
@@ -100,17 +132,12 @@ const RedemptionPage = () => {
 
         if (current) {
           setSelectedPeriod(current.name);
-        } else if (schedules.length > 0) {
-          // Fallback to latest schedule if none matches current date
-          const sorted = [...schedules].sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime());
-          setSelectedPeriod(sorted[0].name);
         } else {
-          // Fallback to monthly format if no schedules defined
-          const fallback = `${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
-          setSelectedPeriod(fallback);
+          // Fallback to the latest period
+          setSelectedPeriod(sortedSchedules[0].name);
         }
       } else {
-        // Fallback to monthly format if no config
+        // Fallback to monthly format if no schedules or DB periods
         const now = new Date();
         setSelectedPeriod(`${MONTHS[now.getMonth()]} ${now.getFullYear()}`);
       }
@@ -226,6 +253,10 @@ const RedemptionPage = () => {
       // Add redemption status filtering
       if (attendanceFilter !== "all") {
         benQuery += `&redemption_status=${attendanceFilter}`;
+      }
+      
+      // Always add frm_period if selected to get current redemption status
+      if (selectedPeriod) {
         benQuery += `&frm_period=${encodeURIComponent(selectedPeriod)}`;
       }
 
@@ -443,12 +474,14 @@ const RedemptionPage = () => {
     setCurrentPage(1);
   }, [search, attendanceFilter, sortConfig, regionFilter, provinceFilter, municipalityFilter, barangayFilter]);
 
-  const getRegions = () => (areas || []).filter(a => a && a.type === "region");
+  const getRegions = () => (areas || []).filter(a => a && a.type === "region").sort((a, b) => a.name.localeCompare(b.name));
   const getProvinces = () => {
     if (regionFilter === "all") return [];
     const region = (areas || []).find(a => a && a.name === regionFilter && a.type === "region");
     if (!region) return [];
-    return (areas || []).filter(a => a && a.type === "province" && (a.parent_id === region.id || a.parent_code === region.code));
+    return (areas || [])
+      .filter(a => a && a.type === "province" && (a.parent_id === region.id || a.parent_code === region.code))
+      .sort((a, b) => a.name.localeCompare(b.name));
   };
   
   const getMunicipalities = () => {
@@ -458,7 +491,9 @@ const RedemptionPage = () => {
       (region ? (a.parent_id === region.id || a.parent_code === region.code) : true)
     );
     if (!province) return [];
-    return (areas || []).filter(a => a && a.type === "municipality" && (a.parent_id === province.id || a.parent_code === province.code));
+    return (areas || [])
+      .filter(a => a && a.type === "municipality" && (a.parent_id === province.id || a.parent_code === province.code))
+      .sort((a, b) => a.name.localeCompare(b.name));
   };
 
   const getBarangays = () => {
@@ -471,7 +506,9 @@ const RedemptionPage = () => {
       (province ? (a.parent_id === province.id || a.parent_code === province.code) : true)
     );
     if (!municipality) return [];
-    return (areas || []).filter(a => a && a.type === "barangay" && (a.parent_id === municipality.id || a.parent_code === municipality.code));
+    return (areas || [])
+      .filter(a => a && a.type === "barangay" && (a.parent_id === municipality.id || a.parent_code === municipality.code))
+      .sort((a, b) => a.name.localeCompare(b.name));
   };
 
   // Sorting is now handled on the server side

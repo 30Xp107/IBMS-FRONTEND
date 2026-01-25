@@ -86,14 +86,46 @@ const NesDashboardPage = () => {
 
   const fetchFrmSchedules = async () => {
     try {
+      // 1. Try to fetch official schedules from system config
       const response = await api.get("/system-configs/frm_schedules");
+      let schedules = [];
       if (response.data && response.data.value) {
-        const schedules = response.data.value;
-        setFrmSchedules(schedules);
-        
-        // Find current period based on date
+        schedules = response.data.value;
+      }
+
+      // 2. Fetch available periods from existing data
+      const filterResponse = await api.get("/beneficiaries/filters");
+      const dbPeriods = filterResponse.data.periods || [];
+
+      // 3. Merge them - ensure periods from DB are available even if not in official schedules
+      const mergedSchedules = [...schedules];
+      dbPeriods.forEach(p => {
+        if (!mergedSchedules.find(s => s.name === p)) {
+          // Add DB period as a schedule-like object
+          mergedSchedules.push({ 
+            name: p, 
+            isFromDb: true,
+            // Use current date as fallback for sorting if no dates available
+            startDate: new Date().toISOString(),
+            endDate: new Date().toISOString()
+          });
+        }
+      });
+
+      // Sort schedules: newest first
+      const sortedSchedules = [...mergedSchedules].sort((a, b) => {
+        const dateA = a.endDate ? new Date(a.endDate).getTime() : 0;
+        const dateB = b.endDate ? new Date(b.endDate).getTime() : 0;
+        return dateB - dateA;
+      });
+
+      setFrmSchedules(sortedSchedules);
+      
+      if (sortedSchedules.length > 0) {
+        // Find current period based on date if possible
         const now = new Date();
-        const current = schedules.find(s => {
+        const current = sortedSchedules.find(s => {
+          if (!s.startDate || !s.endDate || s.isFromDb) return false;
           const start = new Date(s.startDate);
           const end = new Date(s.endDate);
           start.setHours(0, 0, 0, 0);
@@ -103,16 +135,12 @@ const NesDashboardPage = () => {
 
         if (current) {
           setSelectedPeriod(current.name);
-        } else if (schedules.length > 0) {
-          // Fallback to the latest period if none matches current date
-          const sorted = [...schedules].sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime());
-          setSelectedPeriod(sorted[0].name);
         } else {
-          // Final fallback to monthly if no custom schedules exist
-          const fallback = `${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
-          setSelectedPeriod(fallback);
+          // Fallback to the latest period
+          setSelectedPeriod(sortedSchedules[0].name);
         }
       } else {
+        // Fallback to monthly format if no schedules or DB periods
         const now = new Date();
         setSelectedPeriod(`${MONTHS[now.getMonth()]} ${now.getFullYear()}`);
       }

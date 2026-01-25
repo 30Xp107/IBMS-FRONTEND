@@ -368,13 +368,15 @@ const BeneficiariesPage = () => {
     });
   };
 
-  const getRegions = () => areas.filter(a => a.type === "region");
+  const getRegions = () => areas.filter(a => a.type === "region").sort((a, b) => a.name.localeCompare(b.name));
 
   const getProvinces = () => {
     if (!formData.region) return [];
     const region = areas.find(a => a.name?.trim().toLowerCase() === formData.region?.trim().toLowerCase() && a.type === "region");
     if (!region) return [];
-    return areas.filter(a => a.type === "province" && (a.parent_id === region.id || a.parent_code === region.code));
+    return areas
+      .filter(a => a.type === "province" && (a.parent_id === region.id || a.parent_code === region.code))
+      .sort((a, b) => a.name.localeCompare(b.name));
   };
   
   const getMunicipalities = () => {
@@ -384,7 +386,9 @@ const BeneficiariesPage = () => {
       (region ? (a.parent_id === region.id || a.parent_code === region.code) : true)
     );
     if (!province) return [];
-    return areas.filter(a => a.type === "municipality" && (a.parent_id === province.id || a.parent_code === province.code));
+    return areas
+      .filter(a => a.type === "municipality" && (a.parent_id === province.id || a.parent_code === province.code))
+      .sort((a, b) => a.name.localeCompare(b.name));
   };
 
   const getBarangays = () => {
@@ -397,7 +401,9 @@ const BeneficiariesPage = () => {
       (province ? (a.parent_id === province.id || a.parent_code === province.code) : true)
     );
     if (!municipality) return [];
-    return areas.filter(a => a.type === "barangay" && (a.parent_id === municipality.id || a.parent_code === municipality.code));
+    return areas
+      .filter(a => a.type === "barangay" && (a.parent_id === municipality.id || a.parent_code === municipality.code))
+      .sort((a, b) => a.name.localeCompare(b.name));
   };
 
   const resetForm = () => {
@@ -1290,6 +1296,7 @@ const BeneficiariesPage = () => {
                     <SelectItem value="all">All Regions</SelectItem>
                     {areas
                       .filter(a => a.type === "region")
+                      .sort((a, b) => a.name.localeCompare(b.name))
                       .map(r => (
                         <SelectItem key={r.id} value={r.name}>{r.name}</SelectItem>
                       ))
@@ -1321,6 +1328,7 @@ const BeneficiariesPage = () => {
                           const r = areas.find(area => area.name?.trim().toLowerCase() === regionFilter?.trim().toLowerCase() && area.type === "region");
                           return r ? (a.parent_id === r.id || a.parent_code === r.code) : true;
                         })() : true))
+                      .sort((a, b) => a.name.localeCompare(b.name))
                       .map(p => (
                         <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
                       ))
@@ -1355,6 +1363,7 @@ const BeneficiariesPage = () => {
                             (r ? (area.parent_id === r.id || area.parent_code === r.code) : true));
                           return p ? (a.parent_id === p.id || a.parent_code === p.code) : true;
                         })() : true))
+                      .sort((a, b) => a.name.localeCompare(b.name))
                       .map(m => (
                         <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>
                       ))
@@ -1382,6 +1391,7 @@ const BeneficiariesPage = () => {
                             (p ? (area.parent_id === p.id || area.parent_code === p.code) : true));
                           return m ? (a.parent_id === m.id || a.parent_code === m.code) : true;
                         })() : true))
+                      .sort((a, b) => a.name.localeCompare(b.name))
                       .map(b => (
                         <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
                       ))

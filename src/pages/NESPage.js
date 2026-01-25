@@ -83,14 +83,46 @@ const NESPage = () => {
 
   const fetchFrmSchedules = async () => {
     try {
+      // 1. Try to fetch official schedules from system config
       const response = await api.get("/system-configs/frm_schedules");
+      let schedules = [];
       if (response.data && response.data.value) {
-        const schedules = response.data.value;
-        setFrmSchedules(schedules);
-        
-        // Find current period based on date
+        schedules = response.data.value;
+      }
+
+      // 2. Fetch available periods from existing NES/redemption data
+      const filterResponse = await api.get("/beneficiaries/filters");
+      const dbPeriods = filterResponse.data.periods || [];
+
+      // 3. Merge them - ensure periods from DB are available even if not in official schedules
+      const mergedSchedules = [...schedules];
+      dbPeriods.forEach(p => {
+        if (!mergedSchedules.find(s => s.name === p)) {
+          // Add DB period as a schedule-like object
+          mergedSchedules.push({ 
+            name: p, 
+            isFromDb: true,
+            // Use current date as fallback for sorting if no dates available
+            startDate: new Date().toISOString(),
+            endDate: new Date().toISOString()
+          });
+        }
+      });
+
+      // Sort schedules: newest first
+      const sortedSchedules = [...mergedSchedules].sort((a, b) => {
+        const dateA = a.endDate ? new Date(a.endDate).getTime() : 0;
+        const dateB = b.endDate ? new Date(b.endDate).getTime() : 0;
+        return dateB - dateA;
+      });
+
+      setFrmSchedules(sortedSchedules);
+      
+      if (sortedSchedules.length > 0) {
+        // Find current period based on date if possible
         const now = new Date();
-        const current = schedules.find(s => {
+        const current = sortedSchedules.find(s => {
+          if (!s.startDate || !s.endDate || s.isFromDb) return false;
           const start = new Date(s.startDate);
           const end = new Date(s.endDate);
           start.setHours(0, 0, 0, 0);
@@ -100,17 +132,12 @@ const NESPage = () => {
 
         if (current) {
           setSelectedPeriod(current.name);
-        } else if (schedules.length > 0) {
-          // Fallback to latest schedule if none matches current date
-          const sorted = [...schedules].sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime());
-          setSelectedPeriod(sorted[0].name);
         } else {
-          // Fallback to monthly format if no schedules defined
-          const fallback = `${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
-          setSelectedPeriod(fallback);
+          // Fallback to the latest period
+          setSelectedPeriod(sortedSchedules[0].name);
         }
       } else {
-        // Fallback to monthly format if no config
+        // Fallback to monthly format if no schedules or DB periods
         const now = new Date();
         setSelectedPeriod(`${MONTHS[now.getMonth()]} ${now.getFullYear()}`);
       }
@@ -511,9 +538,12 @@ const NESPage = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Regions</SelectItem>
-                  {areas.filter(a => a.type === "region").map(r => (
-                    <SelectItem key={r.id} value={r.name}>{r.name}</SelectItem>
-                  ))}
+                  {areas
+                    .filter(a => a.type === "region")
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map(r => (
+                      <SelectItem key={r.id} value={r.name}>{r.name}</SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
 
@@ -535,9 +565,12 @@ const NESPage = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Provinces</SelectItem>
-                  {areas.filter(a => a.type === "province" && (regionFilter !== "all" ? a.parent_id === areas.find(r => r.name === regionFilter)?.id : true)).map(p => (
-                    <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
-                  ))}
+                  {areas
+                    .filter(a => a.type === "province" && (regionFilter !== "all" ? a.parent_id === areas.find(r => r.name === regionFilter)?.id : true))
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map(p => (
+                      <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
 
@@ -559,9 +592,12 @@ const NESPage = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Municipalities</SelectItem>
-                  {areas.filter(a => a.type === "municipality" && (provinceFilter !== "all" ? a.parent_id === areas.find(p => p.name === provinceFilter)?.id : true)).map(m => (
-                    <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>
-                  ))}
+                  {areas
+                    .filter(a => a.type === "municipality" && (provinceFilter !== "all" ? a.parent_id === areas.find(p => p.name === provinceFilter)?.id : true))
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map(m => (
+                      <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
 
@@ -578,9 +614,12 @@ const NESPage = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Barangays</SelectItem>
-                  {areas.filter(a => a.type === "barangay" && (municipalityFilter !== "all" ? a.parent_id === areas.find(m => m.name === municipalityFilter)?.id : true)).map(b => (
-                    <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
-                  ))}
+                  {areas
+                    .filter(a => a.type === "barangay" && (municipalityFilter !== "all" ? a.parent_id === areas.find(m => m.name === municipalityFilter)?.id : true))
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map(b => (
+                      <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
 
