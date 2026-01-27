@@ -805,12 +805,12 @@ const RedemptionPage = () => {
                                   ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800" 
                                   : redemption?.attendance === "absent"
                                   ? "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800"
-                                  : "dark:bg-slate-900 dark:border-slate-700"
+                                  : "bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 text-slate-400"
                               }`}>
                                 <SelectValue placeholder="Status" />
                               </SelectTrigger>
                               <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
-                                <SelectItem value="none">Not Recorded</SelectItem>
+                                <SelectItem value="none">Select Status</SelectItem>
                                 <SelectItem value="present">Redeemed</SelectItem>
                                 <SelectItem value="absent">UnRedeemed</SelectItem>
                               </SelectContent>

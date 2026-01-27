@@ -253,19 +253,28 @@ const UsersPage = () => {
 
   const getAreaName = (areaId) => {
     if (!areaId) return "-";
+    
     // If it's already an object with a name, use it
     if (typeof areaId === 'object' && areaId.name) return areaId.name;
     
+    const idStr = String(areaId);
+    
     // Search in the local areas state
-    const area = areas.find(a => a.id === String(areaId) || a._id === String(areaId) || a.code === String(areaId));
+    const area = areas.find(a => String(a.id || a._id) === idStr || a.code === idStr);
     if (area) return area.name;
 
     // If not found in local areas, check if it's available in any of the users' assigned_areas (which are populated)
     for (const u of users) {
-      const found = (u.assigned_areas || []).find(aa => 
-        (typeof aa === 'object' && (aa._id === String(areaId) || aa.id === String(areaId)))
+      if (!u.assigned_areas) continue;
+      const found = u.assigned_areas.find(aa => 
+        typeof aa === 'object' && aa && (String(aa._id || aa.id) === idStr)
       );
-      if (found && typeof found === 'object' && found.name) return found.name;
+      if (found && found.name) return found.name;
+    }
+
+    // Last resort: check if it looks like a MongoDB ID
+    if (idStr.match(/^[0-9a-fA-F]{24}$/)) {
+      return "Loading..."; // Or some other placeholder
     }
 
     return areaId;
@@ -494,7 +503,7 @@ const UsersPage = () => {
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden lg:table-cell"
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden md:table-cell"
                       onClick={() => handleSort("assigned_areas")}
                     >
                       <div className="flex items-center justify-center">
@@ -538,7 +547,7 @@ const UsersPage = () => {
                           {getStatusBadge(user.status)}
                         </div>
                       </TableCell>
-                      <TableCell className="text-center hidden lg:table-cell">
+                      <TableCell className="text-center hidden md:table-cell">
                         {user.assigned_areas && user.assigned_areas.length > 0 ? (
                           <div className="flex flex-wrap gap-1 justify-center">
                             {user.assigned_areas.map((area) => {

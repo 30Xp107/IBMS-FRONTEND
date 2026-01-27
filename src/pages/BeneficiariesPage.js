@@ -1693,22 +1693,22 @@ const BeneficiariesPage = () => {
                         <TableCell className="dark:text-slate-300 text-center hidden 2xl:table-cell">{b.province}</TableCell>
                         <TableCell className="dark:text-slate-300 text-center hidden 2xl:table-cell">{b.contact || "-"}</TableCell>
                         <TableCell className="text-center hidden lg:table-cell">
-                          <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                          <span className={`font-bold ${b.redemption_stats?.redeemed > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-300 dark:text-slate-700'}`}>
                             {b.redemption_stats?.redeemed || 0}
                           </span>
                         </TableCell>
                         <TableCell className="text-center hidden lg:table-cell">
-                          <span className="font-bold text-amber-600 dark:text-amber-400">
+                          <span className={`font-bold ${b.redemption_stats?.unredeemed > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-300 dark:text-slate-700'}`}>
                             {b.redemption_stats?.unredeemed || 0}
                           </span>
                         </TableCell>
                         <TableCell className="text-center hidden xl:table-cell">
-                          <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                          <span className={`font-bold ${b.nes_stats?.present > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-300 dark:text-slate-700'}`}>
                             {b.nes_stats?.present || 0}
                           </span>
                         </TableCell>
                         <TableCell className="text-center hidden xl:table-cell">
-                          <span className="font-bold text-amber-600 dark:text-amber-400">
+                          <span className={`font-bold ${b.nes_stats?.absent > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-300 dark:text-slate-700'}`}>
                             {b.nes_stats?.absent || 0}
                           </span>
                         </TableCell>
