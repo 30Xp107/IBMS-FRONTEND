@@ -44,6 +44,8 @@ const UsersPage = () => {
   const [selectedAreas, setSelectedAreas] = useState([]);
   const [selectedRegionFilter, setSelectedRegionFilter] = useState("all");
   const [selectedProvinceFilter, setSelectedProvinceFilter] = useState("all");
+  const [selectedMunicipalityFilter, setSelectedMunicipalityFilter] = useState("all");
+  const [areaSearchTerm, setAreaSearchTerm] = useState("");
   const [sortConfig, setSortConfig] = useState({ key: "name", direction: "asc" });
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -171,11 +173,13 @@ const UsersPage = () => {
     setEditConfirmPassword("");
     // Normalize assigned_areas to be an array of string IDs
     const areaIds = (user.assigned_areas || []).map(area => 
-      typeof area === 'object' ? (area._id || area.id) : String(area)
+      typeof area === 'object' ? String(area._id || area.id) : String(area)
     );
     setSelectedAreas(areaIds);
     setSelectedRegionFilter("all");
     setSelectedProvinceFilter("all");
+    setSelectedMunicipalityFilter("all");
+    setAreaSearchTerm("");
     setIsDialogOpen(true);
   };
 
@@ -756,18 +760,19 @@ const UsersPage = () => {
             </div>
 
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <div className="space-y-1">
-                  <Label className="text-xs dark:text-slate-400">Region</Label>
+                  <Label className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Region</Label>
                   <Select value={selectedRegionFilter} onValueChange={(val) => {
                     setSelectedRegionFilter(val);
                     setSelectedProvinceFilter("all");
+                    setSelectedMunicipalityFilter("all");
                     if (val !== "all") {
                       const regionObj = areas.find(a => a.id === val);
                       fetchAreas("province", val, regionObj?.code);
                     }
                   }}>
-                    <SelectTrigger className="h-8 text-xs dark:bg-slate-900 dark:border-slate-700">
+                    <SelectTrigger className="h-8 text-[11px] dark:bg-slate-900 dark:border-slate-700">
                       <SelectValue placeholder="Region" />
                     </SelectTrigger>
                     <SelectContent>
@@ -780,11 +785,12 @@ const UsersPage = () => {
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-xs dark:text-slate-400">Province</Label>
+                  <Label className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Province</Label>
                   <Select 
                     value={selectedProvinceFilter} 
                     onValueChange={(val) => {
                       setSelectedProvinceFilter(val);
+                      setSelectedMunicipalityFilter("all");
                       if (val !== "all") {
                         const provinceObj = areas.find(a => a.id === val);
                         fetchAreas("municipality", val, provinceObj?.code);
@@ -792,7 +798,7 @@ const UsersPage = () => {
                     }}
                     disabled={selectedRegionFilter === "all"}
                   >
-                    <SelectTrigger className="h-8 text-xs dark:bg-slate-900 dark:border-slate-700">
+                    <SelectTrigger className="h-8 text-[11px] dark:bg-slate-900 dark:border-slate-700">
                       <SelectValue placeholder="Province" />
                     </SelectTrigger>
                     <SelectContent>
@@ -803,26 +809,63 @@ const UsersPage = () => {
                     </SelectContent>
                   </Select>
                 </div>
+
+                <div className="space-y-1">
+                  <Label className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Muni/City</Label>
+                  <Select 
+                    value={selectedMunicipalityFilter} 
+                    onValueChange={(val) => {
+                      setSelectedMunicipalityFilter(val);
+                      if (val !== "all") {
+                        const muniObj = areas.find(a => a.id === val);
+                        fetchAreas("barangay", val, muniObj?.code);
+                      }
+                    }}
+                    disabled={selectedProvinceFilter === "all"}
+                  >
+                    <SelectTrigger className="h-8 text-[11px] dark:bg-slate-900 dark:border-slate-700">
+                      <SelectValue placeholder="Muni/City" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      {areas.filter(a => a.type === "municipality" && a.parent_id === selectedProvinceFilter).map(m => (
+                        <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="dark:text-slate-300">Assign Areas</Label>
-                  <span className="text-xs text-slate-500">{selectedAreas.length} selected</span>
+                  <Label className="text-sm font-semibold dark:text-slate-300">Assign Areas</Label>
+                  <div className="flex gap-2">
+                    {selectedAreas.length > 0 && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 text-[10px] text-rose-500 hover:text-rose-600 hover:bg-rose-50 px-2"
+                        onClick={() => setSelectedAreas([])}
+                      >
+                        Clear All
+                      </Button>
+                    )}
+                    <span className="text-[10px] font-medium bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full text-slate-500">{selectedAreas.length} selected</span>
+                  </div>
                 </div>
                 
                 {/* Selected Areas Tags */}
                 {selectedAreas.length > 0 && (
-                  <div className="flex flex-wrap gap-2 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-dashed border-slate-300 dark:border-slate-700">
+                  <div className="flex flex-wrap gap-1.5 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 max-h-32 overflow-y-auto">
                     {selectedAreas.map(areaId => (
                       <Badge 
                         key={areaId} 
                         variant="secondary" 
-                        className="flex items-center gap-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
+                        className="flex items-center gap-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 text-[10px] py-0 h-5"
                       >
                         {getAreaName(areaId)}
                         <X 
-                          className="w-3 h-3 cursor-pointer hover:text-rose-500" 
+                          className="w-2.5 h-2.5 cursor-pointer hover:text-rose-500" 
                           onClick={() => toggleArea(areaId)}
                         />
                       </Badge>
@@ -830,45 +873,54 @@ const UsersPage = () => {
                   </div>
                 )}
 
-                <div className="max-h-60 overflow-y-auto border border-stone-200 dark:border-slate-800 rounded-lg p-3 space-y-2 bg-white dark:bg-slate-900/50 shadow-sm">
+                <div className="relative">
+                  <Search className="absolute left-2 top-1.5 h-3.5 w-3.5 text-slate-400" />
+                  <Input
+                    placeholder="Search areas..."
+                    className="h-8 pl-8 text-[11px] dark:bg-slate-900 dark:border-slate-800"
+                    value={areaSearchTerm}
+                    onChange={(e) => setAreaSearchTerm(e.target.value)}
+                  />
+                </div>
+
+                <div className="max-h-52 overflow-y-auto border border-stone-200 dark:border-slate-800 rounded-lg p-2 space-y-1 bg-white dark:bg-slate-900/50 shadow-sm custom-scrollbar">
                   {areas.length === 0 ? (
                     <p className="text-sm text-slate-400 dark:text-slate-600">No areas available.</p>
                   ) : (
                     areas
                       .filter((area) => {
-                        // Logic:
-                        // 1. If nothing selected, show Regions
-                        // 2. If Region selected, show its Provinces
-                        // 3. If Province selected, show its Municipalities
-                        // 4. If Municipality selected, show its Barangays
-                        
+                        const matchesSearch = area.name.toLowerCase().includes(areaSearchTerm.toLowerCase());
+                        if (areaSearchTerm) return matchesSearch;
+
+                        if (selectedMunicipalityFilter !== "all") {
+                          return area.type === "barangay" && area.parent_id === selectedMunicipalityFilter;
+                        }
                         if (selectedProvinceFilter !== "all") {
-                          const p = areas.find(a => a.id === selectedProvinceFilter);
-                          return area.type === "municipality" && (area.parent_id === selectedProvinceFilter || (p && area.parent_code === p.code));
+                          return area.type === "municipality" && area.parent_id === selectedProvinceFilter;
                         }
                         if (selectedRegionFilter !== "all") {
-                          const r = areas.find(a => a.id === selectedRegionFilter);
-                          return area.type === "province" && (area.parent_id === selectedRegionFilter || (r && area.parent_code === r.code));
+                          return area.type === "province" && area.parent_id === selectedRegionFilter;
                         }
                         return area.type === "region";
                       })
                       .sort((a, b) => a.name.localeCompare(b.name))
                       .map((area) => (
-                        <div key={area.id} className="flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 p-1 rounded transition-colors">
+                        <div key={area.id} className="flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 p-1 rounded transition-colors group">
                           <Checkbox
                             id={area.id}
                             checked={selectedAreas.includes(area.id)}
                             onCheckedChange={() => toggleArea(area.id)}
-                            className="dark:border-slate-700"
+                            className="h-3.5 w-3.5 dark:border-slate-700"
                           />
-                          <label htmlFor={area.id} className="text-sm cursor-pointer flex justify-between w-full dark:text-slate-300">
+                          <label htmlFor={area.id} className="text-[12px] cursor-pointer flex justify-between w-full dark:text-slate-300 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                             <span>{area.name}</span>
-                            <span className="text-slate-400 dark:text-slate-500 text-xs">({area.type})</span>
+                            <span className="text-slate-400 dark:text-slate-500 text-[10px] italic">({area.type})</span>
                           </label>
                         </div>
                       ))
                   )}
                   {areas.length > 0 && areas.filter(area => {
+                    if (selectedMunicipalityFilter !== "all") return area.parent_id === selectedMunicipalityFilter && area.type === "barangay";
                     if (selectedProvinceFilter !== "all") return area.parent_id === selectedProvinceFilter && area.type === "municipality";
                     if (selectedRegionFilter !== "all") return area.parent_id === selectedRegionFilter && area.type === "province";
                     return area.type === "region";
