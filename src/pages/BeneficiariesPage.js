@@ -1823,7 +1823,6 @@ const BeneficiariesPage = () => {
           )}
         </CardContent>
       </Card>
-</Dialog>
 
       {/* View Beneficiary Details Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
