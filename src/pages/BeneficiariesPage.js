@@ -150,6 +150,8 @@ const BeneficiariesPage = () => {
   };
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBeneficiary, setEditingBeneficiary] = useState(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [viewingBeneficiary, setViewingBeneficiary] = useState(null);
   const [formData, setFormData] = useState({
     hhid: "",
     pkno: "",
@@ -449,6 +451,11 @@ const BeneficiariesPage = () => {
     } catch (error) {
       toast.error(error.response?.data?.detail || "Operation failed");
     }
+  };
+
+  const handleView = (beneficiary) => {
+    setViewingBeneficiary(beneficiary);
+    setIsViewDialogOpen(true);
   };
 
   const handleEdit = async (beneficiary) => {
@@ -1741,6 +1748,15 @@ const BeneficiariesPage = () => {
                             <Button
                               variant="ghost"
                               size="icon"
+                              onClick={() => handleView(b)}
+                              className="h-8 w-8 text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-500"
+                              title="View Details"
+                            >
+                              <Users className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               onClick={() => handleEdit(b)}
                               className="h-8 w-8 text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-500"
                             >
@@ -1807,6 +1823,138 @@ const BeneficiariesPage = () => {
           )}
         </CardContent>
       </Card>
+</Dialog>
+
+      {/* View Beneficiary Details Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto dark:bg-slate-900 dark:border-slate-800 p-0 overflow-hidden">
+          {viewingBeneficiary && (
+            <>
+              <DialogHeader className="p-6 bg-slate-50 dark:bg-slate-800/50 border-b dark:border-slate-800">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <DialogTitle className="text-2xl font-bold dark:text-slate-100">
+                      {viewingBeneficiary.first_name} {viewingBeneficiary.middle_name} {viewingBeneficiary.last_name}
+                    </DialogTitle>
+                    <DialogDescription className="mt-1 flex items-center gap-2">
+                      <Badge variant="outline" className="font-mono text-[10px]">{viewingBeneficiary.hhid}</Badge>
+                      <span className="text-slate-400">•</span>
+                      <span className="text-sm">{viewingBeneficiary.barangay}, {viewingBeneficiary.municipality}</span>
+                    </DialogDescription>
+                  </div>
+                  <Badge className={`${viewingBeneficiary.status === 'Inactive' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'}`}>
+                    {viewingBeneficiary.status || "Active"}
+                  </Badge>
+                </div>
+              </DialogHeader>
+
+              <div className="p-6 space-y-8">
+                {/* Redemption & NES Tags Section */}
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">Redemption History (FRM Periods)</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {/* Combine periods from both redemption and NES stats */}
+                    {(() => {
+                      const allPeriods = new Set([
+                        ...(viewingBeneficiary.redemption_stats?.periods || []),
+                        ...(viewingBeneficiary.nes_stats?.periods || [])
+                      ]);
+                      
+                      if (allPeriods.size === 0) {
+                        return <p className="text-sm text-slate-400 italic">No redemption records found.</p>;
+                      }
+
+                      return Array.from(allPeriods)
+                        .filter(p => p && p !== "null" && p !== "undefined")
+                        .sort((a, b) => b.localeCompare(a)) // Sort periods descending
+                        .map((period, idx) => (
+                          <Badge 
+                            key={idx} 
+                            className="bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400 border-sky-200 dark:border-sky-800/50 px-3 py-1 text-xs font-medium"
+                          >
+                            {period}
+                          </Badge>
+                        ));
+                    })()}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Personal Information */}
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Personal Information</h3>
+                    <div className="grid grid-cols-2 gap-y-3 text-sm">
+                      <div className="text-slate-400">Gender:</div>
+                      <div className="font-medium dark:text-slate-200">{viewingBeneficiary.gender || "-"}</div>
+                      
+                      <div className="text-slate-400">Birthdate:</div>
+                      <div className="font-medium dark:text-slate-200">
+                        {viewingBeneficiary.birthdate ? (viewingBeneficiary.birthdate.includes('T') ? viewingBeneficiary.birthdate.split('T')[0] : viewingBeneficiary.birthdate) : "-"}
+                      </div>
+
+                      <div className="text-slate-400">Contact:</div>
+                      <div className="font-medium dark:text-slate-200">{viewingBeneficiary.contact || "-"}</div>
+
+                      <div className="text-slate-400">4Ps Member:</div>
+                      <div className="font-medium dark:text-slate-200">{viewingBeneficiary.is4ps ? "Yes" : "No"}</div>
+                    </div>
+                  </div>
+
+                  {/* Summary Stats */}
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Activity Summary</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-3 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-100 dark:border-emerald-800/50">
+                        <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-tighter">Total Redeemed</div>
+                        <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
+                          {viewingBeneficiary.redemption_stats?.redeemed || 0}
+                        </div>
+                      </div>
+                      <div className="p-3 bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-100 dark:border-amber-800/50">
+                        <div className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-tighter">NES Presence</div>
+                        <div className="text-2xl font-bold text-amber-700 dark:text-amber-300">
+                          {viewingBeneficiary.nes_stats?.present || 0}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* HH Info Section */}
+                <div className="pt-6 border-t dark:border-slate-800">
+                  <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">Household Composition</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div className="text-center p-2 rounded bg-slate-50 dark:bg-slate-800/50">
+                      <div className="text-xs text-slate-400 mb-1">HH 0-18</div>
+                      <div className="font-bold">{viewingBeneficiary.num_hh_0_18 || 0}</div>
+                    </div>
+                    <div className="text-center p-2 rounded bg-slate-50 dark:bg-slate-800/50">
+                      <div className="text-xs text-slate-400 mb-1">Pregnant</div>
+                      <div className="font-bold">{viewingBeneficiary.num_hh_pregnant || 0}</div>
+                    </div>
+                    <div className="text-center p-2 rounded bg-slate-50 dark:bg-slate-800/50">
+                      <div className="text-xs text-slate-400 mb-1">Lactating</div>
+                      <div className="font-bold">{viewingBeneficiary.num_hh_lactating || 0}</div>
+                    </div>
+                    <div className="text-center p-2 rounded bg-slate-50 dark:bg-slate-800/50">
+                      <div className="text-xs text-slate-400 mb-1">PWD</div>
+                      <div className="font-bold">{viewingBeneficiary.num_hh_pwd || 0}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t dark:border-slate-800">
+                <Button onClick={() => setIsViewDialogOpen(false)} variant="outline">Close</Button>
+                <Button onClick={() => { setIsViewDialogOpen(false); handleEdit(viewingBeneficiary); }} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                  Edit Profile
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Duplication Check Dialog */}
       <Dialog open={isDuplicateDialogOpen} onOpenChange={setIsDuplicateDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
