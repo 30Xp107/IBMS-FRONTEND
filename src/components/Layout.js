@@ -81,6 +81,7 @@ const Layout = () => {
     { to: "/beneficiaries", icon: Users, label: "Beneficiaries" },
     { to: "/redemption", icon: Calendar, label: "Redemption" },
     { to: "/nes", icon: FileText, label: "NES" },
+    { to: "/travel-orders", icon: MapPin, label: "Travel Orders" },
     ...(isAdmin
       ? [
           { to: "/users", icon: Users, label: "User Management" },
