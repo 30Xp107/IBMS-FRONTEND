@@ -384,10 +384,12 @@ const BeneficiariesPage = () => {
   
   const getMunicipalities = () => {
     if (!formData.province) return [];
-    const region = areas.find(a => a.name?.trim().toLowerCase() === formData.region?.trim().toLowerCase() && a.type === "region");
-    const province = areas.find(a => a.name?.trim().toLowerCase() === formData.province?.trim().toLowerCase() && a.type === "province" &&
-      (region ? (a.parent_id === region.id || a.parent_code === region.code) : true)
+    
+    const province = areas.find(a => 
+      a.name?.trim().toLowerCase() === formData.province?.trim().toLowerCase() && 
+      a.type === "province"
     );
+    
     if (!province) return [];
     return areas
       .filter(a => a.type === "municipality" && (a.parent_id === province.id || a.parent_code === province.code))
@@ -396,17 +398,25 @@ const BeneficiariesPage = () => {
 
   const getBarangays = () => {
     if (!formData.municipality) return [];
-    const region = areas.find(a => a.name?.trim().toLowerCase() === formData.region?.trim().toLowerCase() && a.type === "region");
-    const province = areas.find(a => a.name?.trim().toLowerCase() === formData.province?.trim().toLowerCase() && a.type === "province" &&
-      (region ? (a.parent_id === region.id || a.parent_code === region.code) : true)
+    
+    // Find municipality object with fuzzy name matching and type check
+    const municipality = areas.find(a => 
+      a.name?.trim().toLowerCase() === formData.municipality?.trim().toLowerCase() && 
+      a.type === "municipality"
     );
-    const municipality = areas.find(a => a.name?.trim().toLowerCase() === formData.municipality?.trim().toLowerCase() && a.type === "municipality" && 
-      (province ? (a.parent_id === province.id || a.parent_code === province.code) : true)
+    
+    if (!municipality) {
+      console.warn("Municipality object not found in areas list for:", formData.municipality);
+      return [];
+    }
+    
+    // Filter barangays by parent_id or parent_code
+    const results = areas.filter(a => 
+      a.type === "barangay" && 
+      (a.parent_id === municipality.id || a.parent_code === municipality.code)
     );
-    if (!municipality) return [];
-    return areas
-      .filter(a => a.type === "barangay" && (a.parent_id === municipality.id || a.parent_code === municipality.code))
-      .sort((a, b) => a.name.localeCompare(b.name));
+
+    return results.sort((a, b) => a.name.localeCompare(b.name));
   };
 
   const resetForm = () => {
@@ -1330,17 +1340,16 @@ const BeneficiariesPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Provinces</SelectItem>
-                    {areas
-                      .filter(a => a.type === "province" && (regionFilter !== "all" ? 
-                        (() => {
-                          const r = areas.find(area => area.name?.trim().toLowerCase() === regionFilter?.trim().toLowerCase() && area.type === "region");
-                          return r ? (a.parent_id === r.id || a.parent_code === r.code) : true;
-                        })() : true))
-                      .sort((a, b) => a.name.localeCompare(b.name))
-                      .map(p => (
-                        <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
-                      ))
-                    }
+                    {(() => {
+                      const reg = areas.find(a => a.name?.trim().toLowerCase() === regionFilter?.trim().toLowerCase() && a.type === "region");
+                      if (!reg) return [];
+                      return areas
+                        .filter(a => a.type === "province" && (a.parent_id === reg.id || a.parent_code === reg.code))
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map(p => (
+                          <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
+                        ));
+                    })()}
                   </SelectContent>
                 </Select>
 
@@ -1349,9 +1358,7 @@ const BeneficiariesPage = () => {
                   onValueChange={(val) => {
                     setMunicipalityFilter(val);
                     setBarangayFilter("all");
-                    const regionObj = areas.find(a => a.name?.trim().toLowerCase() === regionFilter?.trim().toLowerCase() && a.type === "region");
-                    const provinceObj = areas.find(a => a.name?.trim().toLowerCase() === provinceFilter?.trim().toLowerCase() && a.type === "province" &&
-                      (regionObj ? (a.parent_id === regionObj.id || a.parent_code === regionObj.code) : true));
+                    const provinceObj = areas.find(a => a.name?.trim().toLowerCase() === provinceFilter?.trim().toLowerCase() && a.type === "province");
                     const municipalityObj = areas.find(a => a.name?.trim().toLowerCase() === val?.trim().toLowerCase() && a.type === "municipality" && 
                       (provinceObj ? (a.parent_id === provinceObj.id || a.parent_code === provinceObj.code) : true));
                     if (municipalityObj) fetchAreas("barangay", municipalityObj.id, municipalityObj.code);
@@ -1363,19 +1370,16 @@ const BeneficiariesPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Municipalities</SelectItem>
-                    {areas
-                      .filter(a => a.type === "municipality" && (provinceFilter !== "all" ? 
-                        (() => {
-                          const r = areas.find(area => area.name?.trim().toLowerCase() === regionFilter?.trim().toLowerCase() && area.type === "region");
-                          const p = areas.find(area => area.name?.trim().toLowerCase() === provinceFilter?.trim().toLowerCase() && area.type === "province" &&
-                            (r ? (area.parent_id === r.id || area.parent_code === r.code) : true));
-                          return p ? (a.parent_id === p.id || a.parent_code === p.code) : true;
-                        })() : true))
-                      .sort((a, b) => a.name.localeCompare(b.name))
-                      .map(m => (
-                        <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>
-                      ))
-                    }
+                    {(() => {
+                      const prov = areas.find(a => a.name?.trim().toLowerCase() === provinceFilter?.trim().toLowerCase() && a.type === "province");
+                      if (!prov) return [];
+                      return areas
+                        .filter(a => a.type === "municipality" && (a.parent_id === prov.id || a.parent_code === prov.code))
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map(m => (
+                          <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>
+                        ));
+                    })()}
                   </SelectContent>
                 </Select>
 
@@ -1389,21 +1393,16 @@ const BeneficiariesPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Barangays</SelectItem>
-                    {areas
-                      .filter(a => a.type === "barangay" && (municipalityFilter !== "all" ? 
-                        (() => {
-                          const r = areas.find(area => area.name?.trim().toLowerCase() === regionFilter?.trim().toLowerCase() && area.type === "region");
-                          const p = areas.find(area => area.name?.trim().toLowerCase() === provinceFilter?.trim().toLowerCase() && area.type === "province" &&
-                            (r ? (area.parent_id === r.id || area.parent_code === r.code) : true));
-                          const m = areas.find(area => area.name?.trim().toLowerCase() === municipalityFilter?.trim().toLowerCase() && area.type === "municipality" &&
-                            (p ? (area.parent_id === p.id || area.parent_code === p.code) : true));
-                          return m ? (a.parent_id === m.id || a.parent_code === m.code) : true;
-                        })() : true))
-                      .sort((a, b) => a.name.localeCompare(b.name))
-                      .map(b => (
-                        <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
-                      ))
-                    }
+                    {(() => {
+                      const mun = areas.find(a => a.name?.trim().toLowerCase() === municipalityFilter?.trim().toLowerCase() && a.type === "municipality");
+                      if (!mun) return [];
+                      return areas
+                        .filter(a => a.type === "barangay" && (a.parent_id === mun.id || a.parent_code === mun.code))
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map(b => (
+                          <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
+                        ));
+                    })()}
                   </SelectContent>
                 </Select>
               </div>

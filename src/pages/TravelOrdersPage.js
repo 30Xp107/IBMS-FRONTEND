@@ -46,6 +46,7 @@ const TravelOrdersPage = () => {
   const { api, user } = useAuth();
   const [travelOrders, setTravelOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [users, setUsers] = useState([]);
   const [regions, setRegions] = useState([]);
@@ -144,6 +145,8 @@ const TravelOrdersPage = () => {
   };
 
   const handleSubmit = async () => {
+    if (isSubmitting) return;
+    
     try {
       // Validation
       if (!formData.date_from || !formData.date_to) {
@@ -163,6 +166,7 @@ const TravelOrdersPage = () => {
         return;
       }
 
+      setIsSubmitting(true);
       await api.post("/travel-orders", formData);
       toast.success("Travel Order Request created successfully");
       setIsDialogOpen(false);
@@ -178,6 +182,8 @@ const TravelOrdersPage = () => {
     } catch (error) {
       console.error("Error creating travel order:", error);
       toast.error(error.response?.data?.message || "Failed to create request");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -391,8 +397,17 @@ const TravelOrdersPage = () => {
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-                <Button onClick={handleSubmit}>Submit Request</Button>
+                <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isSubmitting}>Cancel</Button>
+                <Button onClick={handleSubmit} disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    "Submit Request"
+                  )}
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
