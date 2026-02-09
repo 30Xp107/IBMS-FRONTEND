@@ -485,19 +485,6 @@ const TravelOrdersPage = () => {
                             >
                               View
                             </Button>
-                            {user.role === 'admin' && !to.approver && (
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => {
-                                  setSelectedTO(to);
-                                  setAssignDialogOpen(true);
-                                }}
-                              >
-                                Assign
-                              </Button>
-                            )}
-                            
                             {/* Approver Actions */}
                             {to.status === 'pending' && (
                               (to.approver?._id === user._id || user.role === 'admin') && (

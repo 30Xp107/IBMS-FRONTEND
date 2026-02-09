@@ -5,8 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Save, User, Mail, Lock, ShieldCheck, Eye, EyeOff, Calendar as CalendarIcon, Plus, Trash2 } from "lucide-react";
+import { Save, User, Mail, Lock, ShieldCheck, Eye, EyeOff, Calendar as CalendarIcon, Plus, Trash2, PenTool } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 
 const SettingsPage = () => {
@@ -17,6 +18,9 @@ const SettingsPage = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [frmSchedules, setFrmSchedules] = useState([]);
   const [isFrmDialogOpen, setIsFrmDialogOpen] = useState(false);
+  const [isSignatoryLoading, setIsSignatoryLoading] = useState(false);
+  const [signatory, setSignatory] = useState("");
+  const [users, setUsers] = useState([]);
   const [currentFrm, setCurrentFrm] = useState({
     name: "",
     startDate: "",
@@ -35,9 +39,33 @@ const SettingsPage = () => {
     }
   }, [api, isAdmin]);
 
+  const fetchSignatory = useCallback(async () => {
+    if (!isAdmin) return;
+    try {
+      const response = await api.get("/system-configs/travel_order_signatory");
+      if (response.data && response.data.value) {
+        setSignatory(response.data.value);
+      }
+    } catch (error) {
+      console.error("Failed to fetch signatory:", error);
+    }
+  }, [api, isAdmin]);
+
+  const fetchUsers = useCallback(async () => {
+    if (!isAdmin) return;
+    try {
+      const response = await api.get("/travel-orders/users");
+      setUsers(response.data);
+    } catch (error) {
+      console.error("Failed to fetch users:", error);
+    }
+  }, [api, isAdmin]);
+
   useEffect(() => {
     fetchFrmSchedules();
-  }, [fetchFrmSchedules]);
+    fetchSignatory();
+    fetchUsers();
+  }, [fetchFrmSchedules, fetchSignatory, fetchUsers]);
 
   const handleSaveFrmSchedule = async () => {
     if (!currentFrm.name || !currentFrm.startDate || !currentFrm.endDate) {
@@ -73,6 +101,20 @@ const SettingsPage = () => {
       toast.error("Failed to save FRM schedule");
     } finally {
       setIsFrmLoading(false);
+    }
+  };
+
+  const handleUpdateSignatory = async (newSignatoryId) => {
+    setIsSignatoryLoading(true);
+    try {
+      await api.put("/system-configs/travel_order_signatory", { value: newSignatoryId });
+      setSignatory(newSignatoryId);
+      toast.success("Travel Order Signatory updated successfully");
+    } catch (error) {
+      console.error("Failed to update signatory:", error);
+      toast.error("Failed to update signatory");
+    } finally {
+      setIsSignatoryLoading(false);
     }
   };
 
@@ -297,71 +339,103 @@ const SettingsPage = () => {
           </Card>
 
           {isAdmin && (
-            <Card className="border-stone-200 dark:border-slate-800 shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                <div>
+            <>
+              <Card className="border-stone-200 dark:border-slate-800 shadow-sm">
+                <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <CalendarIcon className="w-5 h-5 text-indigo-600" />
-                    FRM Schedules
+                    <PenTool className="w-5 h-5 text-amber-600" />
+                    Travel Order Signatory
                   </CardTitle>
-                  <CardDescription>Set custom date ranges for FRM periods</CardDescription>
-                </div>
-                <Button 
-                  size="sm" 
-                  onClick={() => {
-                    setCurrentFrm({ name: `FRM ${frmSchedules.length + 1}`, startDate: "", endDate: "" });
-                    setIsFrmDialogOpen(true);
-                  }}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                >
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add FRM
-                </Button>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {frmSchedules.length === 0 ? (
-                    <div className="text-center py-6 text-slate-500 dark:text-slate-400 text-sm border-2 border-dashed rounded-lg">
-                      No custom FRM schedules defined. Using default monthly system.
-                    </div>
-                  ) : (
-                    <div className="grid gap-3">
-                      {frmSchedules.map((schedule) => (
-                        <div key={schedule.name} className="flex items-center justify-between p-3 rounded-lg border dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-sm text-slate-900 dark:text-slate-100">{schedule.name}</span>
-                            <span className="text-xs text-slate-500 dark:text-slate-400">
-                              {format(new Date(schedule.startDate), "PPP")} - {format(new Date(schedule.endDate), "PPP")}
-                            </span>
+                  <CardDescription>Select the default signatory for all new travel orders</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-2">
+                    <Label>Default Signatory</Label>
+                    <Select 
+                      value={signatory} 
+                      onValueChange={handleUpdateSignatory}
+                      disabled={isSignatoryLoading}
+                    >
+                      <SelectTrigger className="w-full dark:bg-slate-900 dark:border-slate-700">
+                        <SelectValue placeholder="Select an official signatory" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {users.map((u) => (
+                          <SelectItem key={u._id} value={u._id}>
+                            {u.name} ({u.email})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-stone-200 dark:border-slate-800 shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <CalendarIcon className="w-5 h-5 text-indigo-600" />
+                      FRM Schedules
+                    </CardTitle>
+                    <CardDescription>Set custom date ranges for FRM periods</CardDescription>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-900/50 dark:hover:bg-indigo-900/20"
+                    onClick={() => {
+                      setCurrentFrm({ name: `FRM ${frmSchedules.length + 1}`, startDate: "", endDate: "" });
+                      setIsFrmDialogOpen(true);
+                    }}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Period
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {frmSchedules.length === 0 ? (
+                      <p className="text-sm text-slate-500 dark:text-slate-400 italic py-2">No custom schedules defined yet.</p>
+                    ) : (
+                      <div className="grid gap-3">
+                        {frmSchedules.map((schedule) => (
+                          <div key={schedule.name} className="flex items-center justify-between p-3 rounded-lg border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                            <div>
+                              <p className="font-medium text-slate-700 dark:text-slate-200">{schedule.name}</p>
+                              <p className="text-xs text-slate-500 dark:text-slate-400">
+                                {format(new Date(schedule.startDate), "MMM d")} - {format(new Date(schedule.endDate), "MMM d, yyyy")}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 text-slate-400 hover:text-indigo-600"
+                                onClick={() => {
+                                  setCurrentFrm(schedule);
+                                  setIsFrmDialogOpen(true);
+                                }}
+                              >
+                                <Save className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20"
+                                onClick={() => deleteFrmSchedule(schedule.name)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-8 w-8 text-slate-400 hover:text-indigo-600"
-                              onClick={() => {
-                                setCurrentFrm(schedule);
-                                setIsFrmDialogOpen(true);
-                              }}
-                            >
-                              <Save className="w-4 h-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-8 w-8 text-slate-400 hover:text-rose-600"
-                              onClick={() => deleteFrmSchedule(schedule.name)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </>
           )}
 
           <Dialog open={isFrmDialogOpen} onOpenChange={setIsFrmDialogOpen}>
