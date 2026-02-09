@@ -1122,8 +1122,9 @@ const BeneficiariesPage = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Active">Active</SelectItem>
-                        <SelectItem value="Inactive">Inactive</SelectItem>
-                        <SelectItem value="Not for Recording">Not for Recording</SelectItem>
+      <SelectItem value="Inactive">Inactive</SelectItem>
+      <SelectItem value="Pending">Pending</SelectItem>
+      <SelectItem value="Not for Recording">Not for Recording</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1412,9 +1413,10 @@ const BeneficiariesPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="Active">Active</SelectItem>
-                    <SelectItem value="Inactive">Inactive</SelectItem>
-                    <SelectItem value="Not for Recording">Not for Recording</SelectItem>
+      <SelectItem value="Active">Active</SelectItem>
+      <SelectItem value="Inactive">Inactive</SelectItem>
+      <SelectItem value="Pending">Pending</SelectItem>
+      <SelectItem value="Not for Recording">Not for Recording</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -1717,9 +1719,11 @@ const BeneficiariesPage = () => {
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                               b.status === "Active" 
                                 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" 
-                                : b.status === "Not for Recording"
+                                : b.status === "Pending"
                                   ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                                  : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                                  : b.status === "Not for Recording"
+                                    ? "bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-400"
+                                    : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
                             }`}>
                               {b.status || "Active"}
                             </span>
