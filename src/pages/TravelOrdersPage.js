@@ -493,6 +493,7 @@ const TravelOrdersPage = () => {
                                     size="sm" 
                                     className="bg-green-600 hover:bg-green-700"
                                     onClick={() => handleStatusUpdate(to._id, "approved")}
+                                    disabled={to.approver?._id !== user._id}
                                   >
                                     Approve
                                   </Button>
@@ -500,6 +501,7 @@ const TravelOrdersPage = () => {
                                     size="sm" 
                                     variant="destructive"
                                     onClick={() => handleStatusUpdate(to._id, "rejected")}
+                                    disabled={to.approver?._id !== user._id}
                                   >
                                     Reject
                                   </Button>
