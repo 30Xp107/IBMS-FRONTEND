@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Save, User, Mail, Lock, ShieldCheck, Eye, EyeOff, Calendar as CalendarIcon, Plus, Trash2, PenTool } from "lucide-react";
+import { Save, User, Mail, Lock, ShieldCheck, Eye, EyeOff, Calendar as CalendarIcon, Plus, Trash2, PenTool, RefreshCw, Database } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
@@ -19,6 +19,7 @@ const SettingsPage = () => {
   const [frmSchedules, setFrmSchedules] = useState([]);
   const [isFrmDialogOpen, setIsFrmDialogOpen] = useState(false);
   const [isSignatoryLoading, setIsSignatoryLoading] = useState(false);
+  const [isRecalculating, setIsRecalculating] = useState(false);
   const [signatory, setSignatory] = useState("");
   const [users, setUsers] = useState([]);
   const [currentFrm, setCurrentFrm] = useState({
@@ -115,6 +116,19 @@ const SettingsPage = () => {
       toast.error("Failed to update signatory");
     } finally {
       setIsSignatoryLoading(false);
+    }
+  };
+
+  const handleRecalculateStatuses = async () => {
+    setIsRecalculating(true);
+    try {
+      const response = await api.post("/beneficiaries/maintenance/recalculate-status");
+      toast.success(`Recalculation complete: ${response.data.updated_count} statuses updated`);
+    } catch (error) {
+      console.error("Failed to recalculate statuses:", error);
+      toast.error(error.response?.data?.message || "Failed to recalculate statuses");
+    } finally {
+      setIsRecalculating(false);
     }
   };
 
@@ -432,6 +446,37 @@ const SettingsPage = () => {
                         ))}
                       </div>
                     )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-stone-200 dark:border-slate-800 shadow-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Database className="w-5 h-5 text-blue-600" />
+                    Data Maintenance
+                  </CardTitle>
+                  <CardDescription>Perform system-wide data cleanup and recalculations</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between p-4 rounded-lg border border-blue-100 dark:border-blue-900/30 bg-blue-50/30 dark:bg-blue-900/10">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Recalculate Beneficiary Statuses</p>
+                      <p className="text-xs text-blue-700 dark:text-blue-300">Scans all beneficiaries and updates status based on latest validation rules (HHID, Birthdate, etc.)</p>
+                    </div>
+                    <Button 
+                      onClick={handleRecalculateStatuses} 
+                      disabled={isRecalculating}
+                      variant="outline"
+                      className="border-blue-200 text-blue-600 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                    >
+                      {isRecalculating ? (
+                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                      )}
+                      Run Now
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
