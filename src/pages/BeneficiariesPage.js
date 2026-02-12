@@ -130,7 +130,7 @@ const BeneficiariesPage = () => {
           all: false
         });
       }
-      
+
       toast.dismiss(toastId);
       toast.success(`Successfully deleted ${count} beneficiaries`);
       setSelectedIds([]);
@@ -202,7 +202,7 @@ const BeneficiariesPage = () => {
 
   const handleUpdatePwdTypeCount = (type, count) => {
     const parsedCount = parseInt(count) || 0;
-    const newPwdTypes = formData.pwd_types.map(t => 
+    const newPwdTypes = formData.pwd_types.map(t =>
       t.type === type ? { ...t, count: parsedCount } : t
     );
     const totalPwdCount = newPwdTypes.reduce((sum, item) => sum + item.count, 0);
@@ -250,7 +250,7 @@ const BeneficiariesPage = () => {
 
       const cacheKey = `areas-${type || 'all'}-${parentId || 'none'}-${parentCode || 'none'}`;
       const cachedData = areaCache.get(cacheKey);
-      
+
       if (cachedData) {
         setAreas(prev => {
           const existingIds = new Set(prev.map(a => a.id));
@@ -267,14 +267,14 @@ const BeneficiariesPage = () => {
 
       const response = await api.get(`/areas${query}`);
       const data = Array.isArray(response.data) ? response.data : (response.data.areas || []);
-      
+
       const normalizedData = data.map((area) => ({
         ...area,
         id: String(area._id || area.id),
         type: area.type?.toLowerCase(),
         parent_id: area.parent_id ? (typeof area.parent_id === "object" ? String(area.parent_id?._id || area.parent_id?.id) : String(area.parent_id)) : ""
       }));
-      
+
       areaCache.set(cacheKey, normalizedData);
 
       setAreas(prev => {
@@ -330,16 +330,16 @@ const BeneficiariesPage = () => {
 
   const handleInputChange = (e) => {
     const { name, value, type } = e.target;
-    setFormData((prev) => ({ 
-      ...prev, 
-      [name]: type === 'number' ? (value === '' ? 0 : parseInt(value)) : value 
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === 'number' ? (value === '' ? 0 : parseInt(value)) : value
     }));
   };
 
   const handleSelectChange = (name, value) => {
     setFormData((prev) => {
       const newData = { ...prev, [name]: value };
-      
+
       // Reset dependent fields when parent changes
       if (name === "region") {
         newData.province = "";
@@ -351,7 +351,7 @@ const BeneficiariesPage = () => {
         newData.municipality = "";
         newData.barangay = "";
         const regionObj = areas.find(a => a.name?.trim().toLowerCase() === prev.region?.trim().toLowerCase() && a.type === "region");
-        const provinceObj = areas.find(a => a.name?.trim().toLowerCase() === value?.trim().toLowerCase() && a.type === "province" && 
+        const provinceObj = areas.find(a => a.name?.trim().toLowerCase() === value?.trim().toLowerCase() && a.type === "province" &&
           (regionObj ? (a.parent_id === regionObj.id || a.parent_code === regionObj.code) : true));
         if (provinceObj) fetchAreas("municipality", provinceObj.id, provinceObj.code);
       } else if (name === "municipality") {
@@ -359,11 +359,11 @@ const BeneficiariesPage = () => {
         const regionObj = areas.find(a => a.name?.trim().toLowerCase() === prev.region?.trim().toLowerCase() && a.type === "region");
         const provinceObj = areas.find(a => a.name?.trim().toLowerCase() === prev.province?.trim().toLowerCase() && a.type === "province" &&
           (regionObj ? (a.parent_id === regionObj.id || a.parent_code === regionObj.code) : true));
-        const municipalityObj = areas.find(a => a.name?.trim().toLowerCase() === value?.trim().toLowerCase() && a.type === "municipality" && 
+        const municipalityObj = areas.find(a => a.name?.trim().toLowerCase() === value?.trim().toLowerCase() && a.type === "municipality" &&
           (provinceObj ? (a.parent_id === provinceObj.id || a.parent_code === provinceObj.code) : true));
         if (municipalityObj) fetchAreas("barangay", municipalityObj.id, municipalityObj.code);
       }
-      
+
       return newData;
     });
   };
@@ -378,15 +378,15 @@ const BeneficiariesPage = () => {
       .filter(a => a.type === "province" && (a.parent_id === region.id || a.parent_code === region.code))
       .sort((a, b) => a.name.localeCompare(b.name));
   };
-  
+
   const getMunicipalities = () => {
     if (!formData.province) return [];
-    
-    const province = areas.find(a => 
-      a.name?.trim().toLowerCase() === formData.province?.trim().toLowerCase() && 
+
+    const province = areas.find(a =>
+      a.name?.trim().toLowerCase() === formData.province?.trim().toLowerCase() &&
       a.type === "province"
     );
-    
+
     if (!province) return [];
     return areas
       .filter(a => a.type === "municipality" && (a.parent_id === province.id || a.parent_code === province.code))
@@ -395,21 +395,21 @@ const BeneficiariesPage = () => {
 
   const getBarangays = () => {
     if (!formData.municipality) return [];
-    
+
     // Find municipality object with fuzzy name matching and type check
-    const municipality = areas.find(a => 
-      a.name?.trim().toLowerCase() === formData.municipality?.trim().toLowerCase() && 
+    const municipality = areas.find(a =>
+      a.name?.trim().toLowerCase() === formData.municipality?.trim().toLowerCase() &&
       a.type === "municipality"
     );
-    
+
     if (!municipality) {
       console.warn("Municipality object not found in areas list for:", formData.municipality);
       return [];
     }
-    
+
     // Filter barangays by parent_id or parent_code
-    const results = areas.filter(a => 
-      a.type === "barangay" && 
+    const results = areas.filter(a =>
+      a.type === "barangay" &&
       (a.parent_id === municipality.id || a.parent_code === municipality.code)
     );
 
@@ -468,7 +468,7 @@ const BeneficiariesPage = () => {
 
   const handleEdit = async (beneficiary) => {
     setEditingBeneficiary(beneficiary);
-    
+
     // Format birthdate to YYYY-MM-DD for the date input if it's an ISO string or similar
     let formattedBirthdate = beneficiary.birthdate || "";
     if (formattedBirthdate && formattedBirthdate.includes('T')) {
@@ -514,27 +514,27 @@ const BeneficiariesPage = () => {
       if (beneficiary.region) {
         const regions = await fetchAreas("region");
         const regionObj = regions.find(r => r.name?.trim().toLowerCase() === beneficiary.region?.trim().toLowerCase());
-        
+
         if (regionObj) {
           // Update region name to match exact casing from areas collection
           setFormData(prev => ({ ...prev, region: regionObj.name }));
-          
+
           const provinces = await fetchAreas("province", regionObj.id, regionObj.code);
           if (beneficiary.province) {
             const provinceObj = provinces.find(p => p.name?.trim().toLowerCase() === beneficiary.province?.trim().toLowerCase());
-            
+
             if (provinceObj) {
               // Update province name to match exact casing
               setFormData(prev => ({ ...prev, province: provinceObj.name }));
-              
+
               const municipalities = await fetchAreas("municipality", provinceObj.id, provinceObj.code);
               if (beneficiary.municipality) {
                 const municipalityObj = municipalities.find(m => m.name?.trim().toLowerCase() === beneficiary.municipality?.trim().toLowerCase());
-                
+
                 if (municipalityObj) {
                   // Update municipality name to match exact casing
                   setFormData(prev => ({ ...prev, municipality: municipalityObj.name }));
-                  
+
                   const barangays = await fetchAreas("barangay", municipalityObj.id, municipalityObj.code);
                   if (beneficiary.barangay) {
                     const barangayObj = barangays.find(b => b.name?.trim().toLowerCase() === beneficiary.barangay?.trim().toLowerCase());
@@ -583,7 +583,7 @@ const BeneficiariesPage = () => {
         const chunk = data.slice(i, i + chunkSize);
         const progress = Math.round((i / data.length) * 100);
         toast.loading(`Importing ${data.length} beneficiaries (${progress}%)...`, { id: toastId });
-        
+
         const response = await api.post("/beneficiaries/bulk", { beneficiaries: chunk });
         totalSuccess += response.data.success || 0;
         totalFailed += response.data.failed || 0;
@@ -593,7 +593,7 @@ const BeneficiariesPage = () => {
       }
 
       toast.dismiss(toastId);
-      
+
       if (totalSuccess > 0) {
         toast.success(`Successfully processed ${totalSuccess} beneficiaries`);
         if (totalFailed > 0) {
@@ -624,7 +624,7 @@ const BeneficiariesPage = () => {
     }
 
     const toastId = toast.loading("Reading file...");
-    
+
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
@@ -694,24 +694,24 @@ const BeneficiariesPage = () => {
         }
 
         toast.loading("Checking for duplicates (0%)...", { id: toastId });
-        
+
         try {
           const allDuplicates = [];
           const chunkSize = 100; // Check in chunks of 100
-          
+
           for (let i = 0; i < beneficiariesToImport.length; i += chunkSize) {
             const chunk = beneficiariesToImport.slice(i, i + chunkSize);
             const progress = Math.round((i / beneficiariesToImport.length) * 100);
             toast.loading(`Checking for duplicates (${progress}%)...`, { id: toastId });
-            
+
             const dupResponse = await api.post("/beneficiaries/check-duplicates", { beneficiaries: chunk });
             if (dupResponse.data.duplicates) {
               allDuplicates.push(...dupResponse.data.duplicates);
             }
           }
-          
+
           toast.dismiss(toastId);
-          
+
           if (allDuplicates.length > 0) {
             setDuplicates(allDuplicates);
             setPendingImportData(beneficiariesToImport);
@@ -746,7 +746,7 @@ const BeneficiariesPage = () => {
   const handleExport = async () => {
     try {
       const toastId = toast.loading("Preparing export...");
-      
+
       // Fetch only what is showing in the table (current page and limit)
       let query = `?page=${currentPage}&limit=${itemsPerPage}&sort=${sortConfig.key}&order=${sortConfig.direction}`;
       if (debouncedSearch) query += `&search=${encodeURIComponent(debouncedSearch)}`;
@@ -757,7 +757,7 @@ const BeneficiariesPage = () => {
       if (statusFilter !== "all") query += `&status=${encodeURIComponent(statusFilter)}`;
       if (is4psFilter !== "all") query += `&is4ps=${encodeURIComponent(is4psFilter)}`;
       if (frmPeriodFilter !== "all") query += `&frm_period=${encodeURIComponent(frmPeriodFilter)}`;
-      
+
       const response = await api.get(`/beneficiaries${query}`);
       const allBeneficiaries = response.data.beneficiaries || [];
 
@@ -831,7 +831,7 @@ const BeneficiariesPage = () => {
 
       // Generate Excel file
       XLSX.writeFile(workbook, `beneficiaries_${new Date().toISOString().split('T')[0]}.xlsx`);
-      
+
       toast.dismiss(toastId);
       toast.success(`Exported ${allBeneficiaries.length} records to Excel`);
     } catch (error) {
@@ -1122,9 +1122,10 @@ const BeneficiariesPage = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Active">Active</SelectItem>
-      <SelectItem value="Inactive">Inactive</SelectItem>
-      <SelectItem value="Pending">Pending</SelectItem>
-      <SelectItem value="Not for Recording">Not for Recording</SelectItem>
+                        <SelectItem value="Inactive">Inactive</SelectItem>
+                        <SelectItem value="Incomplete">Incomplete</SelectItem>
+                        <SelectItem value="Pending">Pending</SelectItem>
+                        <SelectItem value="Not for Recording">Not for Recording</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1133,7 +1134,7 @@ const BeneficiariesPage = () => {
                 {/* Sectoral Information Section */}
                 <div className="pt-4 border-t dark:border-slate-800">
                   <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Sectoral Information</h3>
-                  
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <Label htmlFor="num_hh_0_18" className="text-xs sm:text-sm">Number of HH member aging 0-18 years old</Label>
@@ -1203,11 +1204,11 @@ const BeneficiariesPage = () => {
                         ))}
                       </SelectContent>
                     </Select>
-                    
+
                     <div className="space-y-2 mt-2">
                       {formData.pwd_types.map((item) => (
-                        <div 
-                          key={item.type} 
+                        <div
+                          key={item.type}
                           className="flex items-center justify-between gap-3 bg-slate-100 dark:bg-slate-800 p-2 rounded text-xs dark:text-slate-300 border dark:border-slate-700"
                         >
                           <span className="flex-1 font-medium">{item.type}</span>
@@ -1221,8 +1222,8 @@ const BeneficiariesPage = () => {
                               onChange={(e) => handleUpdatePwdTypeCount(item.type, e.target.value)}
                               className="w-16 h-7 text-xs px-2"
                             />
-                            <button 
-                              type="button" 
+                            <button
+                              type="button"
                               onClick={() => handleRemovePwdType(item.type)}
                               className="text-slate-500 hover:text-red-500 transition-colors p-1"
                               title="Remove"
@@ -1276,9 +1277,9 @@ const BeneficiariesPage = () => {
                 </div>
               </form>
             </DialogContent>
-            </Dialog>
-          </div>
+          </Dialog>
         </div>
+      </div>
 
       {/* Search and Filters */}
       <Card className="border-stone-200 dark:border-slate-800 shadow-sm overflow-hidden">
@@ -1293,17 +1294,17 @@ const BeneficiariesPage = () => {
                 className="pl-10 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
               />
             </div>
-            
+
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex flex-wrap items-center gap-2">
                 <Select value={regionFilter} onValueChange={(val) => {
-                    setRegionFilter(val);
-                    setProvinceFilter("all");
-                    setMunicipalityFilter("all");
-                    setBarangayFilter("all");
-                    const regionObj = areas.find(a => a.name?.trim().toLowerCase() === val?.trim().toLowerCase() && a.type === "region");
-                    if (regionObj) fetchAreas("province", regionObj.id, regionObj.code);
-                  }}>
+                  setRegionFilter(val);
+                  setProvinceFilter("all");
+                  setMunicipalityFilter("all");
+                  setBarangayFilter("all");
+                  const regionObj = areas.find(a => a.name?.trim().toLowerCase() === val?.trim().toLowerCase() && a.type === "region");
+                  if (regionObj) fetchAreas("province", regionObj.id, regionObj.code);
+                }}>
                   <SelectTrigger className="w-full sm:w-40 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
                     <SelectValue placeholder="Region" />
                   </SelectTrigger>
@@ -1319,14 +1320,14 @@ const BeneficiariesPage = () => {
                   </SelectContent>
                 </Select>
 
-                <Select 
-                  value={provinceFilter} 
+                <Select
+                  value={provinceFilter}
                   onValueChange={(val) => {
                     setProvinceFilter(val);
                     setMunicipalityFilter("all");
                     setBarangayFilter("all");
                     const regionObj = areas.find(a => a.name?.trim().toLowerCase() === regionFilter?.trim().toLowerCase() && a.type === "region");
-                    const provinceObj = areas.find(a => a.name?.trim().toLowerCase() === val?.trim().toLowerCase() && a.type === "province" && 
+                    const provinceObj = areas.find(a => a.name?.trim().toLowerCase() === val?.trim().toLowerCase() && a.type === "province" &&
                       (regionObj ? (a.parent_id === regionObj.id || a.parent_code === regionObj.code) : true));
                     if (provinceObj) fetchAreas("municipality", provinceObj.id, provinceObj.code);
                   }}
@@ -1350,13 +1351,13 @@ const BeneficiariesPage = () => {
                   </SelectContent>
                 </Select>
 
-                <Select 
-                  value={municipalityFilter} 
+                <Select
+                  value={municipalityFilter}
                   onValueChange={(val) => {
                     setMunicipalityFilter(val);
                     setBarangayFilter("all");
                     const provinceObj = areas.find(a => a.name?.trim().toLowerCase() === provinceFilter?.trim().toLowerCase() && a.type === "province");
-                    const municipalityObj = areas.find(a => a.name?.trim().toLowerCase() === val?.trim().toLowerCase() && a.type === "municipality" && 
+                    const municipalityObj = areas.find(a => a.name?.trim().toLowerCase() === val?.trim().toLowerCase() && a.type === "municipality" &&
                       (provinceObj ? (a.parent_id === provinceObj.id || a.parent_code === provinceObj.code) : true));
                     if (municipalityObj) fetchAreas("barangay", municipalityObj.id, municipalityObj.code);
                   }}
@@ -1380,8 +1381,8 @@ const BeneficiariesPage = () => {
                   </SelectContent>
                 </Select>
 
-                <Select 
-                  value={barangayFilter} 
+                <Select
+                  value={barangayFilter}
                   onValueChange={setBarangayFilter}
                   disabled={municipalityFilter === "all"}
                 >
@@ -1413,10 +1414,11 @@ const BeneficiariesPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
-      <SelectItem value="Active">Active</SelectItem>
-      <SelectItem value="Inactive">Inactive</SelectItem>
-      <SelectItem value="Pending">Pending</SelectItem>
-      <SelectItem value="Not for Recording">Not for Recording</SelectItem>
+                    <SelectItem value="Active">Active</SelectItem>
+                    <SelectItem value="Inactive">Inactive</SelectItem>
+                    <SelectItem value="Incomplete">Incomplete</SelectItem>
+                    <SelectItem value="Pending">Pending</SelectItem>
+                    <SelectItem value="Not for Recording">Not for Recording</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -1461,11 +1463,11 @@ const BeneficiariesPage = () => {
                     <SelectItem value="all">Show All</SelectItem>
                   </SelectContent>
                 </Select>
-                
+
                 {(regionFilter !== "all" || provinceFilter !== "all" || municipalityFilter !== "all" || barangayFilter !== "all" || statusFilter !== "all" || is4psFilter !== "all" || frmPeriodFilter !== "all") && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => {
                       setRegionFilter("all");
                       setProvinceFilter("all");
@@ -1493,7 +1495,7 @@ const BeneficiariesPage = () => {
               <Users className="w-5 h-5 text-emerald-600 dark:text-emerald-500" />
               Beneficiary List ({totalBeneficiaries})
             </CardTitle>
-            
+
             {isAdmin && selectedIds.length > 0 && (
               <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-800 animate-in fade-in slide-in-from-top-2">
                 <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
@@ -1536,7 +1538,7 @@ const BeneficiariesPage = () => {
                   {isAllSelectedGlobally ? (
                     <p className="text-sm text-emerald-700 dark:text-emerald-400">
                       All {totalBeneficiaries} beneficiaries are selected.{" "}
-                      <button 
+                      <button
                         onClick={() => {
                           setSelectedIds([]);
                           setIsAllSelectedGlobally(false);
@@ -1549,7 +1551,7 @@ const BeneficiariesPage = () => {
                   ) : (
                     <p className="text-sm text-emerald-700 dark:text-emerald-400">
                       All {beneficiaries.length} beneficiaries on this page are selected.{" "}
-                      <button 
+                      <button
                         onClick={() => setIsAllSelectedGlobally(true)}
                         className="font-semibold underline hover:text-emerald-800 dark:hover:text-emerald-300"
                       >
@@ -1566,14 +1568,14 @@ const BeneficiariesPage = () => {
                     <TableRow className="bg-stone-100 dark:bg-slate-800/50 hover:bg-stone-100 dark:hover:bg-slate-800/50 border-b dark:border-slate-800">
                       {isAdmin && (
                         <TableHead className="w-[50px]">
-                          <Checkbox 
+                          <Checkbox
                             checked={beneficiaries.length > 0 && selectedIds.length === beneficiaries.length}
                             onCheckedChange={handleSelectAll}
                             className="translate-y-[2px] dark:border-slate-700"
                           />
                         </TableHead>
                       )}
-                      <TableHead 
+                      <TableHead
                         className={`font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-left pl-6 w-[150px]`}
                         onClick={() => handleSort("hhid")}
                       >
@@ -1581,7 +1583,7 @@ const BeneficiariesPage = () => {
                           HHID {getSortIcon("hhid")}
                         </div>
                       </TableHead>
-                      <TableHead 
+                      <TableHead
                         className={`font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden md:table-cell w-[120px]`}
                         onClick={() => handleSort("pkno")}
                       >
@@ -1589,7 +1591,7 @@ const BeneficiariesPage = () => {
                           PKNO {getSortIcon("pkno")}
                         </div>
                       </TableHead>
-                      <TableHead 
+                      <TableHead
                         className={`font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center w-[200px]`}
                         onClick={() => handleSort("last_name")}
                       >
@@ -1597,7 +1599,7 @@ const BeneficiariesPage = () => {
                           Name {getSortIcon("last_name")}
                         </div>
                       </TableHead>
-                      <TableHead 
+                      <TableHead
                         className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden lg:table-cell"
                         onClick={() => handleSort("birthdate")}
                       >
@@ -1605,7 +1607,7 @@ const BeneficiariesPage = () => {
                           Birthdate {getSortIcon("birthdate")}
                         </div>
                       </TableHead>
-                      <TableHead 
+                      <TableHead
                         className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden xl:table-cell"
                         onClick={() => handleSort("barangay")}
                       >
@@ -1613,7 +1615,7 @@ const BeneficiariesPage = () => {
                           Barangay {getSortIcon("barangay")}
                         </div>
                       </TableHead>
-                      <TableHead 
+                      <TableHead
                         className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden xl:table-cell"
                         onClick={() => handleSort("municipality")}
                       >
@@ -1621,7 +1623,7 @@ const BeneficiariesPage = () => {
                           Municipality {getSortIcon("municipality")}
                         </div>
                       </TableHead>
-                      <TableHead 
+                      <TableHead
                         className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden 2xl:table-cell"
                         onClick={() => handleSort("region")}
                       >
@@ -1629,7 +1631,7 @@ const BeneficiariesPage = () => {
                           Region {getSortIcon("region")}
                         </div>
                       </TableHead>
-                      <TableHead 
+                      <TableHead
                         className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden 2xl:table-cell"
                         onClick={() => handleSort("province")}
                       >
@@ -1643,7 +1645,7 @@ const BeneficiariesPage = () => {
                       <TableHead className="font-semibold text-emerald-600 dark:text-emerald-400 text-center hidden xl:table-cell">Present (NES)</TableHead>
                       <TableHead className="font-semibold text-amber-600 dark:text-amber-400 text-center hidden xl:table-cell">Absent (NES)</TableHead>
                       <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center hidden md:table-cell">Is 4Ps</TableHead>
-                      <TableHead 
+                      <TableHead
                         className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden sm:table-cell"
                         onClick={() => handleSort("status")}
                       >
@@ -1659,7 +1661,7 @@ const BeneficiariesPage = () => {
                       <TableRow key={b.id} className="group border-b dark:border-slate-800 hover:bg-stone-50 dark:hover:bg-slate-800/30">
                         {isAdmin && (
                           <TableCell className="w-[50px]">
-                            <Checkbox 
+                            <Checkbox
                               checked={selectedIds.includes(b.id)}
                               onCheckedChange={(checked) => handleSelectOne(b.id, checked)}
                               className="translate-y-[2px] dark:border-slate-700"
@@ -1705,26 +1707,26 @@ const BeneficiariesPage = () => {
                         </TableCell>
                         <TableCell className="dark:text-slate-300 text-center hidden md:table-cell">
                           <div className="flex justify-center">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              b.is4ps === "Yes" 
-                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" 
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${b.is4ps === "Yes"
+                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
                                 : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400"
-                            }`}>
+                              }`}>
                               {b.is4ps || "No"}
                             </span>
                           </div>
                         </TableCell>
                         <TableCell className="dark:text-slate-300 text-center hidden sm:table-cell">
                           <div className="flex justify-center">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              b.status === "Active" 
-                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" 
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${b.status === "Active"
+                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
                                 : b.status === "Pending"
                                   ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                                  : b.status === "Not for Recording"
-                                    ? "bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-400"
-                                    : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                            }`}>
+                                  : b.status === "Incomplete"
+                                    ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+                                    : b.status === "Not for Recording"
+                                      ? "bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-400"
+                                      : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                              }`}>
                               {b.status || "Active"}
                             </span>
                           </div>
@@ -1844,7 +1846,7 @@ const BeneficiariesPage = () => {
                         ...(viewingBeneficiary.redemption_stats?.periods || []),
                         ...(viewingBeneficiary.nes_stats?.periods || [])
                       ]);
-                      
+
                       if (allPeriods.size === 0) {
                         return <p className="text-sm text-slate-400 italic">No redemption records found.</p>;
                       }
@@ -1853,8 +1855,8 @@ const BeneficiariesPage = () => {
                         .filter(p => p && p !== "null" && p !== "undefined")
                         .sort((a, b) => b.localeCompare(a)) // Sort periods descending
                         .map((period, idx) => (
-                          <Badge 
-                            key={idx} 
+                          <Badge
+                            key={idx}
                             className="bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400 border-sky-200 dark:border-sky-800/50 px-3 py-1 text-xs font-medium"
                           >
                             {period}
@@ -1871,7 +1873,7 @@ const BeneficiariesPage = () => {
                     <div className="grid grid-cols-2 gap-y-3 text-sm">
                       <div className="text-slate-400">Gender:</div>
                       <div className="font-medium dark:text-slate-200">{viewingBeneficiary.gender || "-"}</div>
-                      
+
                       <div className="text-slate-400">Birthdate:</div>
                       <div className="font-medium dark:text-slate-200">
                         {viewingBeneficiary.birthdate ? (viewingBeneficiary.birthdate.includes('T') ? viewingBeneficiary.birthdate.split('T')[0] : viewingBeneficiary.birthdate) : "-"}
@@ -1949,7 +1951,7 @@ const BeneficiariesPage = () => {
               Existing Beneficiaries Found
             </DialogTitle>
             <DialogDescription>
-              We found {duplicates.length} beneficiaries in your file that already exist in the system. 
+              We found {duplicates.length} beneficiaries in your file that already exist in the system.
               Importing will update their information (including is4ps status) instead of creating new records.
             </DialogDescription>
           </DialogHeader>
