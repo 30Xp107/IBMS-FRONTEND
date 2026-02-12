@@ -123,7 +123,11 @@ const SettingsPage = () => {
     setIsRecalculating(true);
     try {
       const response = await api.post("/beneficiaries/maintenance/recalculate-status");
-      toast.success(`Recalculation complete: ${response.data.updated_count} statuses updated`);
+      if (response.status === 202) {
+        toast.info(response.data.message, { duration: 6000 });
+      } else {
+        toast.success(`Recalculation complete: ${response.data.updated_count} statuses updated`);
+      }
     } catch (error) {
       console.error("Failed to recalculate statuses:", error);
       toast.error(error.response?.data?.message || "Failed to recalculate statuses");
