@@ -99,8 +99,8 @@ export const AuthProvider = ({ children }) => {
     throw new Error("Login failed");
   };
 
-  const register = async (name, email, password) => {
-    const response = await api.post("/auth/register", { name, email, password });
+  const register = async (idNumber, name, email, password) => {
+    const response = await api.post("/auth/register", { idNumber, name, email, password });
     return response.data;
   };
 

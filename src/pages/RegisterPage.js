@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Utensils, Eye, EyeOff, ArrowLeft } from "lucide-react";
  
 const RegisterPage = () => {
+  const [idNumber, setIdNumber] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -32,7 +33,7 @@ const RegisterPage = () => {
 
     setIsLoading(true);
     try {
-      await register(name, email, password);
+      await register(idNumber, name, email, password);
       toast.success("Registration successful! Please wait for admin approval.");
       navigate("/login");
     } catch (error) {
@@ -112,6 +113,21 @@ const RegisterPage = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="space-y-2">
+                <Label htmlFor="idNumber" className="text-slate-700">
+                  I.D. No.
+                </Label>
+                <Input
+                  id="idNumber"
+                  type="text"
+                  placeholder="ID-12345"
+                  value={idNumber}
+                  onChange={(e) => setIdNumber(e.target.value)}
+                  required
+                  className="h-11 text-slate-900"
+                />
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="name" className="text-slate-700">
                   Full Name

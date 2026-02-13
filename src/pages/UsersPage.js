@@ -55,6 +55,7 @@ const UsersPage = () => {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [debouncedSearch, setDebouncedSearch] = useState(search);
 
+  const [editIdNumber, setEditIdNumber] = useState("");
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editPassword, setEditPassword] = useState("");
@@ -167,6 +168,7 @@ const UsersPage = () => {
 
   const handleApprove = (user) => {
     setSelectedUser(user);
+    setEditIdNumber(user.idNumber || "");
     setEditName(user.name || "");
     setEditEmail(user.email || "");
     setEditPassword("");
@@ -195,6 +197,7 @@ const UsersPage = () => {
         status,
         assigned_areas: selectedAreas,
         role: selectedUser.role,
+        idNumber: editIdNumber,
         name: editName,
         email: editEmail,
       };
@@ -303,6 +306,7 @@ const UsersPage = () => {
       }
 
       const exportData = allUsers.map(user => ({
+        "I.D. No.": user.idNumber || "-",
         "Name": user.name,
         "Email": user.email,
         "Role": user.role,
@@ -315,6 +319,7 @@ const UsersPage = () => {
       XLSX.utils.book_append_sheet(workbook, worksheet, "Users");
       
       const wscols = [
+        { wch: 15 }, // I.D. No.
         { wch: 25 }, // Name
         { wch: 30 }, // Email
         { wch: 15 }, // Role
@@ -415,7 +420,7 @@ const UsersPage = () => {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input
-                placeholder="Search by name or email..."
+                placeholder="Search by ID No., name or email..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-10 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
@@ -476,6 +481,14 @@ const UsersPage = () => {
                   <TableRow className="bg-stone-100 dark:bg-slate-800/50 hover:bg-stone-100 dark:hover:bg-slate-800/50 border-b dark:border-slate-800">
                     <TableHead 
                       className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-left pl-6"
+                      onClick={() => handleSort("idNumber")}
+                    >
+                      <div className="flex items-center justify-start">
+                        I.D. No. {getSortIcon("idNumber")}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-left"
                       onClick={() => handleSort("name")}
                     >
                       <div className="flex items-center justify-start">
@@ -528,7 +541,8 @@ const UsersPage = () => {
                 <TableBody>
                   {filteredUsers.map((user) => (
                     <TableRow key={user.id} className="border-b dark:border-slate-800 hover:bg-stone-50 dark:hover:bg-slate-800/30">
-                      <TableCell className="font-medium dark:text-slate-200 text-left pl-6">{user.name}</TableCell>
+                      <TableCell className="dark:text-slate-300 text-left pl-6">{user.idNumber || "-"}</TableCell>
+                      <TableCell className="font-medium dark:text-slate-200 text-left">{user.name}</TableCell>
                       <TableCell className="dark:text-slate-300 text-center hidden md:table-cell">{user.email}</TableCell>
                       <TableCell className="capitalize dark:text-slate-300 text-center hidden sm:table-cell">
                         <div className="flex justify-center">
@@ -684,6 +698,15 @@ const UsersPage = () => {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            <div className="space-y-1">
+              <Label className="text-xs dark:text-slate-400 font-medium">I.D. No.</Label>
+              <Input 
+                value={editIdNumber}
+                onChange={(e) => setEditIdNumber(e.target.value)}
+                placeholder="Enter I.D. No."
+                className="h-9 dark:bg-slate-900 dark:border-slate-700"
+              />
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs dark:text-slate-400 font-medium">Full Name</Label>
