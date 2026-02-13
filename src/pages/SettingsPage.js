@@ -20,6 +20,12 @@ const SettingsPage = () => {
   const [isFrmDialogOpen, setIsFrmDialogOpen] = useState(false);
   const [isSignatoryLoading, setIsSignatoryLoading] = useState(false);
   const [isRecalculating, setIsRecalculating] = useState(false);
+  const [recalculationProgress, setRecalculationProgress] = useState({
+    processed: 0,
+    total: 0,
+    updates: 0,
+    is_running: false
+  });
   const [signatory, setSignatory] = useState("");
   const [users, setUsers] = useState([]);
   const [currentFrm, setCurrentFrm] = useState({
@@ -67,6 +73,36 @@ const SettingsPage = () => {
     fetchSignatory();
     fetchUsers();
   }, [fetchFrmSchedules, fetchSignatory, fetchUsers]);
+
+  // Polling for recalculation status
+  useEffect(() => {
+    let interval;
+    const checkStatus = async () => {
+      try {
+        const response = await api.get("/beneficiaries/maintenance/recalculate-status");
+        setRecalculationProgress(response.data);
+        if (response.data.is_running) {
+          setIsRecalculating(true);
+        } else if (isRecalculating) {
+          setIsRecalculating(false);
+          toast.success(`Recalculation complete: ${response.data.updates} statuses updated`);
+        }
+      } catch (error) {
+        console.error("Failed to check recalculation status:", error);
+      }
+    };
+
+    // Initial check on mount
+    checkStatus();
+
+    if (isRecalculating) {
+      interval = setInterval(checkStatus, 2000);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [api, isRecalculating]);
 
   const handleSaveFrmSchedule = async () => {
     if (!currentFrm.name || !currentFrm.startDate || !currentFrm.endDate) {
@@ -124,14 +160,11 @@ const SettingsPage = () => {
     try {
       const response = await api.post("/beneficiaries/maintenance/recalculate-status");
       if (response.status === 202) {
-        toast.info(response.data.message, { duration: 6000 });
-      } else {
-        toast.success(`Recalculation complete: ${response.data.updated_count} statuses updated`);
+        toast.info(response.data.message, { duration: 4000 });
       }
     } catch (error) {
       console.error("Failed to recalculate statuses:", error);
       toast.error(error.response?.data?.message || "Failed to recalculate statuses");
-    } finally {
       setIsRecalculating(false);
     }
   };
@@ -463,24 +496,49 @@ const SettingsPage = () => {
                   <CardDescription>Perform system-wide data cleanup and recalculations</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between p-4 rounded-lg border border-blue-100 dark:border-blue-900/30 bg-blue-50/30 dark:bg-blue-900/10">
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Recalculate Beneficiary Statuses</p>
-                      <p className="text-xs text-blue-700 dark:text-blue-300">Scans all beneficiaries and updates status based on latest validation rules (HHID, Birthdate, etc.)</p>
+                  <div className="flex flex-col gap-4 p-4 rounded-lg border border-blue-100 dark:border-blue-900/30 bg-blue-50/30 dark:bg-blue-900/10">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Recalculate Beneficiary Statuses</p>
+                        <p className="text-xs text-blue-700 dark:text-blue-300">Scans all beneficiaries and updates status based on latest validation rules (HHID, Birthdate, etc.)</p>
+                      </div>
+                      <Button 
+                        onClick={handleRecalculateStatuses} 
+                        disabled={isRecalculating}
+                        variant="outline"
+                        className="border-blue-200 text-blue-600 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                      >
+                        {isRecalculating ? (
+                          <>
+                            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                            {recalculationProgress.total > 0 
+                              ? `${Math.round((recalculationProgress.processed / recalculationProgress.total) * 100)}%` 
+                              : "Running..."
+                            }
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="w-4 h-4 mr-2" />
+                            Run Now
+                          </>
+                        )}
+                      </Button>
                     </div>
-                    <Button 
-                      onClick={handleRecalculateStatuses} 
-                      disabled={isRecalculating}
-                      variant="outline"
-                      className="border-blue-200 text-blue-600 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/20"
-                    >
-                      {isRecalculating ? (
-                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <RefreshCw className="w-4 h-4 mr-2" />
-                      )}
-                      Run Now
-                    </Button>
+                    
+                    {isRecalculating && recalculationProgress.total > 0 && (
+                      <div className="space-y-2">
+                        <div className="w-full bg-blue-200/50 dark:bg-blue-900/50 rounded-full h-2 overflow-hidden">
+                          <div 
+                            className="bg-blue-600 h-full transition-all duration-500" 
+                            style={{ width: `${(recalculationProgress.processed / recalculationProgress.total) * 100}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-[10px] text-blue-600 dark:text-blue-400 font-medium uppercase tracking-wider">
+                          <span>Processed: {recalculationProgress.processed.toLocaleString()} / {recalculationProgress.total.toLocaleString()}</span>
+                          <span>Updates: {recalculationProgress.updates.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
