@@ -32,7 +32,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, Plus, Check, Loader2 } from "lucide-react";
+import { Calendar as CalendarIcon, Plus, Check, Loader2, Trash2 } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -195,6 +195,19 @@ const TravelOrdersPage = () => {
     } catch (error) {
       console.error("Error updating status:", error);
       toast.error(error.response?.data?.message || "Failed to update status");
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this travel order?")) return;
+    
+    try {
+      await api.delete(`/travel-orders/${id}`);
+      toast.success("Travel order deleted successfully");
+      fetchTravelOrders();
+    } catch (error) {
+      console.error("Error deleting travel order:", error);
+      toast.error(error.response?.data?.message || "Failed to delete travel order");
     }
   };
 
@@ -485,28 +498,35 @@ const TravelOrdersPage = () => {
                             >
                               View
                             </Button>
-                            {/* Approver Actions */}
-                            {to.status === 'pending' && (
-                              (to.approver?._id === user._id || user.role === 'admin') && (
-                                <>
-                                  <Button 
-                                    size="sm" 
-                                    className="bg-green-600 hover:bg-green-700"
-                                    onClick={() => handleStatusUpdate(to._id, "approved")}
-                                    disabled={to.approver?._id !== user._id}
-                                  >
-                                    Approve
-                                  </Button>
-                                  <Button 
-                                    size="sm" 
-                                    variant="destructive"
-                                    onClick={() => handleStatusUpdate(to._id, "rejected")}
-                                    disabled={to.approver?._id !== user._id}
-                                  >
-                                    Reject
-                                  </Button>
-                                </>
-                              )
+                            {/* Approver Actions - Only for assigned approver or admin */}
+                            {to.status === 'pending' && (to.approver?._id === user._id || user.role === 'admin') && (
+                              <>
+                                <Button 
+                                  size="sm" 
+                                  className="bg-green-600 hover:bg-green-700"
+                                  onClick={() => handleStatusUpdate(to._id, "approved")}
+                                >
+                                  Approve
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="destructive"
+                                  onClick={() => handleStatusUpdate(to._id, "rejected")}
+                                >
+                                  Reject
+                                </Button>
+                              </>
+                            )}
+                            {/* Delete Action - Requester (if pending), Approver, or Admin */}
+                            {(to.requester?._id === user._id || to.approver?._id === user._id || user.role === 'admin') && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                                onClick={() => handleDelete(to._id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             )}
                           </div>
                         </TableCell>
