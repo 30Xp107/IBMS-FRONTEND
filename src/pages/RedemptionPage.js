@@ -243,7 +243,7 @@ const RedemptionPage = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      let benQuery = `?page=${currentPage}&limit=${itemsPerPage}&sort=${sortConfig.key}&order=${sortConfig.direction}&status=Active`;
+      let benQuery = `?page=${currentPage}&limit=${itemsPerPage}&sort=${sortConfig.key}&order=${sortConfig.direction}`;
       if (debouncedSearch) benQuery += `&search=${encodeURIComponent(debouncedSearch)}`;
       if (regionFilter !== "all") benQuery += `&region=${encodeURIComponent(regionFilter)}`;
       if (provinceFilter !== "all") benQuery += `&province=${encodeURIComponent(provinceFilter)}`;
