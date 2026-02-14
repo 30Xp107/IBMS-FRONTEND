@@ -291,7 +291,7 @@ const TravelOrdersPage = () => {
                 </div>
 
                 {/* Dates */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="grid gap-2">
                     <Label>From Date</Label>
                     <Popover>
@@ -347,13 +347,13 @@ const TravelOrdersPage = () => {
 
                 {/* Destination */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="grid gap-2">
+                  <div className="grid gap-2 min-w-0">
                     <Label>Region</Label>
                     <Select 
                       onValueChange={(val) => setFormData(prev => ({ ...prev, destination: { region: val, province: "", municipality: "" } }))}
                       value={formData.destination.region}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select Region" />
                       </SelectTrigger>
                       <SelectContent>
@@ -363,14 +363,14 @@ const TravelOrdersPage = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="grid gap-2">
+                  <div className="grid gap-2 min-w-0">
                     <Label>Province</Label>
                     <Select 
                       onValueChange={(val) => setFormData(prev => ({ ...prev, destination: { ...prev.destination, province: val, municipality: "" } }))}
                       value={formData.destination.province}
                       disabled={!formData.destination.region}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select Province" />
                       </SelectTrigger>
                       <SelectContent>
@@ -380,14 +380,14 @@ const TravelOrdersPage = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="grid gap-2">
+                  <div className="grid gap-2 min-w-0">
                     <Label>Municipality/City</Label>
                     <Select 
                       onValueChange={(val) => setFormData(prev => ({ ...prev, destination: { ...prev.destination, municipality: val } }))}
                       value={formData.destination.municipality}
                       disabled={!formData.destination.province}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select Municipality" />
                       </SelectTrigger>
                       <SelectContent>
