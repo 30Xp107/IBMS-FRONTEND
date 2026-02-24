@@ -747,8 +747,8 @@ const BeneficiariesPage = () => {
     try {
       const toastId = toast.loading("Preparing export...");
 
-      // Fetch only what is showing in the table (current page and limit)
-      let query = `?page=${currentPage}&limit=${itemsPerPage}&sort=${sortConfig.key}&order=${sortConfig.direction}`;
+      // Build query string based on current filters
+      let query = `?sort=${sortConfig.key}&order=${sortConfig.direction}`;
       if (debouncedSearch) query += `&search=${encodeURIComponent(debouncedSearch)}`;
       if (regionFilter !== "all") query += `&region=${encodeURIComponent(regionFilter)}`;
       if (provinceFilter !== "all") query += `&province=${encodeURIComponent(provinceFilter)}`;
@@ -758,42 +758,17 @@ const BeneficiariesPage = () => {
       if (is4psFilter !== "all") query += `&is4ps=${encodeURIComponent(is4psFilter)}`;
       if (frmPeriodFilter !== "all") query += `&frm_period=${encodeURIComponent(frmPeriodFilter)}`;
 
-      const response = await api.get(`/beneficiaries${query}`);
-      const allBeneficiaries = response.data.beneficiaries || [];
+      // Call the dedicated export endpoint
+      const response = await api.get(`/beneficiaries/export${query}`);
+      const exportData = response.data.data || [];
 
-      if (allBeneficiaries.length === 0) {
+      if (exportData.length === 0) {
         toast.dismiss(toastId);
         toast.error("No data to export");
         return;
       }
 
-      // Map data for Excel
-      const exportData = allBeneficiaries.map(b => ({
-        "HHID": b.hhid,
-        "PKNO": b.pkno,
-        "First Name": b.first_name,
-        "Last Name": b.last_name,
-        "Middle Name": b.middle_name || "",
-        "Birthdate": b.birthdate,
-        "Gender": b.gender,
-        "Barangay": b.barangay,
-        "Municipality": b.municipality,
-        "Province": b.province,
-        "Region": b.region || "",
-        "Contact": b.contact || "",
-        "Redeemed": b.redemption_stats?.redeemed || 0,
-        "Unredeemed": b.redemption_stats?.unredeemed || 0,
-        "Present (NES)": b.nes_stats?.present || 0,
-        "Absent (NES)": b.nes_stats?.absent || 0,
-        "is4ps": b.is4ps || "No",
-        "HH 0-18 yrs": b.num_hh_0_18 || 0,
-        "HH Pregnant": b.num_hh_pregnant || 0,
-        "HH Lactating": b.num_hh_lactating || 0,
-        "HH PWD Count": b.num_hh_pwd || 0,
-        "HH PWD Types": (b.pwd_types || []).map(t => `${t.type} (${t.count})`).join(", "),
-        "HH 60+ yrs": b.num_hh_60_above || 0,
-        "HH Solo Parent": b.num_hh_solo_parent || 0
-      }));
+      toast.loading("Generating Excel file...", { id: toastId });
 
       // Create workbook and worksheet
       const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -802,30 +777,41 @@ const BeneficiariesPage = () => {
 
       // Set column widths for better readability
       const wscols = [
-        { wch: 15 }, // HHID
+        { wch: 20 }, // HHID
         { wch: 15 }, // PKNO
-        { wch: 15 }, // First Name
         { wch: 15 }, // Last Name
-        { wch: 15 }, // Middle Name
+        { wch: 15 }, // First Name
+        { wch: 10 }, // Middle Name
+        { wch: 30 }, // Full Name
         { wch: 12 }, // Birthdate
-        { wch: 10 }, // Gender
-        { wch: 15 }, // Barangay
-        { wch: 15 }, // Municipality
-        { wch: 15 }, // Province
-        { wch: 15 }, // Region
-        { wch: 15 }, // Contact
-        { wch: 12 }, // Redeemed
-        { wch: 12 }, // Unredeemed
-        { wch: 12 }, // Present (NES)
-        { wch: 12 }, // Absent (NES)
-        { wch: 10 }, // is4ps
-        { wch: 12 }, // HH 0-18 yrs
-        { wch: 12 }, // HH Pregnant
-        { wch: 12 }, // HH Lactating
-        { wch: 12 }, // HH PWD Count
-        { wch: 25 }, // HH PWD Types
-        { wch: 12 }, // HH 60+ yrs
-        { wch: 12 }, // HH Solo Parent
+        { wch: 8 },  // Gender
+        { wch: 20 }, // Address
+        { wch: 12 }, // Contact
+        { wch: 8 },  // Is 4Ps
+        { wch: 20 }, // Region
+        { wch: 15 }, // Region PSGC
+        { wch: 20 }, // Province
+        { wch: 15 }, // Province PSGC
+        { wch: 20 }, // Municipality
+        { wch: 15 }, // Municipality PSGC
+        { wch: 20 }, // Barangay
+        { wch: 15 }, // Barangay PSGC
+        { wch: 10 }, // Status
+        { wch: 15 }, // 0-18
+        { wch: 15 }, // Pregnant
+        { wch: 15 }, // Lactating
+        { wch: 10 }, // PWD
+        { wch: 30 }, // PWD Types
+        { wch: 10 }, // 60+
+        { wch: 10 }, // Solo Parent
+        { wch: 15 }, // FRM Period
+        { wch: 15 }, // Redemption Status
+        { wch: 15 }, // Redemption Rate
+        { wch: 15 }, // NES Attendance
+        { wch: 15 }, // NES Rate
+        { wch: 20 }, // Remarks
+        { wch: 20 }, // Reason
+        { wch: 15 }, // Date Recorded
       ];
       worksheet['!cols'] = wscols;
 
@@ -833,9 +819,10 @@ const BeneficiariesPage = () => {
       XLSX.writeFile(workbook, `beneficiaries_${new Date().toISOString().split('T')[0]}.xlsx`);
 
       toast.dismiss(toastId);
-      toast.success(`Exported ${allBeneficiaries.length} records to Excel`);
+      toast.success(`Exported ${exportData.length} records to Excel`);
     } catch (error) {
       console.error("Export error:", error);
+      toast.dismiss();
       toast.error("Failed to export data");
     }
   };
