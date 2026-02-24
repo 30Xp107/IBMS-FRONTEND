@@ -353,7 +353,7 @@ const TravelOrdersPage = () => {
                       onValueChange={(val) => setFormData(prev => ({ ...prev, destination: { region: val, province: "", municipality: "" } }))}
                       value={formData.destination.region}
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full [&>span]:truncate overflow-hidden">
                         <SelectValue placeholder="Select Region" />
                       </SelectTrigger>
                       <SelectContent>
@@ -370,7 +370,7 @@ const TravelOrdersPage = () => {
                       value={formData.destination.province}
                       disabled={!formData.destination.region}
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full [&>span]:truncate overflow-hidden">
                         <SelectValue placeholder="Select Province" />
                       </SelectTrigger>
                       <SelectContent>
@@ -387,7 +387,7 @@ const TravelOrdersPage = () => {
                       value={formData.destination.municipality}
                       disabled={!formData.destination.province}
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full [&>span]:truncate overflow-hidden">
                         <SelectValue placeholder="Select Municipality" />
                       </SelectTrigger>
                       <SelectContent>

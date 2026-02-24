@@ -1608,6 +1608,14 @@ const BeneficiariesPage = () => {
                         </div>
                       </TableHead>
                       <TableHead
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden lg:table-cell"
+                        onClick={() => handleSort("contact")}
+                      >
+                        <div className="flex items-center justify-center">
+                          Contact {getSortIcon("contact")}
+                        </div>
+                      </TableHead>
+                      <TableHead
                         className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden xl:table-cell"
                         onClick={() => handleSort("barangay")}
                       >
@@ -1625,32 +1633,18 @@ const BeneficiariesPage = () => {
                       </TableHead>
                       <TableHead
                         className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden 2xl:table-cell"
-                        onClick={() => handleSort("region")}
-                      >
-                        <div className="flex items-center justify-center">
-                          Region {getSortIcon("region")}
-                        </div>
-                      </TableHead>
-                      <TableHead
-                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden 2xl:table-cell"
                         onClick={() => handleSort("province")}
                       >
                         <div className="flex items-center justify-center">
                           Province {getSortIcon("province")}
                         </div>
                       </TableHead>
-                      <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center hidden 2xl:table-cell">Contact</TableHead>
-                      <TableHead className="font-semibold text-emerald-600 dark:text-emerald-400 text-center hidden lg:table-cell">Redeemed</TableHead>
-                      <TableHead className="font-semibold text-amber-600 dark:text-amber-400 text-center hidden lg:table-cell">Unredeemed</TableHead>
-                      <TableHead className="font-semibold text-emerald-600 dark:text-emerald-400 text-center hidden xl:table-cell">Present (NES)</TableHead>
-                      <TableHead className="font-semibold text-amber-600 dark:text-amber-400 text-center hidden xl:table-cell">Absent (NES)</TableHead>
-                      <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center hidden md:table-cell">Is 4Ps</TableHead>
                       <TableHead
-                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden sm:table-cell"
-                        onClick={() => handleSort("status")}
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden 2xl:table-cell"
+                        onClick={() => handleSort("region")}
                       >
                         <div className="flex items-center justify-center">
-                          Status {getSortIcon("status")}
+                          Region {getSortIcon("region")}
                         </div>
                       </TableHead>
                       <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center">Actions</TableHead>
@@ -1680,57 +1674,11 @@ const BeneficiariesPage = () => {
                         <TableCell className="dark:text-slate-300 text-center hidden lg:table-cell">
                           {b.birthdate ? (b.birthdate.includes('T') ? b.birthdate.split('T')[0] : b.birthdate) : "-"}
                         </TableCell>
+                        <TableCell className="dark:text-slate-300 text-center hidden lg:table-cell">{b.contact || "-"}</TableCell>
                         <TableCell className="dark:text-slate-300 text-center hidden xl:table-cell">{b.barangay}</TableCell>
                         <TableCell className="dark:text-slate-300 text-center hidden xl:table-cell">{b.municipality}</TableCell>
-                        <TableCell className="dark:text-slate-300 text-center hidden 2xl:table-cell">{b.region}</TableCell>
                         <TableCell className="dark:text-slate-300 text-center hidden 2xl:table-cell">{b.province}</TableCell>
-                        <TableCell className="dark:text-slate-300 text-center hidden 2xl:table-cell">{b.contact || "-"}</TableCell>
-                        <TableCell className="text-center hidden lg:table-cell">
-                          <span className={`font-bold ${b.redemption_stats?.redeemed > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-300 dark:text-slate-700'}`}>
-                            {b.redemption_stats?.redeemed || 0}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-center hidden lg:table-cell">
-                          <span className={`font-bold ${b.redemption_stats?.unredeemed > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-300 dark:text-slate-700'}`}>
-                            {b.redemption_stats?.unredeemed || 0}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-center hidden xl:table-cell">
-                          <span className={`font-bold ${b.nes_stats?.present > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-300 dark:text-slate-700'}`}>
-                            {b.nes_stats?.present || 0}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-center hidden xl:table-cell">
-                          <span className={`font-bold ${b.nes_stats?.absent > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-300 dark:text-slate-700'}`}>
-                            {b.nes_stats?.absent || 0}
-                          </span>
-                        </TableCell>
-                        <TableCell className="dark:text-slate-300 text-center hidden md:table-cell">
-                          <div className="flex justify-center">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${b.is4ps === "Yes"
-                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                                : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400"
-                              }`}>
-                              {b.is4ps || "No"}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="dark:text-slate-300 text-center hidden sm:table-cell">
-                          <div className="flex justify-center">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${b.status === "Active"
-                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                                : b.status === "Pending"
-                                  ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                                  : b.status === "Incomplete"
-                                    ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
-                                    : b.status === "Not for Recording"
-                                      ? "bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-400"
-                                      : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                              }`}>
-                              {b.status || "Active"}
-                            </span>
-                          </div>
-                        </TableCell>
+                        <TableCell className="dark:text-slate-300 text-center hidden 2xl:table-cell">{b.region}</TableCell>
                         <TableCell className="text-center">
                           <div className="flex justify-center gap-2">
                             <Button
