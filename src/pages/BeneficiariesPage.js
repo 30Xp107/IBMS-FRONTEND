@@ -760,7 +760,23 @@ const BeneficiariesPage = () => {
 
       // Call the dedicated export endpoint
       const response = await api.get(`/beneficiaries/export${query}`);
-      const exportData = response.data.data || [];
+      const raw = response.data.data || [];
+      // Align export to table format and include PSGC codes
+      const exportData = raw.map((d) => ({
+        "HHID": d["HHID"],
+        "PKNO": d["PKNO"],
+        "NAME": d["Name"],
+        "BIRTHDATE": d["Birthdate"],
+        "CONTACT": d["Contact"] || "",
+        "BARANGAY": d["Barangay"],
+        "BARANGAY PSGC": d["Barangay PSGC"] || "",
+        "MUNICIPALITY": d["Municipality"],
+        "MUNICIPALITY PSGC": d["Municipality PSGC"] || "",
+        "PROVINCE": d["Province"],
+        "PROVINCE PSGC": d["Province PSGC"] || "",
+        "REGION": d["Region"],
+        "REGION PSGC": d["Region PSGC"] || "",
+      }));
 
       if (exportData.length === 0) {
         toast.dismiss(toastId);
@@ -778,40 +794,18 @@ const BeneficiariesPage = () => {
       // Set column widths for better readability
       const wscols = [
         { wch: 20 }, // HHID
-        { wch: 15 }, // PKNO
-        { wch: 15 }, // Last Name
-        { wch: 15 }, // First Name
-        { wch: 10 }, // Middle Name
-        { wch: 30 }, // Full Name
-        { wch: 12 }, // Birthdate
-        { wch: 8 },  // Gender
-        { wch: 20 }, // Address
-        { wch: 12 }, // Contact
-        { wch: 8 },  // Is 4Ps
-        { wch: 20 }, // Region
-        { wch: 15 }, // Region PSGC
-        { wch: 20 }, // Province
-        { wch: 15 }, // Province PSGC
-        { wch: 20 }, // Municipality
-        { wch: 15 }, // Municipality PSGC
-        { wch: 20 }, // Barangay
-        { wch: 15 }, // Barangay PSGC
-        { wch: 10 }, // Status
-        { wch: 15 }, // 0-18
-        { wch: 15 }, // Pregnant
-        { wch: 15 }, // Lactating
-        { wch: 10 }, // PWD
-        { wch: 30 }, // PWD Types
-        { wch: 10 }, // 60+
-        { wch: 10 }, // Solo Parent
-        { wch: 15 }, // FRM Period
-        { wch: 15 }, // Redemption Status
-        { wch: 15 }, // Redemption Rate
-        { wch: 15 }, // NES Attendance
-        { wch: 15 }, // NES Rate
-        { wch: 20 }, // Remarks
-        { wch: 20 }, // Reason
-        { wch: 15 }, // Date Recorded
+        { wch: 20 }, // PKNO
+        { wch: 30 }, // NAME
+        { wch: 15 }, // BIRTHDATE
+        { wch: 15 }, // CONTACT
+        { wch: 20 }, // BARANGAY
+        { wch: 15 }, // BARANGAY PSGC
+        { wch: 20 }, // MUNICIPALITY
+        { wch: 15 }, // MUNICIPALITY PSGC
+        { wch: 20 }, // PROVINCE
+        { wch: 15 }, // PROVINCE PSGC
+        { wch: 20 }, // REGION
+        { wch: 15 }, // REGION PSGC
       ];
       worksheet['!cols'] = wscols;
 
@@ -1634,6 +1628,14 @@ const BeneficiariesPage = () => {
                           Region {getSortIcon("region")}
                         </div>
                       </TableHead>
+                      <TableHead
+                        className="font-semibold text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-center hidden lg:table-cell"
+                        onClick={() => handleSort("status")}
+                      >
+                        <div className="flex items-center justify-center">
+                          Status {getSortIcon("status")}
+                        </div>
+                      </TableHead>
                       <TableHead className="font-semibold text-slate-600 dark:text-slate-300 text-center">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1666,6 +1668,16 @@ const BeneficiariesPage = () => {
                         <TableCell className="dark:text-slate-300 text-center hidden xl:table-cell">{b.municipality}</TableCell>
                         <TableCell className="dark:text-slate-300 text-center hidden 2xl:table-cell">{b.province}</TableCell>
                         <TableCell className="dark:text-slate-300 text-center hidden 2xl:table-cell">{b.region}</TableCell>
+                        <TableCell className="text-center hidden lg:table-cell">
+                          <Badge className={`${b.status === 'Inactive' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' :
+                              b.status === 'Incomplete' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                                b.status === 'Pending' ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400' :
+                                  b.status === 'Not for Recording' ? 'bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:text-slate-400' :
+                                    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                            }`}>
+                            {b.status || "Active"}
+                          </Badge>
+                        </TableCell>
                         <TableCell className="text-center">
                           <div className="flex justify-center gap-2">
                             <Button
