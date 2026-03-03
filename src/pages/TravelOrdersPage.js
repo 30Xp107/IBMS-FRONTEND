@@ -307,7 +307,7 @@ const TravelOrdersPage = () => {
                           {formData.date_from ? format(formData.date_from, "PPP") : <span>Pick a date</span>}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
+                      <PopoverContent className="w-auto p-0 max-w-[95vw] max-h-[80vh] overflow-auto" align="start">
                         <Calendar
                           mode="single"
                           selected={formData.date_from}
@@ -332,7 +332,7 @@ const TravelOrdersPage = () => {
                           {formData.date_to ? format(formData.date_to, "PPP") : <span>Pick a date</span>}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
+                      <PopoverContent className="w-auto p-0 max-w-[95vw] max-h-[80vh] overflow-auto" align="start">
                         <Calendar
                           mode="single"
                           selected={formData.date_to}

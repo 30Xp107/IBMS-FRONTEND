@@ -921,7 +921,7 @@ const CalendarPage = () => {
 
   return (
     <TooltipProvider>
-      <div className="h-[calc(100vh-1rem)] sm:h-[calc(100vh-2rem)] flex bg-white dark:bg-slate-950 rounded-xl sm:rounded-3xl overflow-hidden shadow-2xl border dark:border-slate-800">
+      <div className="h-[100svh] sm:h-[calc(100vh-2rem)] flex bg-white dark:bg-slate-950 rounded-xl sm:rounded-3xl overflow-hidden shadow-2xl border dark:border-slate-800 max-w-full overflow-x-hidden">
         {renderSidebar()}
         
         <div className="flex-1 flex flex-col min-w-0">
